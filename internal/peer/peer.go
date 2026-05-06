@@ -221,6 +221,12 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 
 	resumeFromCh := make(chan uint64, 1)
 
+	// transferOKReceived is set when TagTransferOK arrives.
+	// OnClose checks this so it does not signal cancellation after a
+	// clean transfer — the receiver closes the connection immediately
+	// after sending TransferOK, which would otherwise race with OnClose.
+	var transferOKReceived bool
+
 	dcReady := make(chan struct{})
 	dc.OnOpen(func() { close(dcReady) })
 	dc.OnMessage(func(m webrtc.DataChannelMessage) {
@@ -240,6 +246,7 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 				}
 			}
 		case transfer.TagTransferOK:
+			transferOKReceived = true
 			select {
 			case okCh <- struct{}{}:
 			default:
@@ -252,8 +259,12 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 	})
 	// Watchdog: if the data channel closes for any reason while sending,
 	// signal cancellation so the sender loop doesn't hang.
+	// Do NOT signal if TransferOK already arrived — the receiver
+	// legitimately closes the connection right after sending it.
 	dc.OnClose(func() {
-		signalRemoteCancel()
+		if !transferOKReceived {
+			signalRemoteCancel()
+		}
 	})
 
 	trickleICE(sig, pc)
