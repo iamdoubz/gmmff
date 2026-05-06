@@ -200,6 +200,8 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 		return fmt.Errorf("peer: create data channel: %w", err)
 	}
 
+	resumeFromCh := make(chan uint64, 1)
+
 	dcReady := make(chan struct{})
 	dc.OnOpen(func() { close(dcReady) })
 	dc.OnMessage(func(m webrtc.DataChannelMessage) {
@@ -210,6 +212,13 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 		case transfer.TagChunkAck:
 			if seq, err := transfer.ParseAckFrame(m.Data); err == nil {
 				ackCh <- seq
+			}
+		case transfer.TagResumeFrom:
+			if seq, err := transfer.ParseResumeFrame(m.Data); err == nil {
+				select {
+				case resumeFromCh <- seq:
+				default:
+				}
 			}
 		case transfer.TagTransferOK:
 			select {
@@ -258,7 +267,7 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 	}
 	fmt.Println("Direct connection established — sending file")
 
-	sender := transfer.NewSender(dc, filePath, ackCh, cfg.windowSize(), cfg.chunkSize())
+	sender := transfer.NewSender(dc, filePath, ackCh, resumeFromCh, cfg.windowSize(), cfg.chunkSize())
 	if err := sender.Run(); err != nil {
 		return fmt.Errorf("peer: transfer: %w", err)
 	}
@@ -313,9 +322,14 @@ func Receive(ctx context.Context, sig *signaling.Client, code, outDir string, cf
 	transferDone := make(chan error, 1)
 
 	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
-		rs := transfer.NewReceiveState(outDir, func(seq uint64) error {
-			return dc.Send(transfer.BuildAckFrame(seq))
-		})
+		rs := transfer.NewReceiveState(outDir,
+			func(seq uint64) error {
+				return dc.Send(transfer.BuildAckFrame(seq))
+			},
+			func(seq uint64) error {
+				return dc.Send(transfer.BuildResumeFrame(seq))
+			},
+		)
 		dc.OnMessage(func(m webrtc.DataChannelMessage) {
 			done, err := rs.Feed(m.Data)
 			if err != nil {
