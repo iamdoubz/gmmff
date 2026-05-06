@@ -1,0 +1,52 @@
+{
+  "_comment": "gmmff default theme. All values are valid CSS. Override any key in a custom theme file.",
+
+  "font_family": "'Inter', system-ui, -apple-system, sans-serif",
+  "font_size_base": "16px",
+  "font_size_sm": "0.875rem",
+  "font_size_lg": "1.125rem",
+  "font_size_xl": "1.5rem",
+  "font_weight_normal": "400",
+  "font_weight_medium": "500",
+  "font_weight_bold": "600",
+  "line_height": "1.5",
+
+  "color_bg": "#0f0f0f",
+  "color_surface": "#1a1a1a",
+  "color_surface_raised": "#242424",
+  "color_border": "#2e2e2e",
+  "color_border_focus": "#4a9eff",
+
+  "color_text": "#e8e8e8",
+  "color_text_muted": "#888888",
+  "color_text_inverse": "#0f0f0f",
+
+  "color_accent": "#4a9eff",
+  "color_accent_hover": "#6aafff",
+  "color_accent_active": "#2a7edf",
+
+  "color_success": "#3ecf8e",
+  "color_warning": "#f5a623",
+  "color_error": "#ff5c5c",
+
+  "color_progress_track": "#2e2e2e",
+  "color_progress_fill": "#4a9eff",
+
+  "radius_sm": "6px",
+  "radius_md": "10px",
+  "radius_lg": "16px",
+  "radius_pill": "9999px",
+
+  "spacing_xs": "4px",
+  "spacing_sm": "8px",
+  "spacing_md": "16px",
+  "spacing_lg": "24px",
+  "spacing_xl": "40px",
+
+  "shadow_card": "0 1px 3px rgba(0,0,0,0.4)",
+  "shadow_focus": "0 0 0 3px rgba(74,158,255,0.35)",
+
+  "transition": "150ms ease",
+
+  "max_width": "480px"
+}

@@ -335,6 +335,176 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SendBytes — initiator path for in-memory data (browser Wasm)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// SendBytes is identical to Send but transfers from an in-memory buffer
+// instead of a file path.  Used by the browser Wasm client where the
+// filesystem is unavailable.
+func SendBytes(ctx context.Context, sig *signaling.Client, code, fileName string, data []byte, cfg Config) error {
+	disp := newDispatcher()
+	go disp.run(ctx, sig.Recv())
+
+	// PAKE — identical to Send
+	fmt.Println("Performing cryptographic handshake...")
+	ci := cpace.NewContextInfo("gmmff-initiator", "gmmff-responder", nil)
+	msgA, state, err := cpace.Start(code, ci)
+	if err != nil {
+		return fmt.Errorf("peer: PAKE start: %w", err)
+	}
+	if err := sig.SendOpaque(protocol.MsgPakeA, msgA); err != nil {
+		return fmt.Errorf("peer: send pake.a: %w", err)
+	}
+	msg, err := disp.waitFor(ctx, disp.pakeB)
+	if err != nil {
+		return fmt.Errorf("peer: wait pake.b: %w", err)
+	}
+	msgB, err := signaling.DecodeOpaque(msg)
+	if err != nil {
+		return fmt.Errorf("peer: decode pake.b: %w", err)
+	}
+	sharedKey, err := state.Finish(msgB)
+	if err != nil {
+		return fmt.Errorf("peer: PAKE finish: %w — wrong code or tampered connection", err)
+	}
+	session, err := pake.NewSession(sharedKey)
+	if err != nil {
+		return fmt.Errorf("peer: derive session keys: %w", err)
+	}
+	fmt.Println("Handshake complete — connection authenticated")
+
+	// WebRTC — identical to Send
+	pc, err := newPeerConnection(cfg)
+	if err != nil {
+		return err
+	}
+	defer pc.Close()
+
+	ackCh := make(chan uint64, 32)
+	okCh := make(chan struct{}, 1)
+	remoteCancelCh := make(chan struct{})
+	remoteCancelOnce := make(chan struct{}, 1)
+	signalRemoteCancel := func() {
+		select {
+		case remoteCancelOnce <- struct{}{}:
+			close(remoteCancelCh)
+		default:
+		}
+	}
+	var transferOKReceived bool
+	resumeFromCh := make(chan uint64, 1)
+
+	ordered := true
+	dc, err := pc.CreateDataChannel("gmmff", &webrtc.DataChannelInit{Ordered: &ordered})
+	if err != nil {
+		return fmt.Errorf("peer: create data channel: %w", err)
+	}
+
+	dcReady := make(chan struct{})
+	dc.OnOpen(func() { close(dcReady) })
+	dc.OnMessage(func(m webrtc.DataChannelMessage) {
+		if len(m.Data) == 0 {
+			return
+		}
+		switch m.Data[0] {
+		case transfer.TagChunkAck:
+			if seq, err := transfer.ParseAckFrame(m.Data); err == nil {
+				ackCh <- seq
+			}
+		case transfer.TagResumeFrom:
+			if seq, err := transfer.ParseResumeFrame(m.Data); err == nil {
+				select {
+				case resumeFromCh <- seq:
+				default:
+				}
+			}
+		case transfer.TagTransferOK:
+			transferOKReceived = true
+			select {
+			case okCh <- struct{}{}:
+			default:
+			}
+		case transfer.TagCancelled:
+			fmt.Println()
+			fmt.Println("Transfer cancelled by receiver.")
+			signalRemoteCancel()
+		}
+	})
+	dc.OnClose(func() {
+		if !transferOKReceived {
+			signalRemoteCancel()
+		}
+	})
+
+	trickleICE(sig, pc)
+	go disp.pumpICE(ctx, pc)
+
+	offer, err := pc.CreateOffer(nil)
+	if err != nil {
+		return fmt.Errorf("peer: create offer: %w", err)
+	}
+	if err := pc.SetLocalDescription(offer); err != nil {
+		return fmt.Errorf("peer: set local description: %w", err)
+	}
+	sdpJSON, _ := json.Marshal(offer)
+	offerMAC := session.SignOffer(sdpJSON)
+	if err := sig.SendSignedSDP(protocol.MsgSDPOffer, sdpJSON, offerMAC); err != nil {
+		return fmt.Errorf("peer: send sdp.offer: %w", err)
+	}
+
+	answerMsg, err := disp.waitFor(ctx, disp.answer)
+	if err != nil {
+		return fmt.Errorf("peer: wait sdp.answer: %w", err)
+	}
+	answerJSON, answerMAC, err := signaling.DecodeSignedSDP(answerMsg)
+	if err != nil {
+		return fmt.Errorf("peer: decode sdp.answer: %w", err)
+	}
+	if err := session.VerifyAnswer(answerJSON, answerMAC); err != nil {
+		return fmt.Errorf("peer: %w", err)
+	}
+	var answer webrtc.SessionDescription
+	if err := json.Unmarshal(answerJSON, &answer); err != nil {
+		return fmt.Errorf("peer: unmarshal answer: %w", err)
+	}
+	if err := pc.SetRemoteDescription(answer); err != nil {
+		return fmt.Errorf("peer: set remote description: %w", err)
+	}
+
+	fmt.Println("Establishing direct connection...")
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-dcReady:
+	}
+	fmt.Println("Direct connection established — sending file")
+
+	// Use RunFromBytes instead of Run — no filesystem needed.
+	sender := transfer.NewSender(ctx, remoteCancelCh, dc, "", ackCh, resumeFromCh, cfg.windowSize(), cfg.chunkSize())
+	if err := sender.RunFromBytes(fileName, data); err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+		if errors.Is(err, transfer.ErrCancelled) {
+			return nil
+		}
+		return fmt.Errorf("peer: transfer: %w", err)
+	}
+
+	select {
+	case <-ctx.Done():
+		_ = dc.Send(transfer.BuildCancelledFrame())
+		fmt.Println("Transfer cancelled.")
+		return nil
+	case <-okCh:
+		fmt.Println("Transfer complete — file received and verified by peer")
+	}
+
+	sig.Close()
+	return nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Receive — responder path
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -473,6 +643,149 @@ func Receive(ctx context.Context, sig *signaling.Client, code, outDir string, cf
 	case err := <-transferDone:
 		sig.Close()
 		return err
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ReceiveToBytes — responder path for browser Wasm (no filesystem)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ReceiveToBytes performs the full responder flow and returns the received
+// file as (fileName, data).  Used by the browser Wasm client where the
+// filesystem is unavailable.  Resume is not supported.
+func ReceiveToBytes(ctx context.Context, sig *signaling.Client, code string, cfg Config) (fileName string, data []byte, err error) {
+	disp := newDispatcher()
+	go disp.run(ctx, sig.Recv())
+
+	// PAKE
+	fmt.Println("Performing cryptographic handshake...")
+	ci := cpace.NewContextInfo("gmmff-initiator", "gmmff-responder", nil)
+	msgAEnv, err := disp.waitFor(ctx, disp.pakeA)
+	if err != nil {
+		return "", nil, fmt.Errorf("peer: wait pake.a: %w", err)
+	}
+	msgA, err := signaling.DecodeOpaque(msgAEnv)
+	if err != nil {
+		return "", nil, fmt.Errorf("peer: decode pake.a: %w", err)
+	}
+	msgB, sharedKey, err := cpace.Exchange(code, ci, msgA)
+	if err != nil {
+		return "", nil, fmt.Errorf("peer: PAKE exchange: %w", err)
+	}
+	if err := sig.SendOpaque(protocol.MsgPakeB, msgB); err != nil {
+		return "", nil, fmt.Errorf("peer: send pake.b: %w", err)
+	}
+	session, err := pake.NewSession(sharedKey)
+	if err != nil {
+		return "", nil, fmt.Errorf("peer: derive session keys: %w", err)
+	}
+	fmt.Println("Handshake complete — connection authenticated")
+
+	// WebRTC
+	pc, err := newPeerConnection(cfg)
+	if err != nil {
+		return "", nil, err
+	}
+	defer pc.Close()
+
+	type result struct {
+		name string
+		data []byte
+		err  error
+	}
+	transferDone := make(chan result, 1)
+	cancelDC     := make(chan *webrtc.DataChannel, 1)
+
+	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
+		select {
+		case cancelDC <- dc:
+		default:
+		}
+		rs := transfer.NewReceiveStateMem(func(seq uint64) error {
+			return dc.Send(transfer.BuildAckFrame(seq))
+		})
+		dc.OnMessage(func(m webrtc.DataChannelMessage) {
+			done, err := rs.Feed(m.Data)
+			if err != nil {
+				if errors.Is(err, transfer.ErrCancelled) {
+					fmt.Println("Transfer cancelled by sender.")
+					select {
+					case transferDone <- result{err: nil}:
+					default:
+					}
+					return
+				}
+				_ = dc.Send(transfer.BuildErrorFrame("ERR_RECEIVE", err.Error()))
+				select {
+				case transferDone <- result{err: err}:
+				default:
+				}
+				return
+			}
+			if done {
+				_ = dc.Send([]byte{transfer.TagTransferOK})
+				select {
+				case transferDone <- result{name: rs.FileName(), data: rs.Result()}:
+				default:
+				}
+			}
+		})
+	})
+
+	trickleICE(sig, pc)
+	go disp.pumpICE(ctx, pc)
+
+	fmt.Println("Waiting for sender...")
+	offerMsg, err := disp.waitFor(ctx, disp.offer)
+	if err != nil {
+		return "", nil, fmt.Errorf("peer: wait sdp.offer: %w", err)
+	}
+	offerJSON, offerMAC, err := signaling.DecodeSignedSDP(offerMsg)
+	if err != nil {
+		return "", nil, fmt.Errorf("peer: decode sdp.offer: %w", err)
+	}
+	if err := session.VerifyOffer(offerJSON, offerMAC); err != nil {
+		return "", nil, fmt.Errorf("peer: %w", err)
+	}
+	var offer webrtc.SessionDescription
+	if err := json.Unmarshal(offerJSON, &offer); err != nil {
+		return "", nil, fmt.Errorf("peer: unmarshal offer: %w", err)
+	}
+	if err := pc.SetRemoteDescription(offer); err != nil {
+		return "", nil, fmt.Errorf("peer: set remote description: %w", err)
+	}
+
+	answer, err := pc.CreateAnswer(nil)
+	if err != nil {
+		return "", nil, fmt.Errorf("peer: create answer: %w", err)
+	}
+	if err := pc.SetLocalDescription(answer); err != nil {
+		return "", nil, fmt.Errorf("peer: set local description: %w", err)
+	}
+	answerJSON, _ := json.Marshal(answer)
+	answerMAC := session.SignAnswer(answerJSON)
+	if err := sig.SendSignedSDP(protocol.MsgSDPAnswer, answerJSON, answerMAC); err != nil {
+		return "", nil, fmt.Errorf("peer: send sdp.answer: %w", err)
+	}
+
+	fmt.Println("Direct connection established — receiving file")
+
+	select {
+	case <-ctx.Done():
+		select {
+		case dc := <-cancelDC:
+			_ = dc.Send(transfer.BuildCancelledFrame())
+		default:
+		}
+		fmt.Println("Transfer cancelled.")
+		sig.Close()
+		return "", nil, nil
+	case res := <-transferDone:
+		sig.Close()
+		if res.err != nil {
+			return "", nil, res.err
+		}
+		return res.name, res.data, nil
 	}
 }
 
