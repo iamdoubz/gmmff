@@ -124,13 +124,14 @@ type DataChannelWriter interface {
 
 // Sender manages sending a single file over a data channel.
 type Sender struct {
-	dc         DataChannelWriter
-	path       string
-	ctx        context.Context
-	recvAck    <-chan uint64
-	resumeFrom <-chan uint64 // receives the resume seq from the receiver (buffered, len 1)
-	windowSize int
-	chunkSize  int
+	dc           DataChannelWriter
+	path         string
+	ctx          context.Context
+	remoteCancel <-chan struct{} // closed when the remote peer cancels
+	recvAck      <-chan uint64
+	resumeFrom   <-chan uint64 // receives the resume seq from the receiver (buffered, len 1)
+	windowSize   int
+	chunkSize    int
 }
 
 // NewSender creates a Sender.
@@ -141,7 +142,7 @@ type Sender struct {
 //     partial file.  The channel should be buffered (capacity 1).
 //   - windowSize: max in-flight chunks.  Values < 1 clamped to 1.
 //   - chunkSize: bytes per chunk.  Clamped to [1, MaxChunkSize].
-func NewSender(ctx context.Context, dc DataChannelWriter, path string, recvAck <-chan uint64, resumeFrom <-chan uint64, windowSize, chunkSize int) *Sender {
+func NewSender(ctx context.Context, remoteCancel <-chan struct{}, dc DataChannelWriter, path string, recvAck <-chan uint64, resumeFrom <-chan uint64, windowSize, chunkSize int) *Sender {
 	if windowSize < 1 {
 		windowSize = 1
 	}
@@ -152,13 +153,14 @@ func NewSender(ctx context.Context, dc DataChannelWriter, path string, recvAck <
 		chunkSize = MaxChunkSize
 	}
 	return &Sender{
-		dc:         dc,
-		ctx:        ctx,
-		path:       path,
-		recvAck:    recvAck,
-		resumeFrom: resumeFrom,
-		windowSize: windowSize,
-		chunkSize:  chunkSize,
+		dc:           dc,
+		ctx:          ctx,
+		remoteCancel: remoteCancel,
+		path:         path,
+		recvAck:      recvAck,
+		resumeFrom:   resumeFrom,
+		windowSize:   windowSize,
+		chunkSize:    chunkSize,
 	}
 }
 
@@ -255,9 +257,11 @@ func (s *Sender) Run() error {
 				fmt.Println()
 				fmt.Println("Transfer cancelled.")
 				return s.ctx.Err()
+			case <-s.remoteCancel:
+				fmt.Println()
+				return ErrCancelled
 			case ackSeq, ok := <-s.recvAck:
 				if !ok {
-					// ackCh was closed by the peer handler — receiver cancelled.
 					return ErrCancelled
 				}
 				if ackSeq != base {
@@ -274,6 +278,9 @@ func (s *Sender) Run() error {
 				fmt.Println()
 				fmt.Println("Transfer cancelled.")
 				return s.ctx.Err()
+			case <-s.remoteCancel:
+				fmt.Println()
+				return ErrCancelled
 			default:
 			}
 			n, readErr := f.Read(buf)

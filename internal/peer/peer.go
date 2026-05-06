@@ -194,6 +194,18 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 
 	ackCh := make(chan uint64, 32)
 	okCh := make(chan struct{}, 1)
+	// remoteCancelCh is closed when the receiver cancels — either via a
+	// TagCancelled data channel frame or when the data channel closes.
+	// Closing it unblocks the sender loop regardless of network state.
+	remoteCancelCh := make(chan struct{})
+	remoteCancelOnce := make(chan struct{}, 1) // guards close(remoteCancelCh)
+	signalRemoteCancel := func() {
+		select {
+		case remoteCancelOnce <- struct{}{}:
+			close(remoteCancelCh)
+		default:
+		}
+	}
 
 	ordered := true
 	dc, err := pc.CreateDataChannel("gmmff", &webrtc.DataChannelInit{Ordered: &ordered})
@@ -229,9 +241,13 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 		case transfer.TagCancelled:
 			fmt.Println()
 			fmt.Println("Transfer cancelled by receiver.")
-			// Close ackCh so the sender loop unblocks and returns.
-			close(ackCh)
+			signalRemoteCancel()
 		}
+	})
+	// Watchdog: if the data channel closes for any reason while sending,
+	// signal cancellation so the sender loop doesn't hang.
+	dc.OnClose(func() {
+		signalRemoteCancel()
 	})
 
 	trickleICE(sig, pc)
@@ -273,7 +289,7 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 	}
 	fmt.Println("Direct connection established — sending file")
 
-	sender := transfer.NewSender(ctx, dc, filePath, ackCh, resumeFromCh, cfg.windowSize(), cfg.chunkSize())
+	sender := transfer.NewSender(ctx, remoteCancelCh, dc, filePath, ackCh, resumeFromCh, cfg.windowSize(), cfg.chunkSize())
 	if err := sender.Run(); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil // message already printed by sender loop
