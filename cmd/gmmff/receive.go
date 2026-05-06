@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -67,5 +68,11 @@ func runReceive(_ *cobra.Command, args []string) error {
 	// ── Run the full receive flow ─────────────────────────────────────────────
 	cfg := peer.Config{STUNServer: receiveCfg.stunServer}
 	outDir := peer.DefaultOutDir(receiveCfg.outDir)
-	return peer.Receive(ctx, sig, code, outDir, cfg)
+	if err := peer.Receive(ctx, sig, code, outDir, cfg); err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -93,5 +94,11 @@ func runSend(_ *cobra.Command, args []string) error {
 
 	// ── Run the full send flow ───────────────────────────────────────────────
 	cfg := peer.Config{STUNServer: sendCfg.stunServer, WindowSize: sendCfg.window, ChunkSize: sendCfg.chunkSize}
-	return peer.Send(ctx, sig, created.Code, filePath, cfg)
+	if err := peer.Send(ctx, sig, created.Code, filePath, cfg); err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }

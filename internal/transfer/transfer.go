@@ -26,6 +26,7 @@
 package transfer
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
@@ -68,7 +69,13 @@ const (
 	TagTransferOK    byte = 0x05
 	TagTransferError byte = 0x06
 	TagResumeFrom    byte = 0x07
+	TagCancelled     byte = 0x08 // sender or receiver intentionally stopped
 )
+
+// ErrCancelled is returned when the remote peer intentionally cancelled the
+// transfer.  Callers should check for this with errors.Is to print a clean
+// cancellation message instead of treating it as a failure.
+var ErrCancelled = fmt.Errorf("transfer cancelled by remote peer")
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Wire types
@@ -118,6 +125,7 @@ type DataChannelWriter interface {
 type Sender struct {
 	dc         DataChannelWriter
 	path       string
+	ctx        context.Context
 	recvAck    <-chan uint64
 	resumeFrom <-chan uint64 // receives the resume seq from the receiver (buffered, len 1)
 	windowSize int
@@ -125,14 +133,14 @@ type Sender struct {
 }
 
 // NewSender creates a Sender.
+//   - ctx: when cancelled, the sender sends TagCancelled to the receiver and
+//     returns ErrCancelled (via context.Canceled wrapping).
 //   - recvAck receives chunk sequence numbers as the receiver acknowledges them.
 //   - resumeFrom receives the resume sequence number if the receiver has a
-//     partial file.  The channel should be buffered (capacity 1).  The sender
-//     reads from it once after sending the FileHeader; if no value arrives
-//     before the first ack, the transfer starts from chunk 0.
+//     partial file.  The channel should be buffered (capacity 1).
 //   - windowSize: max in-flight chunks.  Values < 1 clamped to 1.
 //   - chunkSize: bytes per chunk.  Clamped to [1, MaxChunkSize].
-func NewSender(dc DataChannelWriter, path string, recvAck <-chan uint64, resumeFrom <-chan uint64, windowSize, chunkSize int) *Sender {
+func NewSender(ctx context.Context, dc DataChannelWriter, path string, recvAck <-chan uint64, resumeFrom <-chan uint64, windowSize, chunkSize int) *Sender {
 	if windowSize < 1 {
 		windowSize = 1
 	}
@@ -144,6 +152,7 @@ func NewSender(dc DataChannelWriter, path string, recvAck <-chan uint64, resumeF
 	}
 	return &Sender{
 		dc:         dc,
+		ctx:        ctx,
 		path:       path,
 		recvAck:    recvAck,
 		resumeFrom: resumeFrom,
@@ -232,16 +241,34 @@ func (s *Sender) Run() error {
 
 		switch {
 		case inFlight >= s.windowSize || (fileEOF && nextSeq > base):
-			ackSeq, ok := <-s.recvAck
-			if !ok {
-				return fmt.Errorf("transfer: ack channel closed unexpectedly")
+			// Need an ack before we can proceed — also watch for cancellation.
+			select {
+			case <-s.ctx.Done():
+				_ = s.sendTag(TagCancelled)
+				fmt.Println()
+				fmt.Println("Transfer cancelled.")
+				return s.ctx.Err()
+			case ackSeq, ok := <-s.recvAck:
+				if !ok {
+					// ackCh was closed by the peer handler — receiver cancelled.
+					return ErrCancelled
+				}
+				if ackSeq != base {
+					return fmt.Errorf("transfer: out-of-order ack: got %d want %d", ackSeq, base)
+				}
+				base++
 			}
-			if ackSeq != base {
-				return fmt.Errorf("transfer: out-of-order ack: got %d want %d", ackSeq, base)
-			}
-			base++
 
 		case !fileEOF && inFlight < s.windowSize:
+			// Check for cancellation before each read/send.
+			select {
+			case <-s.ctx.Done():
+				_ = s.sendTag(TagCancelled)
+				fmt.Println()
+				fmt.Println("Transfer cancelled.")
+				return s.ctx.Err()
+			default:
+			}
 			n, readErr := f.Read(buf)
 			if n > 0 {
 				if err := s.sendChunk(nextSeq, buf[:n]); err != nil {
@@ -337,6 +364,8 @@ func (rs *ReceiveState) Feed(frame []byte) (done bool, err error) {
 		var e ErrorMsg
 		_ = json.Unmarshal(frame[1:], &e)
 		return false, fmt.Errorf("sender error [%s]: %s", e.Code, e.Message)
+	case TagCancelled:
+		return false, ErrCancelled
 	default:
 		return false, nil
 	}
@@ -568,6 +597,11 @@ func ParseResumeFrame(frame []byte) (uint64, error) {
 		return 0, fmt.Errorf("transfer: invalid resume frame")
 	}
 	return binary.BigEndian.Uint64(frame[1:]), nil
+}
+
+// BuildCancelledFrame builds a TagCancelled frame.
+func BuildCancelledFrame() []byte {
+	return []byte{TagCancelled}
 }
 
 // BuildErrorFrame serialises a TransferError frame.
