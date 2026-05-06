@@ -471,7 +471,9 @@ func (rs *ReceiveState) handleChunk(data []byte) (bool, error) {
 	_ = rs.writeMeta(*rs.Header, rs.received, int64(seq)+1)
 
 	if err := rs.sendAck(seq); err != nil {
-		return false, fmt.Errorf("transfer: send ack %d: %w", seq, err)
+		// The sender closed the pipe — it cancelled before we could ack.
+		// Treat this the same as receiving a TagCancelled frame.
+		return false, ErrCancelled
 	}
 	return false, nil
 }
