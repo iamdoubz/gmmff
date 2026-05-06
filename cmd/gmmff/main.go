@@ -228,10 +228,15 @@ func envOr(key, fallback string) string {
 }
 
 // redactURL strips credentials from a Redis URL before logging.
+// Handles both tcp (redis://) and unix socket (unix://) URLs.
 func redactURL(raw string) string {
 	opts, err := redis.ParseURL(raw)
 	if err != nil {
 		return "<invalid url>"
+	}
+	// Unix socket connections have no Addr — use the Network path instead.
+	if opts.Network == "unix" {
+		return fmt.Sprintf("unix://%s", opts.Addr)
 	}
 	return fmt.Sprintf("redis://%s/%d", opts.Addr, opts.DB)
 }
