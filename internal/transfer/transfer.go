@@ -33,6 +33,11 @@ import (
 // ChunkSize is the size of each data chunk in bytes.
 const ChunkSize = 16 * 1024 // 16 KiB
 
+// DefaultWindowSize is the number of chunks that may be in flight
+// (sent but not yet acknowledged) at once.  Increasing this improves
+// throughput on high-latency links at the cost of more memory.
+const DefaultWindowSize = 2
+
 // Message type tags.
 const (
 	TagFileHeader    byte = 0x01
@@ -80,18 +85,25 @@ type DataChannelWriter interface {
 
 // Sender manages sending a single file over a data channel.
 type Sender struct {
-	dc      DataChannelWriter
-	path    string
-	recvAck <-chan uint64 // acks from the receiver (chunk seq numbers)
+	dc         DataChannelWriter
+	path       string
+	recvAck    <-chan uint64 // acks from the receiver (chunk seq numbers)
+	windowSize int          // max chunks in flight simultaneously
 }
 
 // NewSender creates a Sender.
-// recvAck should receive chunk sequence numbers as the receiver acknowledges them.
-func NewSender(dc DataChannelWriter, path string, recvAck <-chan uint64) *Sender {
-	return &Sender{dc: dc, path: path, recvAck: recvAck}
+//   - recvAck receives chunk sequence numbers as the receiver acknowledges them.
+//   - windowSize is the maximum number of unacknowledged chunks allowed in
+//     flight at once. Pass DefaultWindowSize if unsure. Values < 1 are
+//     clamped to 1 (stop-and-wait behaviour).
+func NewSender(dc DataChannelWriter, path string, recvAck <-chan uint64, windowSize int) *Sender {
+	if windowSize < 1 {
+		windowSize = 1
+	}
+	return &Sender{dc: dc, path: path, recvAck: recvAck, windowSize: windowSize}
 }
 
-// Run executes the full send flow: header → chunks → done → wait for OK.
+// Run executes the full send flow: header → chunks (sliding window) → done.
 // Blocks until the transfer completes or fails.
 func (s *Sender) Run() error {
 	// ── Open and stat the file ───────────────────────────────────────────────
@@ -131,33 +143,58 @@ func (s *Sender) Run() error {
 		return err
 	}
 
-	// ── Send chunks ──────────────────────────────────────────────────────────
+	// ── Sliding window send loop ─────────────────────────────────────────────
+	//
+	// Invariant: inFlight = nextSeq - base
+	//   base    = lowest sent-but-unacked sequence number
+	//   nextSeq = next sequence number to send
+	//
+	// Rules:
+	//   - Send a chunk when inFlight < windowSize AND file not exhausted.
+	//   - Block for one ack when inFlight == windowSize OR all chunks sent
+	//     but acks still outstanding.
+	//   - Because SCTP is ordered and the receiver acks every chunk in order,
+	//     acks arrive strictly in sequence; we assert this and fail fast.
+
 	bar := progressbar.DefaultBytes(info.Size(), "sending")
 	buf := make([]byte, ChunkSize)
-	var seq uint64
 
-	for {
-		n, readErr := f.Read(buf)
-		if n > 0 {
-			if err := s.sendChunk(seq, buf[:n]); err != nil {
-				return err
-			}
-			_ = bar.Add(n)
+	var (
+		base    uint64 // oldest unacked seq
+		nextSeq uint64 // next seq to send
+		fileEOF bool   // true once the last byte has been read
+	)
 
-			// Wait for ack before sending next chunk (simple stop-and-wait).
-			// A sliding window is a Phase 3 optimisation.
-			if ackSeq, ok := <-s.recvAck; !ok {
+	for !fileEOF || nextSeq > base {
+		inFlight := int(nextSeq - base)
+
+		switch {
+		case inFlight >= s.windowSize || (fileEOF && nextSeq > base):
+			// Window full, or all sent and draining remaining acks.
+			ackSeq, ok := <-s.recvAck
+			if !ok {
 				return fmt.Errorf("transfer: ack channel closed unexpectedly")
-			} else if ackSeq != seq {
-				return fmt.Errorf("transfer: out-of-order ack: got %d want %d", ackSeq, seq)
 			}
-			seq++
-		}
-		if readErr == io.EOF {
-			break
-		}
-		if readErr != nil {
-			return fmt.Errorf("transfer: read file: %w", readErr)
+			if ackSeq != base {
+				return fmt.Errorf("transfer: out-of-order ack: got %d want %d", ackSeq, base)
+			}
+			base++
+
+		case !fileEOF && inFlight < s.windowSize:
+			// Window has space — read and send the next chunk.
+			n, readErr := f.Read(buf)
+			if n > 0 {
+				if err := s.sendChunk(nextSeq, buf[:n]); err != nil {
+					return err
+				}
+				_ = bar.Add(n)
+				nextSeq++
+			}
+			if readErr == io.EOF {
+				fileEOF = true
+			} else if readErr != nil {
+				return fmt.Errorf("transfer: read file: %w", readErr)
+			}
 		}
 	}
 
@@ -197,20 +234,6 @@ func (s *Sender) sendTag(tag byte) error {
 // ─────────────────────────────────────────────────────────────────────────────
 // Receiver — reassembles chunks from a data channel into a file
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Receiver manages receiving a single file over a data channel.
-type Receiver struct {
-	dc      DataChannelWriter
-	outDir  string
-	sendAck func(seq uint64) error // sends a ChunkAck back to the sender
-}
-
-// NewReceiver creates a Receiver.
-// outDir is the directory where the file will be written.
-// sendAck should write a ChunkAck frame back to the sender.
-func NewReceiver(dc DataChannelWriter, outDir string, sendAck func(seq uint64) error) *Receiver {
-	return &Receiver{dc: dc, outDir: outDir, sendAck: sendAck}
-}
 
 // ReceiveState holds mutable state built up as frames arrive.
 // Call Feed() for each incoming data channel message.
@@ -266,7 +289,6 @@ func (rs *ReceiveState) handleHeader(data []byte) (bool, error) {
 	}
 	rs.Header = &hdr
 
-	// Sanitise filename — strip any path components.
 	safeName := sanitiseName(hdr.Name)
 	outPath := rs.outPath + string(os.PathSeparator) + safeName
 
@@ -299,7 +321,6 @@ func (rs *ReceiveState) handleChunk(data []byte) (bool, error) {
 	rs.received += int64(len(payload))
 	_ = rs.bar.Add(len(payload))
 
-	// Send ack.
 	if err := rs.sendAck(seq); err != nil {
 		return false, fmt.Errorf("transfer: send ack %d: %w", seq, err)
 	}
@@ -313,7 +334,6 @@ func (rs *ReceiveState) handleDone() (bool, error) {
 	_ = rs.f.Close()
 	fmt.Println() // newline after progress bar
 
-	// Verify hash.
 	got := fmt.Sprintf("%x", rs.h.Sum(nil))
 	if got != rs.Header.SHA256 {
 		_ = os.Remove(rs.outPath)

@@ -34,6 +34,9 @@ const DefaultSTUN = "stun:stun.l.google.com:19302"
 // Config holds peer connection settings.
 type Config struct {
 	STUNServer string
+	// WindowSize is the number of chunks that may be in flight simultaneously.
+	// Defaults to transfer.DefaultWindowSize (2) when zero.
+	WindowSize int
 }
 
 func (c Config) stunURL() string {
@@ -41,6 +44,13 @@ func (c Config) stunURL() string {
 		return c.STUNServer
 	}
 	return DefaultSTUN
+}
+
+func (c Config) windowSize() int {
+	if c.WindowSize > 0 {
+		return c.WindowSize
+	}
+	return transfer.DefaultWindowSize
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -237,7 +247,7 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 	}
 	fmt.Println("Direct connection established — sending file")
 
-	sender := transfer.NewSender(dc, filePath, ackCh)
+	sender := transfer.NewSender(dc, filePath, ackCh, cfg.windowSize())
 	if err := sender.Run(); err != nil {
 		return fmt.Errorf("peer: transfer: %w", err)
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/iamdoubz/gmmff/internal/peer"
 	"github.com/iamdoubz/gmmff/internal/signaling"
+	"github.com/iamdoubz/gmmff/internal/transfer"
 	"github.com/iamdoubz/gmmff/pkg/protocol"
 	"github.com/spf13/cobra"
 )
@@ -17,6 +18,7 @@ import (
 var sendCfg struct {
 	serverURL  string
 	stunServer string
+	window     int
 }
 
 var sendCmd = &cobra.Command{
@@ -34,6 +36,8 @@ func init() {
 		"Signaling server WebSocket URL (GMMFF_SERVER)")
 	f.StringVar(&sendCfg.stunServer, "stun", envOr("GMMFF_STUN", peer.DefaultSTUN),
 		"STUN server URL (GMMFF_STUN)")
+	f.IntVar(&sendCfg.window, "window", transfer.DefaultWindowSize,
+		"Sliding window size — chunks in flight simultaneously (min 1)")
 }
 
 func runSend(_ *cobra.Command, args []string) error {
@@ -85,6 +89,6 @@ func runSend(_ *cobra.Command, args []string) error {
 	}
 
 	// ── Run the full send flow ───────────────────────────────────────────────
-	cfg := peer.Config{STUNServer: sendCfg.stunServer}
+	cfg := peer.Config{STUNServer: sendCfg.stunServer, WindowSize: sendCfg.window}
 	return peer.Send(ctx, sig, created.Code, filePath, cfg)
 }
