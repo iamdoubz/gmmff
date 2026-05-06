@@ -78,7 +78,7 @@ func runSend(_ *cobra.Command, args []string) error {
 	fmt.Printf("  ╔══════════════════════════════════════╗\n")
 	fmt.Printf("  ║  Share this code with the receiver:  ║\n")
 	fmt.Printf("  ║                                      ║\n")
-	fmt.Printf("  ║    %-36s║\n", created.Code)
+	fmt.Printf("  ║    %-34s║\n", created.Code)
 	fmt.Printf("  ║                                      ║\n")
 	fmt.Printf("  ║  Expires in %d minutes               ║\n", created.TTLSeconds/60)
 	fmt.Printf("  ╚══════════════════════════════════════╝\n")
