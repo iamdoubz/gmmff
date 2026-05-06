@@ -92,7 +92,7 @@ func (s *Server) handleReadiness(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	if err := s.store.Ping(ctx); err != nil {
-		applog.WithCode(log, "ERR_REDIS_UNAVAILABLE").Error().Msg("readiness check failed")
+		log.Error().Str("error_code", "ERR_REDIS_UNAVAILABLE").Msg("readiness check failed")
 		http.Error(w, "store unavailable", http.StatusServiceUnavailable)
 		return
 	}

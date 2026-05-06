@@ -54,16 +54,4 @@ func Component(name string) zerolog.Logger {
 	return Logger.With().Str("component", name).Logger()
 }
 
-// WithSlot returns a child logger with a slot UUID attached.
-// The UUID is safe to log; it carries no user-identifying information.
-func WithSlot(base zerolog.Logger, slotID string) zerolog.Logger {
-	return base.With().Str("slot_id", slotID).Logger()
-}
 
-// WithError attaches an error code (not the raw error string) to a log event.
-// Raw error strings are stripped to avoid leaking internal paths or addresses.
-//
-//	log.WithCode(logger, "ERR_REDIS_UNAVAILABLE").Error().Msg("store unreachable")
-func WithCode(base zerolog.Logger, code string) zerolog.Logger {
-	return base.With().Str("error_code", code).Logger()
-}
