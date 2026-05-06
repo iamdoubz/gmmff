@@ -20,7 +20,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/gmmff/gmmff/internal/store"
+	"github.com/iamdoubz/gmmff/internal/store"
 )
 
 // Metrics holds privacy-safe operational counters.
@@ -185,7 +185,7 @@ const indexHTML = `<!DOCTYPE html>
   <p><span class="status"></span>Signaling server is running.</p>
   <p>
     Connect a client to <code>wss://&lt;host&gt;/ws</code> to begin a file transfer.
-    See <a href="https://github.com/gmmff/gmmff">github.com/gmmff/gmmff</a> for documentation.
+    See <a href="https://github.com/iamdoubz/gmmff">github.com/iamdoubz/gmmff</a> for documentation.
   </p>
   <ul>
     <li><a href="/healthz">Liveness</a></li>
