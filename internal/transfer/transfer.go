@@ -35,6 +35,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/schollz/progressbar/v3"
 )
@@ -202,14 +203,16 @@ func (s *Sender) Run() error {
 
 	// ── Check for resume ─────────────────────────────────────────────────────
 	// The receiver sends a ResumeFrom frame immediately after the FileHeader
-	// if it has a valid partial.  We check the channel non-blocking; if nothing
-	// is there we start from zero.
+	// if it has a valid partial.  We wait up to 2 seconds for it to arrive —
+	// enough for any realistic round-trip — before assuming a fresh transfer.
 	var startSeq uint64
 	select {
 	case seq := <-s.resumeFrom:
 		startSeq = seq
-	default:
-		// no resume — fresh transfer
+	case <-time.After(2 * time.Second):
+		// No resume frame arrived — fresh transfer.
+	case <-s.ctx.Done():
+		return s.ctx.Err()
 	}
 
 	if startSeq > 0 {
@@ -222,10 +225,14 @@ func (s *Sender) Run() error {
 	}
 
 	// ── Sliding window send loop ─────────────────────────────────────────────
-	bar := progressbar.DefaultBytes(info.Size(), "sending")
+	// Create the bar AFTER resume negotiation so it starts at the right offset.
+	var startBytes int64
 	if startSeq > 0 {
-		// Advance bar to already-sent bytes so the display is accurate.
-		_ = bar.Add64(int64(startSeq) * int64(s.chunkSize))
+		startBytes = int64(startSeq) * int64(s.chunkSize)
+	}
+	bar := progressbar.DefaultBytes(info.Size(), "sending")
+	if startBytes > 0 {
+		_ = bar.Add64(startBytes)
 	}
 
 	buf := make([]byte, s.chunkSize)
