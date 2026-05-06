@@ -22,8 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"syscall/js"
 
 	"github.com/iamdoubz/gmmff/internal/peer"
@@ -100,20 +98,19 @@ func jsSend(_ js.Value, args []js.Value) any {
 			return
 		}
 
-		// Read the JS File into the Wasm in-memory filesystem.
-		filePath, cleanup, err := jsFileToTemp(jsFile)
+		// Read the JS File into memory — no filesystem access needed.
+		fileName, fileData, err := jsFileToBytes(jsFile)
 		if err != nil {
 			uiError(err.Error(), "send")
 			return
 		}
-		defer cleanup()
 
 		cfg := peer.Config{
 			WindowSize: transfer.DefaultWindowSize,
 			ChunkSize:  transfer.DefaultChunkSize,
 		}
 
-		if err := peer.Send(ctx, sig, created.Code, filePath, cfg); err != nil {
+		if err := peer.SendBytes(ctx, sig, created.Code, fileName, fileData, cfg); err != nil {
 			uiError(err.Error(), "send")
 			return
 		}
@@ -164,34 +161,19 @@ func jsReceive(_ js.Value, args []js.Value) any {
 			return
 		}
 
-		const recvDir = "/tmp/gmmff-recv"
-		if err := os.MkdirAll(recvDir, 0o755); err != nil {
-			uiError(err.Error(), "receive")
-			return
-		}
-		defer os.RemoveAll(recvDir)
-
 		cfg := peer.Config{
 			WindowSize: transfer.DefaultWindowSize,
 			ChunkSize:  transfer.DefaultChunkSize,
 		}
 
-		if err := peer.Receive(ctx, sig, code, recvDir, cfg); err != nil {
+		// ReceiveToBytes keeps everything in memory — no filesystem access.
+		fileName, fileData, err := peer.ReceiveToBytes(ctx, sig, code, cfg)
+		if err != nil {
 			uiError(err.Error(), "receive")
 			return
 		}
-
-		// Trigger browser download for each received file.
-		entries, _ := os.ReadDir(recvDir)
-		for _, e := range entries {
-			if e.IsDir() {
-				continue
-			}
-			data, err := os.ReadFile(filepath.Join(recvDir, e.Name()))
-			if err != nil {
-				continue
-			}
-			browserDownload(e.Name(), data)
+		if len(fileData) > 0 {
+			browserDownload(fileName, fileData)
 		}
 	}()
 
@@ -202,10 +184,10 @@ func jsReceive(_ js.Value, args []js.Value) any {
 // JS File → Wasm in-memory temp file
 // ─────────────────────────────────────────────────────────────────────────────
 
-// jsFileToTemp reads a JS File object into the Go Wasm in-memory filesystem
-// at /tmp/<name> and returns the path.  cleanup removes the temp file.
-func jsFileToTemp(jsFile js.Value) (path string, cleanup func(), err error) {
-	name := jsFile.Get("name").String()
+// jsFileToBytes reads a JS File object entirely into memory.
+// Returns the file name and raw bytes — no filesystem access required.
+func jsFileToBytes(jsFile js.Value) (name string, data []byte, err error) {
+	name = jsFile.Get("name").String()
 	size := jsFile.Get("size").Int()
 
 	done := make(chan error, 1)
@@ -233,13 +215,7 @@ func jsFileToTemp(jsFile js.Value) (path string, cleanup func(), err error) {
 	if err := <-done; err != nil {
 		return "", nil, err
 	}
-
-	tmpPath := "/tmp/" + name
-	if err := os.WriteFile(tmpPath, buf, 0o644); err != nil {
-		return "", nil, fmt.Errorf("write temp: %w", err)
-	}
-
-	return tmpPath, func() { _ = os.Remove(tmpPath) }, nil
+	return name, buf, nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

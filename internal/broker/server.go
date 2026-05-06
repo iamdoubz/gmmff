@@ -45,14 +45,15 @@ type Server struct {
 	store  store.SlotStore
 	router *chi.Mux
 	start  time.Time
-	webDir string // path to web/static; empty = plain landing page
+	webDir        string // path to web/static; empty = plain landing page
+	cspReportOnly bool   // use CSP-Report-Only instead of enforcing
 }
 
 // NewServer constructs a Server and registers all routes.
 // webDir is the path to the web/static directory.  When non-empty the
 // server mounts a file server at / that serves the browser UI.  When
 // empty a plain HTML landing page is shown instead.
-func NewServer(b *Broker, st store.SlotStore, webDir string) *Server {
+func NewServer(b *Broker, st store.SlotStore, webDir string, cspReportOnly bool) *Server {
 	// Register the .wasm MIME type in case the OS doesn't have it.
 	_ = mime.AddExtensionType(".wasm", "application/wasm")
 	s := &Server{
@@ -60,7 +61,8 @@ func NewServer(b *Broker, st store.SlotStore, webDir string) *Server {
 		store:  st,
 		router: chi.NewRouter(),
 		start:  time.Now(),
-		webDir: webDir,
+		webDir:        webDir,
+		cspReportOnly: cspReportOnly,
 	}
 	s.routes()
 	return s
@@ -76,7 +78,7 @@ func (s *Server) routes() {
 	r.Use(middleware.RealIP)
 	r.Use(privacyLogger)        // logs only method + path + status — no IPs
 	r.Use(middleware.Recoverer)
-	r.Use(securityHeaders)
+	r.Use(s.securityHeaders)
 
 	// ── Routes ───────────────────────────────────────────────────────────────
 	r.Get("/ws", s.broker.ServeHTTP)
@@ -166,28 +168,36 @@ func privacyLogger(next http.Handler) http.Handler {
 	})
 }
 
-// securityHeaders sets conservative HTTP security headers.
+// securityHeaders returns middleware that sets conservative HTTP security headers.
 // When serving the web UI, additional directives are needed:
 //   - script-src 'wasm-unsafe-eval' — required to instantiate WebAssembly
+//   - script-src 'unsafe-eval' — required by wasm_exec.js (Go runtime shim)
+//     which calls eval() internally; unavoidable with the standard shim
 //   - font-src fonts.gstatic.com — Inter font via Google Fonts
 //   - style-src fonts.googleapis.com — Google Fonts CSS
 //   - Cross-Origin-Opener-Policy / Cross-Origin-Embedder-Policy — required
 //     for SharedArrayBuffer (used by some Wasm runtimes)
-func securityHeaders(next http.Handler) http.Handler {
+//
+// When cspReportOnly is true, Content-Security-Policy-Report-Only is used
+// instead of Content-Security-Policy so violations are logged but not blocked.
+// This is intended for development debugging only.
+func (s *Server) securityHeaders(next http.Handler) http.Handler {
+	cspHeader := "Content-Security-Policy"
+	if s.cspReportOnly {
+		cspHeader = "Content-Security-Policy-Report-Only"
+	}
+	cspValue := "default-src 'none'; " +
+		"connect-src 'self' wss: https:; " +
+		"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; " +
+		"style-src 'self' https://fonts.googleapis.com; " +
+		"font-src https://fonts.gstatic.com; " +
+		"img-src 'self' data:"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "no-referrer")
-		// CSP covers both the signaling-only mode and the full web UI mode.
-		// 'wasm-unsafe-eval' is required by all browsers to execute .wasm files.
-		h.Set("Content-Security-Policy",
-			"default-src 'none'; "+
-				"connect-src 'self' wss: https:; "+
-				"script-src 'self' 'wasm-unsafe-eval'; "+
-				"style-src 'self' https://fonts.googleapis.com; "+
-				"font-src https://fonts.gstatic.com; "+
-				"img-src 'self' data:")
+		h.Set(cspHeader, cspValue)
 		// Required for SharedArrayBuffer (used by Go Wasm runtime).
 		h.Set("Cross-Origin-Opener-Policy", "same-origin")
 		h.Set("Cross-Origin-Embedder-Policy", "require-corp")

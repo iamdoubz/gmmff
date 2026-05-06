@@ -168,6 +168,7 @@ Copy `configs/.env.example` to `.env` and adjust.
 | `--tls-cert` | `GMMFF_TLS_CERT` | — | TLS certificate path |
 | `--tls-key` | `GMMFF_TLS_KEY` | — | TLS private key path |
 | `--web` | `GMMFF_WEB_DIR` | — | Path to `web/static/` — serves browser UI at `/` alongside signaling |
+| `--csp-report-only` | — | `false` | Use `CSP-Report-Only` header for debugging — **NOT for production** |
 
 **Production TLS**: use a reverse proxy (Caddy, nginx, AWS ALB).  The server
 speaks plain HTTP internally; the proxy handles TLS termination and forwards
@@ -382,6 +383,10 @@ gmmff/
 │   │   └── main.go
 │   ├── static/             # served files
 │   │   ├── index.html      # mobile-first single-page UI
+│   │   ├── css/
+│   │   │   └── app.css     # all styles (no inline CSS)
+│   │   ├── js/
+│   │   │   └── app.js      # all UI logic (no inline JS)
 │   │   ├── themes/
 │   │   │   └── default.json
 │   │   └── i18n/

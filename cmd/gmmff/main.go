@@ -75,7 +75,8 @@ type serveConfig struct {
 	logLevel    string
 	logPretty   bool
 	slotTTL     time.Duration
-	webDir      string
+	webDir         string
+	cspReportOnly  bool
 	// TLS (optional — use a reverse proxy like Caddy/nginx in production)
 	tlsCert string
 	tlsKey  string
@@ -118,6 +119,9 @@ func init() {
 
 	f.StringVar(&serveCfg.webDir, "web", envOr("GMMFF_WEB_DIR", ""),
 		"Path to web/static directory to serve the browser UI (GMMFF_WEB_DIR); omit to show plain landing page")
+
+	f.BoolVar(&serveCfg.cspReportOnly, "csp-report-only", false,
+		"Use Content-Security-Policy-Report-Only instead of enforcing CSP — NOT for production")
 }
 
 func runServe(_ *cobra.Command, _ []string) error {
@@ -156,7 +160,10 @@ func runServe(_ *cobra.Command, _ []string) error {
 	b := broker.New(st)
 
 	// ── HTTP server ───────────────────────────────────────────────────────────
-	srv := broker.NewServer(b, st, serveCfg.webDir)
+	if serveCfg.cspReportOnly {
+		l().Warn().Msg("⚠  CSP report-only mode enabled — Content-Security-Policy is NOT enforced; do NOT use in production")
+	}
+	srv := broker.NewServer(b, st, serveCfg.webDir, serveCfg.cspReportOnly)
 	httpServer := &http.Server{
 		Addr:         serveCfg.addr,
 		Handler:      srv.Handler(),
