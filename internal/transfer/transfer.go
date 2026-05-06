@@ -31,12 +31,16 @@ import (
 )
 
 // DefaultChunkSize is the default chunk size in bytes.
-const DefaultChunkSize = 16 * 1024 // 16 KiB
+// Set to the SCTP maximum (65535 − 9 bytes frame header) for best throughput.
+const DefaultChunkSize = 65526
 
 // MaxChunkSize is the largest permitted chunk size.
-// Values beyond 1 MiB give no measurable throughput benefit and make
-// the progress bar choppy on slow connections.
-const MaxChunkSize = 1024 * 1024 // 1 MiB
+//
+// SCTP (the transport under WebRTC data channels) has a hard message size
+// limit of 65535 bytes.  Our frame header consumes 9 bytes (1 tag + 8 seq),
+// leaving 65526 bytes for payload.  We round down to a clean 64 KiB − 10
+// to give one byte of headroom.
+const MaxChunkSize = 65526 // 65535 − 9 bytes of frame header
 
 // DefaultWindowSize is the number of chunks that may be in flight
 // (sent but not yet acknowledged) at once.  Increasing this improves

@@ -385,17 +385,7 @@ func Receive(ctx context.Context, sig *signaling.Client, code, outDir string, cf
 // ─────────────────────────────────────────────────────────────────────────────
 
 func newPeerConnection(cfg Config) (*webrtc.PeerConnection, error) {
-	// Raise the SCTP max message size to cover our largest possible frame:
-	// 1 tag byte + 8 seq bytes + up to MaxChunkSize data bytes.
-	// Without this, Pion rejects outbound frames larger than its default
-	// (~65535 bytes), which our 64 KiB+ chunks exceed.
-	maxMsg := uint32(transfer.MaxChunkSize + 9)
-	se := webrtc.SettingEngine{}
-	se.SetSCTPMaxReceiveBufferSize(maxMsg * 4) // receive buffer: 4× max frame
-	se.SetReceiveMTU(uint(maxMsg))
-
-	api := webrtc.NewAPI(webrtc.WithSettingEngine(se))
-	pc, err := api.NewPeerConnection(webrtc.Configuration{
+	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{{URLs: []string{cfg.stunURL()}}},
 	})
 	if err != nil {

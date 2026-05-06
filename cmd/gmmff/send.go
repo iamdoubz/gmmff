@@ -40,7 +40,7 @@ func init() {
 	f.IntVar(&sendCfg.window, "window", transfer.DefaultWindowSize,
 		"Sliding window size — chunks in flight simultaneously (min 1)")
 	f.IntVar(&sendCfg.chunkSize, "chunk-size", transfer.DefaultChunkSize,
-		"Chunk size in bytes (default 16384 / 16 KiB; max 1048576 / 1 MiB)")
+		"Chunk size in bytes (default 65526 — SCTP max; min 1)")
 }
 
 func runSend(_ *cobra.Command, args []string) error {
