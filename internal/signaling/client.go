@@ -119,9 +119,20 @@ func (c *Client) SendOpaque(msgType string, data []byte) error {
 	return c.Send(protocol.MustEnvelope(msgType, protocol.OpaquePayload{Data: encodeB64(data)}))
 }
 
-// SendSDP sends an SDP offer or answer as an opaque JSON blob.
-func (c *Client) SendSDP(msgType string, sdpJSON []byte) error {
-	return c.Send(protocol.MustEnvelope(msgType, protocol.OpaquePayload{Data: encodeB64(sdpJSON)}))
+// SendSignedSDP sends a signed SDP payload.
+// sdpJSON is the raw SessionDescription JSON; mac is the base64 HMAC
+// produced by pake.Session.SignOffer / SignAnswer.
+func (c *Client) SendSignedSDP(msgType string, sdpJSON []byte, mac string) error {
+	return c.Send(protocol.MustEnvelope(msgType, signedSDPPayload{
+		SDP: encodeB64(sdpJSON),
+		MAC: mac,
+	}))
+}
+
+// signedSDPPayload is the JSON structure sent inside SDP envelopes.
+type signedSDPPayload struct {
+	SDP string `json:"sdp"`
+	MAC string `json:"mac"`
 }
 
 // SendICE sends an ICE candidate.
@@ -231,6 +242,20 @@ func DecodeOpaque(msg Message) ([]byte, error) {
 		return nil, fmt.Errorf("signaling: decode opaque: %w", err)
 	}
 	return decodeB64(p.Data)
+}
+
+// DecodeSignedSDP extracts the raw SDP bytes and MAC string from a signed
+// SDP message.  Callers must verify the MAC with pake.Session before use.
+func DecodeSignedSDP(msg Message) (sdpJSON []byte, mac string, err error) {
+	var p signedSDPPayload
+	if err := json.Unmarshal(msg.Payload, &p); err != nil {
+		return nil, "", fmt.Errorf("signaling: decode signed SDP: %w", err)
+	}
+	sdpJSON, err = decodeB64(p.SDP)
+	if err != nil {
+		return nil, "", fmt.Errorf("signaling: decode SDP bytes: %w", err)
+	}
+	return sdpJSON, p.MAC, nil
 }
 
 // DecodeICE extracts an ICECandidatePayload.

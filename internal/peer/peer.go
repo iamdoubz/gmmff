@@ -23,6 +23,7 @@ import (
 	"os"
 
 	"filippo.io/cpace"
+	"github.com/iamdoubz/gmmff/internal/pake"
 	"github.com/iamdoubz/gmmff/internal/signaling"
 	"github.com/iamdoubz/gmmff/internal/transfer"
 	"github.com/iamdoubz/gmmff/pkg/protocol"
@@ -180,8 +181,13 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 	if err != nil {
 		return fmt.Errorf("peer: decode pake.b: %w", err)
 	}
-	if _, err := state.Finish(msgB); err != nil {
+	sharedKey, err := state.Finish(msgB)
+	if err != nil {
 		return fmt.Errorf("peer: PAKE finish: %w — wrong code or tampered connection", err)
+	}
+	session, err := pake.NewSession(sharedKey)
+	if err != nil {
+		return fmt.Errorf("peer: derive session keys: %w", err)
 	}
 	fmt.Println("Handshake complete — connection authenticated")
 
@@ -261,7 +267,8 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 		return fmt.Errorf("peer: set local description: %w", err)
 	}
 	sdpJSON, _ := json.Marshal(offer)
-	if err := sig.SendSDP(protocol.MsgSDPOffer, sdpJSON); err != nil {
+	offerMAC := session.SignOffer(sdpJSON)
+	if err := sig.SendSignedSDP(protocol.MsgSDPOffer, sdpJSON, offerMAC); err != nil {
 		return fmt.Errorf("peer: send sdp.offer: %w", err)
 	}
 
@@ -269,9 +276,12 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 	if err != nil {
 		return fmt.Errorf("peer: wait sdp.answer: %w", err)
 	}
-	answerJSON, err := signaling.DecodeOpaque(answerMsg)
+	answerJSON, answerMAC, err := signaling.DecodeSignedSDP(answerMsg)
 	if err != nil {
 		return fmt.Errorf("peer: decode sdp.answer: %w", err)
+	}
+	if err := session.VerifyAnswer(answerJSON, answerMAC); err != nil {
+		return fmt.Errorf("peer: %w", err)
 	}
 	var answer webrtc.SessionDescription
 	if err := json.Unmarshal(answerJSON, &answer); err != nil {
@@ -333,12 +343,16 @@ func Receive(ctx context.Context, sig *signaling.Client, code, outDir string, cf
 	if err != nil {
 		return fmt.Errorf("peer: decode pake.a: %w", err)
 	}
-	msgB, _, err := cpace.Exchange(code, ci, msgA)
+	msgB, sharedKey, err := cpace.Exchange(code, ci, msgA)
 	if err != nil {
 		return fmt.Errorf("peer: PAKE exchange: %w", err)
 	}
 	if err := sig.SendOpaque(protocol.MsgPakeB, msgB); err != nil {
 		return fmt.Errorf("peer: send pake.b: %w", err)
+	}
+	session, err := pake.NewSession(sharedKey)
+	if err != nil {
+		return fmt.Errorf("peer: derive session keys: %w", err)
 	}
 	fmt.Println("Handshake complete — connection authenticated")
 
@@ -403,9 +417,12 @@ func Receive(ctx context.Context, sig *signaling.Client, code, outDir string, cf
 	if err != nil {
 		return fmt.Errorf("peer: wait sdp.offer: %w", err)
 	}
-	offerJSON, err := signaling.DecodeOpaque(offerMsg)
+	offerJSON, offerMAC, err := signaling.DecodeSignedSDP(offerMsg)
 	if err != nil {
 		return fmt.Errorf("peer: decode sdp.offer: %w", err)
+	}
+	if err := session.VerifyOffer(offerJSON, offerMAC); err != nil {
+		return fmt.Errorf("peer: %w", err)
 	}
 	var offer webrtc.SessionDescription
 	if err := json.Unmarshal(offerJSON, &offer); err != nil {
@@ -423,7 +440,8 @@ func Receive(ctx context.Context, sig *signaling.Client, code, outDir string, cf
 		return fmt.Errorf("peer: set local description: %w", err)
 	}
 	answerJSON, _ := json.Marshal(answer)
-	if err := sig.SendSDP(protocol.MsgSDPAnswer, answerJSON); err != nil {
+	answerMAC := session.SignAnswer(answerJSON)
+	if err := sig.SendSignedSDP(protocol.MsgSDPAnswer, answerJSON, answerMAC); err != nil {
 		return fmt.Errorf("peer: send sdp.answer: %w", err)
 	}
 
