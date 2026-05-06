@@ -1,3 +1,5 @@
+//go:build !js
+
 // Package signaling implements the gmmff WebSocket signaling client.
 //
 // It connects to the signaling server, manages the slot lifecycle, and

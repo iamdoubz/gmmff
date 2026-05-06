@@ -27,6 +27,7 @@ package transfer
 
 import (
 	"context"
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
@@ -164,9 +165,9 @@ func NewSender(ctx context.Context, remoteCancel <-chan struct{}, dc DataChannel
 	}
 }
 
-// Run executes the full send flow: header → (optional resume) → chunks → done.
+// Run executes the full send flow by opening s.path from disk.
+// For in-memory data (e.g. browser Wasm), use RunFromBytes instead.
 func (s *Sender) Run() error {
-	// ── Open and stat ────────────────────────────────────────────────────────
 	f, err := os.Open(s.path)
 	if err != nil {
 		return fmt.Errorf("transfer: open file: %w", err)
@@ -178,23 +179,35 @@ func (s *Sender) Run() error {
 		return fmt.Errorf("transfer: stat file: %w", err)
 	}
 
-	// ── Hash ─────────────────────────────────────────────────────────────────
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return fmt.Errorf("transfer: hash file: %w", err)
 	}
-	hexHash := fmt.Sprintf("%x", h.Sum(nil))
 	_, _ = f.Seek(0, io.SeekStart)
 
-	totalChunks := (info.Size() + int64(s.chunkSize) - 1) / int64(s.chunkSize)
+	return s.runFromReader(f, info.Name(), info.Size(), fmt.Sprintf("%x", h.Sum(nil)))
+}
+
+// RunFromBytes executes the full send flow from an in-memory buffer.
+// Used by the browser Wasm client where the filesystem is not available.
+func (s *Sender) RunFromBytes(name string, data []byte) error {
+	h := sha256.New()
+	h.Write(data)
+	hexHash := fmt.Sprintf("%x", h.Sum(nil))
+	return s.runFromReader(bytes.NewReader(data), name, int64(len(data)), hexHash)
+}
+
+// runFromReader is the shared implementation of Run and RunFromBytes.
+func (s *Sender) runFromReader(r io.ReadSeeker, name string, size int64, hexHash string) error {
+	totalChunks := (size + int64(s.chunkSize) - 1) / int64(s.chunkSize)
 	if totalChunks == 0 {
 		totalChunks = 1
 	}
 
 	// ── Send FileHeader ──────────────────────────────────────────────────────
 	hdr := FileHeader{
-		Name:      info.Name(),
-		Size:      info.Size(),
+		Name:      name,
+		Size:      size,
 		ChunkSize: s.chunkSize,
 		SHA256:    hexHash,
 		Chunks:    totalChunks,
@@ -204,22 +217,18 @@ func (s *Sender) Run() error {
 	}
 
 	// ── Check for resume ─────────────────────────────────────────────────────
-	// The receiver sends a ResumeFrom frame immediately after the FileHeader
-	// if it has a valid partial.  We wait up to 2 seconds for it to arrive —
-	// enough for any realistic round-trip — before assuming a fresh transfer.
 	var startSeq uint64
 	select {
 	case seq := <-s.resumeFrom:
 		startSeq = seq
 	case <-time.After(2 * time.Second):
-		// No resume frame arrived — fresh transfer.
 	case <-s.ctx.Done():
 		return s.ctx.Err()
 	}
 
 	if startSeq > 0 {
 		offset := int64(startSeq) * int64(s.chunkSize)
-		if _, err := f.Seek(offset, io.SeekStart); err != nil {
+		if _, err := r.Seek(offset, io.SeekStart); err != nil {
 			return fmt.Errorf("transfer: seek to resume offset: %w", err)
 		}
 		fmt.Printf("Resuming from chunk %d (%.1f MB already received)\n",
@@ -227,12 +236,11 @@ func (s *Sender) Run() error {
 	}
 
 	// ── Sliding window send loop ─────────────────────────────────────────────
-	// Create the bar AFTER resume negotiation so it starts at the right offset.
 	var startBytes int64
 	if startSeq > 0 {
 		startBytes = int64(startSeq) * int64(s.chunkSize)
 	}
-	bar := progressbar.DefaultBytes(info.Size(), "sending")
+	bar := progressbar.DefaultBytes(size, "sending")
 	if startBytes > 0 {
 		_ = bar.Add64(startBytes)
 	}
@@ -283,7 +291,7 @@ func (s *Sender) Run() error {
 				return ErrCancelled
 			default:
 			}
-			n, readErr := f.Read(buf)
+			n, readErr := r.Read(buf)
 			if n > 0 {
 				if err := s.sendChunk(nextSeq, buf[:n]); err != nil {
 					return err
@@ -644,3 +652,92 @@ func sanitiseName(name string) string {
 	}
 	return string(safe)
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ReceiveStateMem — in-memory receiver for browser Wasm
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ReceiveStateMem is a filesystem-free alternative to ReceiveState.
+// It accumulates received chunks in a bytes.Buffer and provides the
+// completed file as []byte via Result().  Resume is not supported —
+// browser sessions are ephemeral and have no persistent storage.
+type ReceiveStateMem struct {
+	Header   *FileHeader
+	buf      bytes.Buffer
+	h        hash.Hash
+	sendAck  func(seq uint64) error
+	done     bool
+	fileName string
+}
+
+// NewReceiveStateMem creates an in-memory receiver.
+func NewReceiveStateMem(sendAck func(seq uint64) error) *ReceiveStateMem {
+	return &ReceiveStateMem{sendAck: sendAck}
+}
+
+// Feed processes one raw data channel frame.
+// Returns (true, nil) when the transfer is complete and verified.
+func (r *ReceiveStateMem) Feed(frame []byte) (done bool, err error) {
+	if len(frame) == 0 {
+		return false, nil
+	}
+	switch frame[0] {
+	case TagFileHeader:
+		var hdr FileHeader
+		if err := json.Unmarshal(frame[1:], &hdr); err != nil {
+			return false, fmt.Errorf("transfer: decode header: %w", err)
+		}
+		r.Header   = &hdr
+		r.fileName = sanitiseName(hdr.Name)
+		r.h        = sha256.New()
+		r.buf.Reset()
+		// No resume in-memory — always start fresh.
+		return false, nil
+
+	case TagChunk:
+		if r.Header == nil {
+			return false, fmt.Errorf("transfer: chunk received before header")
+		}
+		if len(frame[1:]) < 8 {
+			return false, fmt.Errorf("transfer: chunk frame too short")
+		}
+		data    := frame[1:]
+		seq     := binary.BigEndian.Uint64(data[:8])
+		payload := data[8:]
+		r.buf.Write(payload)
+		r.h.Write(payload)
+		if err := r.sendAck(seq); err != nil {
+			return false, ErrCancelled
+		}
+		return false, nil
+
+	case TagTransferDone:
+		if r.Header == nil {
+			return false, fmt.Errorf("transfer: done received before header")
+		}
+		got := fmt.Sprintf("%x", r.h.Sum(nil))
+		if got != r.Header.SHA256 {
+			return false, fmt.Errorf("transfer: integrity check failed\n  want %s\n  got  %s",
+				r.Header.SHA256, got)
+		}
+		r.done = true
+		return true, nil
+
+	case TagTransferError:
+		var e ErrorMsg
+		_ = json.Unmarshal(frame[1:], &e)
+		return false, fmt.Errorf("sender error [%s]: %s", e.Code, e.Message)
+
+	case TagCancelled:
+		return false, ErrCancelled
+
+	default:
+		return false, nil
+	}
+}
+
+// FileName returns the sanitised file name from the FileHeader.
+func (r *ReceiveStateMem) FileName() string { return r.fileName }
+
+// Result returns the received file bytes (valid only after Feed returns true).
+func (r *ReceiveStateMem) Result() []byte { return r.buf.Bytes() }

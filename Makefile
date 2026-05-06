@@ -1,4 +1,4 @@
-.PHONY: build run-server send receive dev test test-cover lint tidy docker up down clean help
+.PHONY: build run-server send receive dev test test-cover lint tidy docker up down clean wasm wasm-serve help
 
 BINARY    := gmmff
 CMD       := ./cmd/gmmff
@@ -65,9 +65,20 @@ up:
 down:
 	docker compose down
 
+## wasm: build the browser Wasm binary and copy wasm_exec.js
+wasm:
+	GOOS=js GOARCH=wasm go build -ldflags="$(LDFLAGS)" -o web/static/gmmff.wasm ./web/cmd/gmmff-wasm
+	cp "$$(go env GOROOT)/misc/wasm/wasm_exec.js" web/static/wasm_exec.js
+	@echo "Built: web/static/gmmff.wasm"
+	@echo "  Size: $$(du -sh web/static/gmmff.wasm | cut -f1)"
+
+## wasm-serve: build Wasm and start the dev web server
+wasm-serve: wasm
+	go run ./web --addr :9000
+
 ## clean: remove build artifacts
 clean:
-	rm -rf bin/ coverage.out coverage.html
+	rm -rf bin/ coverage.out coverage.html web/static/gmmff.wasm web/static/wasm_exec.js
 
 ## help: show this help
 help:

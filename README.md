@@ -167,10 +167,68 @@ Copy `configs/.env.example` to `.env` and adjust.
 | `--slot-ttl` | — | `10m` | Slot expiry duration |
 | `--tls-cert` | `GMMFF_TLS_CERT` | — | TLS certificate path |
 | `--tls-key` | `GMMFF_TLS_KEY` | — | TLS private key path |
+| `--web` | `GMMFF_WEB_DIR` | — | Path to `web/static/` — serves browser UI at `/` alongside signaling |
+| `--csp-report-only` | — | `false` | Use `CSP-Report-Only` header for debugging — **NOT for production** |
 
 **Production TLS**: use a reverse proxy (Caddy, nginx, AWS ALB).  The server
 speaks plain HTTP internally; the proxy handles TLS termination and forwards
 `wss://` connections.
+
+---
+
+## Browser UI (Wasm)
+
+The same Go code that powers the CLI compiles to WebAssembly and runs directly
+in the browser — one codebase, two delivery targets.
+
+### Build
+
+```bash
+make wasm
+# Outputs: web/static/gmmff.wasm + web/static/wasm_exec.js
+```
+
+Or manually:
+
+```bash
+GOOS=js GOARCH=wasm go build -o web/static/gmmff.wasm ./web/cmd/gmmff-wasm
+cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" web/static/wasm_exec.js
+```
+
+### Run locally
+
+```bash
+make wasm-serve
+# → http://localhost:9000
+```
+
+### Deploy
+
+Copy `web/static/` to any static host (S3, Cloudflare Pages, nginx `root`).
+The `gmmff.wasm` file is typically 8–15 MB — serve it with `Content-Type: application/wasm`
+and gzip/brotli compression enabled for fast first-load.
+
+### Theming
+
+Copy `web/static/themes/default.json`, edit the values, and point the `THEME_URL`
+constant at the top of `index.html` at your new file. Every CSS custom property
+is overridable — colors, spacing, radii, fonts, max-width — with no build step required.
+
+### Translations
+
+Copy `web/static/i18n/en.json`, translate the values, and point `I18N_URL` in
+`index.html` at your new file. All visible strings are in the i18n file — the
+HTML contains only `data-i18n` keys, never literal text.
+
+---
+
+## Deployment
+
+For production deployments, see the dedicated guides in the `docs/` directory:
+
+- **[docs/SYSTEMD.md](docs/SYSTEMD.md)** — Creating a dedicated system user, installing the binary and service file, managing configuration without editing the service file, and Redis Unix socket access.
+
+- **[docs/NGINX.md](docs/NGINX.md)** — Configuring nginx as a reverse proxy with TLS termination, WebSocket upgrade headers, timeout tuning, and endpoint access control.
 
 ---
 
@@ -320,10 +378,28 @@ gmmff/
 │       └── transfer.go
 ├── pkg/protocol/           # Wire message types (shared server/client)
 │   └── protocol.go
+├── web/                    # browser UI (Wasm)
+│   ├── cmd/gmmff-wasm/     # Go→Wasm entry point (syscall/js bridge)
+│   │   └── main.go
+│   ├── static/             # served files
+│   │   ├── index.html      # mobile-first single-page UI
+│   │   ├── css/
+│   │   │   └── app.css     # all styles (no inline CSS)
+│   │   ├── js/
+│   │   │   └── app.js      # all UI logic (no inline JS)
+│   │   ├── themes/
+│   │   │   └── default.json
+│   │   └── i18n/
+│   │       └── en.json
+│   └── server.go           # dev-only static file server
 ├── configs/
-│   └── .env.example
+│   ├── .env.example        # environment variable reference
+│   ├── gmmff.conf          # nginx reverse proxy configuration
+│   └── gmmff.service       # systemd service unit
 ├── docs/
-│   └── ARCHITECTURE.md
+│   ├── ARCHITECTURE.md     # signaling server architecture deep-dive
+│   ├── NGINX.md            # nginx reverse proxy setup guide
+│   └── SYSTEMD.md          # dedicated system user + systemd setup guide
 ├── Dockerfile
 ├── docker-compose.yml
 ├── go.mod
@@ -344,6 +420,7 @@ gmmff/
 - **Resumable transfers** — partial + meta sidecar files; both progress bars pick up at the correct offset
 - **Clean cancellation** — Ctrl+C on either side delivers a clear message to both peers; partial file preserved for resume
 - **SHA-256 integrity** — full-file hash verified before `TransferOK` is sent; corrupt or incomplete files are rejected
+- **Browser UI (Wasm)** — same Go source compiled to WebAssembly; mobile-first HTML/CSS UI with theme and i18n support
 
 ## Planned upcoming features
 
