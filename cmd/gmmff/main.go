@@ -120,7 +120,7 @@ func runServe(_ *cobra.Command, _ []string) error {
 	// ── Logging ──────────────────────────────────────────────────────────────
 	applog.Init(serveCfg.logPretty, serveCfg.logLevel)
 	l := applog.Component("main")
-	l.Info().
+	l().Info().
 		Str("version", version).
 		Str("commit", commit).
 		Str("built_at", date).
@@ -129,7 +129,7 @@ func runServe(_ *cobra.Command, _ []string) error {
 	// ── Store ─────────────────────────────────────────────────────────────────
 	var st store.SlotStore
 	if serveCfg.memoryStore {
-		l.Warn().Msg("using in-memory store — data will be lost on restart; NOT for production")
+		l().Warn().Msg("using in-memory store — data will be lost on restart; NOT for production")
 		st = store.NewMemStore()
 	} else {
 		opts, err := redis.ParseURL(serveCfg.redisURL)
@@ -144,7 +144,7 @@ func runServe(_ *cobra.Command, _ []string) error {
 				"  Tip: start Redis with `redis-server` or set --memory for dev mode",
 				serveCfg.redisURL, err)
 		}
-		l.Info().Str("redis_url", redactURL(serveCfg.redisURL)).Msg("Redis connected")
+		l().Info().Str("redis_url", redactURL(serveCfg.redisURL)).Msg("Redis connected")
 		st = store.New(rdb, serveCfg.slotTTL)
 	}
 
@@ -172,10 +172,10 @@ func runServe(_ *cobra.Command, _ []string) error {
 	// Start HTTP listener.
 	errCh := make(chan error, 1)
 	go func() {
-		l.Info().Str("addr", serveCfg.addr).Msg("listening")
+		l().Info().Str("addr", serveCfg.addr).Msg("listening")
 		var err error
 		if serveCfg.tlsCert != "" && serveCfg.tlsKey != "" {
-			l.Info().Msg("TLS enabled")
+			l().Info().Msg("TLS enabled")
 			err = httpServer.ListenAndServeTLS(serveCfg.tlsCert, serveCfg.tlsKey)
 		} else {
 			err = httpServer.ListenAndServe()
@@ -188,7 +188,7 @@ func runServe(_ *cobra.Command, _ []string) error {
 	// Wait for signal or listener error.
 	select {
 	case <-ctx.Done():
-		l.Info().Msg("shutdown signal received")
+		l().Info().Msg("shutdown signal received")
 	case err := <-errCh:
 		return fmt.Errorf("http server: %w", err)
 	}
@@ -197,9 +197,9 @@ func runServe(_ *cobra.Command, _ []string) error {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer shutdownCancel()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		l.Error().Err(err).Msg("graceful shutdown failed")
+		l().Error().Err(err).Msg("graceful shutdown failed")
 	}
-	l.Info().Msg("server stopped cleanly")
+	l().Info().Msg("server stopped cleanly")
 	return nil
 }
 

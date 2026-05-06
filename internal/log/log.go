@@ -48,8 +48,13 @@ func Init(pretty bool, level string) {
 		Logger()
 }
 
-// Component returns a function that produces a child logger tagged with the
-// given component name, reading from the live Logger at call time.
+// Component returns a function that produces a pointer to a child logger
+// tagged with the given component name, reading from the live Logger at
+// call time.
+//
+// Returning *zerolog.Logger (pointer) means callers can chain level methods
+// like .Error(), .Info(), .Warn() directly on the result without hitting
+// Go's "cannot call pointer method on value" restriction.
 //
 // Usage in each package:
 //
@@ -61,8 +66,9 @@ func Init(pretty bool, level string) {
 //
 // This ensures the logger always reflects the level and writer configured
 // by Init(), regardless of package initialisation order.
-func Component(name string) func() zerolog.Logger {
-	return func() zerolog.Logger {
-		return Logger.With().Str("component", name).Logger()
+func Component(name string) func() *zerolog.Logger {
+	return func() *zerolog.Logger {
+		l := Logger.With().Str("component", name).Logger()
+		return &l
 	}
 }
