@@ -18,6 +18,7 @@ package peer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -225,6 +226,11 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 			case okCh <- struct{}{}:
 			default:
 			}
+		case transfer.TagCancelled:
+			fmt.Println()
+			fmt.Println("Transfer cancelled by receiver.")
+			// Close ackCh so the sender loop unblocks and returns.
+			close(ackCh)
 		}
 	})
 
@@ -267,14 +273,22 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 	}
 	fmt.Println("Direct connection established — sending file")
 
-	sender := transfer.NewSender(dc, filePath, ackCh, resumeFromCh, cfg.windowSize(), cfg.chunkSize())
+	sender := transfer.NewSender(ctx, dc, filePath, ackCh, resumeFromCh, cfg.windowSize(), cfg.chunkSize())
 	if err := sender.Run(); err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil // message already printed by sender loop
+		}
+		if errors.Is(err, transfer.ErrCancelled) {
+			return nil // message already printed by OnMessage handler
+		}
 		return fmt.Errorf("peer: transfer: %w", err)
 	}
 
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		_ = dc.Send(transfer.BuildCancelledFrame())
+		fmt.Println("Transfer cancelled.")
+		return nil
 	case <-okCh:
 		fmt.Println("Transfer complete — file received and verified by peer")
 	}
@@ -322,6 +336,11 @@ func Receive(ctx context.Context, sig *signaling.Client, code, outDir string, cf
 	transferDone := make(chan error, 1)
 
 	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
+		// Make dc available to the cancellation path.
+		select {
+		case cancelDC <- dc:
+		default:
+		}
 		rs := transfer.NewReceiveState(outDir,
 			func(seq uint64) error {
 				return dc.Send(transfer.BuildAckFrame(seq))
@@ -333,6 +352,14 @@ func Receive(ctx context.Context, sig *signaling.Client, code, outDir string, cf
 		dc.OnMessage(func(m webrtc.DataChannelMessage) {
 			done, err := rs.Feed(m.Data)
 			if err != nil {
+				if errors.Is(err, transfer.ErrCancelled) {
+					fmt.Println("Transfer cancelled by sender.")
+					select {
+					case transferDone <- nil:
+					default:
+					}
+					return
+				}
 				_ = dc.Send(transfer.BuildErrorFrame("ERR_RECEIVE", err.Error()))
 				select {
 				case transferDone <- err:
@@ -385,9 +412,24 @@ func Receive(ctx context.Context, sig *signaling.Client, code, outDir string, cf
 
 	fmt.Println("Direct connection established — receiving file")
 
+	// cancelCh is closed by the data channel handler when it wants to signal
+	// cancellation back to the sender (e.g. receiver hits Ctrl+C while the
+	// data channel is open).
+	cancelDC := make(chan *webrtc.DataChannel, 1)
+	_ = cancelDC // populated below when the data channel opens
+
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		// Send TagCancelled over the data channel so the sender gets a clean
+		// message instead of "ack channel closed unexpectedly".
+		select {
+		case dc := <-cancelDC:
+			_ = dc.Send(transfer.BuildCancelledFrame())
+		default:
+		}
+		fmt.Println("Transfer cancelled.")
+		sig.Close()
+		return nil
 	case err := <-transferDone:
 		sig.Close()
 		return err
