@@ -30,8 +30,13 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
-// ChunkSize is the size of each data chunk in bytes.
-const ChunkSize = 16 * 1024 // 16 KiB
+// DefaultChunkSize is the default chunk size in bytes.
+const DefaultChunkSize = 16 * 1024 // 16 KiB
+
+// MaxChunkSize is the largest permitted chunk size.
+// Values beyond 1 MiB give no measurable throughput benefit and make
+// the progress bar choppy on slow connections.
+const MaxChunkSize = 1024 * 1024 // 1 MiB
 
 // DefaultWindowSize is the number of chunks that may be in flight
 // (sent but not yet acknowledged) at once.  Increasing this improves
@@ -89,18 +94,26 @@ type Sender struct {
 	path       string
 	recvAck    <-chan uint64 // acks from the receiver (chunk seq numbers)
 	windowSize int          // max chunks in flight simultaneously
+	chunkSize  int          // bytes per chunk
 }
 
 // NewSender creates a Sender.
 //   - recvAck receives chunk sequence numbers as the receiver acknowledges them.
-//   - windowSize is the maximum number of unacknowledged chunks allowed in
-//     flight at once. Pass DefaultWindowSize if unsure. Values < 1 are
-//     clamped to 1 (stop-and-wait behaviour).
-func NewSender(dc DataChannelWriter, path string, recvAck <-chan uint64, windowSize int) *Sender {
+//   - windowSize is the maximum number of unacknowledged chunks in flight.
+//     Pass DefaultWindowSize if unsure. Values < 1 are clamped to 1.
+//   - chunkSize is the number of bytes per chunk.
+//     Pass DefaultChunkSize if unsure. Values are clamped to [1, MaxChunkSize].
+func NewSender(dc DataChannelWriter, path string, recvAck <-chan uint64, windowSize, chunkSize int) *Sender {
 	if windowSize < 1 {
 		windowSize = 1
 	}
-	return &Sender{dc: dc, path: path, recvAck: recvAck, windowSize: windowSize}
+	if chunkSize < 1 {
+		chunkSize = DefaultChunkSize
+	}
+	if chunkSize > MaxChunkSize {
+		chunkSize = MaxChunkSize
+	}
+	return &Sender{dc: dc, path: path, recvAck: recvAck, windowSize: windowSize, chunkSize: chunkSize}
 }
 
 // Run executes the full send flow: header → chunks (sliding window) → done.
@@ -126,7 +139,7 @@ func (s *Sender) Run() error {
 	hexHash := fmt.Sprintf("%x", h.Sum(nil))
 	_, _ = f.Seek(0, io.SeekStart)
 
-	totalChunks := (info.Size() + int64(ChunkSize) - 1) / int64(ChunkSize)
+	totalChunks := (info.Size() + int64(s.chunkSize) - 1) / int64(s.chunkSize)
 	if totalChunks == 0 {
 		totalChunks = 1
 	}
@@ -135,7 +148,7 @@ func (s *Sender) Run() error {
 	hdr := FileHeader{
 		Name:      info.Name(),
 		Size:      info.Size(),
-		ChunkSize: ChunkSize,
+		ChunkSize: s.chunkSize,
 		SHA256:    hexHash,
 		Chunks:    totalChunks,
 	}
@@ -157,7 +170,7 @@ func (s *Sender) Run() error {
 	//     acks arrive strictly in sequence; we assert this and fail fast.
 
 	bar := progressbar.DefaultBytes(info.Size(), "sending")
-	buf := make([]byte, ChunkSize)
+	buf := make([]byte, s.chunkSize)
 
 	var (
 		base    uint64 // oldest unacked seq
