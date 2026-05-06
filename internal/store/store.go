@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"time"
 
+	applog "github.com/iamdoubz/gmmff/internal/log"
 	"github.com/iamdoubz/gmmff/internal/slot"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
