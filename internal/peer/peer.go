@@ -392,9 +392,7 @@ func newPeerConnection(cfg Config) (*webrtc.PeerConnection, error) {
 	maxMsg := uint32(transfer.MaxChunkSize + 9)
 	se := webrtc.SettingEngine{}
 	se.SetSCTPMaxReceiveBufferSize(maxMsg * 4) // receive buffer: 4× max frame
-	if err := se.SetReceiveMTU(maxMsg); err != nil {
-		return nil, fmt.Errorf("peer: set receive MTU: %w", err)
-	}
+	se.SetReceiveMTU(uint(maxMsg))
 
 	api := webrtc.NewAPI(webrtc.WithSettingEngine(se))
 	pc, err := api.NewPeerConnection(webrtc.Configuration{
