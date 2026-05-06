@@ -48,10 +48,21 @@ func Init(pretty bool, level string) {
 		Logger()
 }
 
-// Component returns a child logger tagged with a component name.
-// Use one per package: var log = applog.Component("broker")
-func Component(name string) zerolog.Logger {
-	return Logger.With().Str("component", name).Logger()
+// Component returns a function that produces a child logger tagged with the
+// given component name, reading from the live Logger at call time.
+//
+// Usage in each package:
+//
+//	var logger = applog.Component("broker")
+//
+// Then call logger() to log:
+//
+//	logger().Info().Msg("hub started")
+//
+// This ensures the logger always reflects the level and writer configured
+// by Init(), regardless of package initialisation order.
+func Component(name string) func() zerolog.Logger {
+	return func() zerolog.Logger {
+		return Logger.With().Str("component", name).Logger()
+	}
 }
-
-

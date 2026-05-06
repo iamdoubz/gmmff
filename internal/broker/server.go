@@ -92,7 +92,7 @@ func (s *Server) handleReadiness(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	if err := s.store.Ping(ctx); err != nil {
-		log.Error().Str("error_code", "ERR_REDIS_UNAVAILABLE").Msg("readiness check failed")
+		logger().Error().Str("error_code", "ERR_REDIS_UNAVAILABLE").Msg("readiness check failed")
 		http.Error(w, "store unavailable", http.StatusServiceUnavailable)
 		return
 	}
@@ -141,7 +141,7 @@ func privacyLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 		next.ServeHTTP(ww, r)
-		log.Info().
+		logger().Info().
 			Str("method", r.Method).
 			Str("path", r.URL.Path).
 			Int("status", ww.Status()).

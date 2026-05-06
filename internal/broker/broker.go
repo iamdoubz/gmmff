@@ -21,14 +21,14 @@ import (
 	"net/http"
 	"sync"
 	"time"
-    applog "github.com/iamdoubz/gmmff/internal/log"
+
 	"github.com/iamdoubz/gmmff/internal/crypto"
+	applog "github.com/iamdoubz/gmmff/internal/log"
 	"github.com/iamdoubz/gmmff/internal/slot"
 	"github.com/iamdoubz/gmmff/internal/store"
 	"github.com/iamdoubz/gmmff/pkg/protocol"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/rs/zerolog"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -52,11 +52,7 @@ const (
 	sendBufSize = 16
 )
 
-var log zerolog.Logger
-
-func init() {
-	log = applog.Component("broker")
-}
+var logger = applog.Component("broker")
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Conn — a single WebSocket peer
@@ -78,7 +74,7 @@ func (c *conn) enqueue(msg []byte) {
 	select {
 	case c.send <- msg:
 	default:
-		log.Warn().Str("error_code", "ERR_SEND_BUFFER_FULL").
+		logger().Warn().Str("error_code", "ERR_SEND_BUFFER_FULL").
 			Str("conn_id", c.id).
 			Msg("outbound buffer full — frame dropped")
 	}
@@ -88,7 +84,7 @@ func (c *conn) enqueue(msg []byte) {
 func (c *conn) sendEnvelope(env protocol.Envelope) {
 	b, err := json.Marshal(env)
 	if err != nil {
-		log.Error().Str("error_code", "ERR_MARSHAL").Msg("envelope marshal failed")
+		logger().Error().Str("error_code", "ERR_MARSHAL").Msg("envelope marshal failed")
 		return
 	}
 	c.enqueue(b)
@@ -152,16 +148,16 @@ func New(st store.SlotStore) *Broker {
 // Run starts the hub event loop.  Call in a dedicated goroutine.
 // Blocks until ctx is cancelled.
 func (b *Broker) Run(ctx context.Context) {
-	log.Info().Msg("hub started")
+	logger().Info().Msg("hub started")
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info().Msg("hub stopping")
+			logger().Info().Msg("hub stopping")
 			return
 
 		case msg := <-b.register:
 			b.conns[msg.c.id] = msg.c
-			log.Debug().Str("conn_id", msg.c.id).Msg("connection registered")
+			logger().Debug().Str("conn_id", msg.c.id).Msg("connection registered")
 
 		case msg := <-b.unregister:
 			b.handleDisconnect(ctx, msg.c)
@@ -223,7 +219,7 @@ func (b *Broker) handleDisconnect(ctx context.Context, c *conn) {
 	sl.Close()
 	_ = b.store.Delete(ctx, c.slotID)
 
-	log.Info().Str("slot_id", c.slotID).Msg("slot closed on disconnect")
+	logger().Info().Str("slot_id", c.slotID).Msg("slot closed on disconnect")
 }
 
 func (b *Broker) handleMessage(ctx context.Context, c *conn, env protocol.Envelope) {
@@ -268,7 +264,7 @@ func (b *Broker) handleSlotCreate(ctx context.Context, c *conn, env protocol.Env
 
 	code, err := crypto.GenerateCode()
 	if err != nil {
-		log.Error().Str("error_code", "ERR_CODEGEN").Msg("code generation failed")
+		logger().Error().Str("error_code", "ERR_CODEGEN").Msg("code generation failed")
 		c.sendEnvelope(protocol.ErrorEnvelope("ERR_INTERNAL", "server error; please retry"))
 		return
 	}
@@ -276,7 +272,7 @@ func (b *Broker) handleSlotCreate(ctx context.Context, c *conn, env protocol.Env
 	slotID := uuid.New().String()
 	sl := slot.New(slotID, code, c.id)
 	if err := b.store.Create(ctx, sl); err != nil {
-		log.Error().Str("error_code", "ERR_STORE_CREATE").Str("slot_id", slotID).Msg("failed to persist slot")
+		logger().Error().Str("error_code", "ERR_STORE_CREATE").Str("slot_id", slotID).Msg("failed to persist slot")
 		c.sendEnvelope(protocol.ErrorEnvelope("ERR_INTERNAL", "server error; please retry"))
 		return
 	}
@@ -289,7 +285,7 @@ func (b *Broker) handleSlotCreate(ctx context.Context, c *conn, env protocol.Env
 		TTLSeconds: int(slot.DefaultTTL.Seconds()),
 	}))
 
-	log.Info().Str("slot_id", slotID).Msg("slot created")
+	logger().Info().Str("slot_id", slotID).Msg("slot created")
 }
 
 // handleSlotJoin processes a slot.join request from the responder.
@@ -316,7 +312,7 @@ func (b *Broker) handleSlotJoin(ctx context.Context, c *conn, env protocol.Envel
 				"slot not found — check the code or ask the sender to create a new one"))
 			return
 		}
-		log.Error().Str("error_code", "ERR_STORE_LOOKUP").Msg("slot lookup failed")
+		logger().Error().Str("error_code", "ERR_STORE_LOOKUP").Msg("slot lookup failed")
 		c.sendEnvelope(protocol.ErrorEnvelope("ERR_INTERNAL", "server error; please retry"))
 		return
 	}
@@ -343,7 +339,7 @@ func (b *Broker) handleSlotJoin(ctx context.Context, c *conn, env protocol.Envel
 	}
 
 	if err := b.store.Update(ctx, sl); err != nil {
-		log.Error().Str("error_code", "ERR_STORE_UPDATE").Str("slot_id", sl.ID).Msg("failed to update slot")
+		logger().Error().Str("error_code", "ERR_STORE_UPDATE").Str("slot_id", sl.ID).Msg("failed to update slot")
 		c.sendEnvelope(protocol.ErrorEnvelope("ERR_INTERNAL", "server error; please retry"))
 		return
 	}
@@ -365,7 +361,7 @@ func (b *Broker) handleSlotJoin(ctx context.Context, c *conn, env protocol.Envel
 	c.sendEnvelope(protocol.MustEnvelope(protocol.MsgSlotReady,
 		protocol.SlotReadyPayload{Role: "responder"}))
 
-	log.Info().Str("slot_id", sl.ID).Msg("slot ready — both peers connected")
+	logger().Info().Str("slot_id", sl.ID).Msg("slot ready — both peers connected")
 }
 
 // relay forwards an opaque message to the other peer in the slot.
@@ -413,7 +409,7 @@ func (b *Broker) handleBye(ctx context.Context, c *conn) {
 		}
 	}
 	_ = b.store.Delete(ctx, c.slotID)
-	log.Info().Str("slot_id", c.slotID).Msg("slot closed by bye")
+	logger().Info().Str("slot_id", c.slotID).Msg("slot closed by bye")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -440,7 +436,7 @@ func (c *conn) readPump(b *Broker) {
 				websocket.CloseGoingAway,
 				websocket.CloseNormalClosure,
 				websocket.CloseNoStatusReceived) {
-				log.Debug().Str("error_code", "ERR_WS_READ").
+				logger().Debug().Str("error_code", "ERR_WS_READ").
 					Str("conn_id", c.id).Msg("unexpected WebSocket close")
 			}
 			return
