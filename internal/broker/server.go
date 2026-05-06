@@ -6,13 +6,15 @@
 //   GET  /healthz            — liveness probe (returns 200 + "ok")
 //   GET  /readyz             — readiness probe (checks Redis reachability)
 //   GET  /metrics            — plaintext operational counters (no user data)
-//   GET  /                   — minimal HTML landing page
+//   GET  /*                  — browser UI file server (when --web is set)
+//   GET  /                   — plain landing page (when --web is not set)
 package broker
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"mime"
 	"net/http"
 	"runtime"
 	"sync/atomic"
@@ -43,15 +45,22 @@ type Server struct {
 	store  store.SlotStore
 	router *chi.Mux
 	start  time.Time
+	webDir string // path to web/static; empty = plain landing page
 }
 
 // NewServer constructs a Server and registers all routes.
-func NewServer(b *Broker, st store.SlotStore) *Server {
+// webDir is the path to the web/static directory.  When non-empty the
+// server mounts a file server at / that serves the browser UI.  When
+// empty a plain HTML landing page is shown instead.
+func NewServer(b *Broker, st store.SlotStore, webDir string) *Server {
+	// Register the .wasm MIME type in case the OS doesn't have it.
+	_ = mime.AddExtensionType(".wasm", "application/wasm")
 	s := &Server{
 		broker: b,
 		store:  st,
 		router: chi.NewRouter(),
 		start:  time.Now(),
+		webDir: webDir,
 	}
 	s.routes()
 	return s
@@ -74,7 +83,15 @@ func (s *Server) routes() {
 	r.Get("/healthz", s.handleLiveness)
 	r.Get("/readyz", s.handleReadiness)
 	r.Get("/metrics", s.handleMetrics)
-	r.Get("/", s.handleIndex)
+
+	if s.webDir != "" {
+		// Serve the browser UI from the given directory.
+		// The file server handles / and all static assets.
+		fs := http.FileServer(http.Dir(s.webDir))
+		r.Get("/*", fs.ServeHTTP)
+	} else {
+		r.Get("/", s.handleIndex)
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -150,14 +167,30 @@ func privacyLogger(next http.Handler) http.Handler {
 }
 
 // securityHeaders sets conservative HTTP security headers.
+// When serving the web UI, additional directives are needed:
+//   - script-src 'wasm-unsafe-eval' — required to instantiate WebAssembly
+//   - font-src fonts.gstatic.com — Inter font via Google Fonts
+//   - style-src fonts.googleapis.com — Google Fonts CSS
+//   - Cross-Origin-Opener-Policy / Cross-Origin-Embedder-Policy — required
+//     for SharedArrayBuffer (used by some Wasm runtimes)
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "no-referrer")
+		// CSP covers both the signaling-only mode and the full web UI mode.
+		// 'wasm-unsafe-eval' is required by all browsers to execute .wasm files.
 		h.Set("Content-Security-Policy",
-			"default-src 'none'; connect-src 'self' wss:; script-src 'self'; style-src 'self'")
+			"default-src 'none'; "+
+				"connect-src 'self' wss: https:; "+
+				"script-src 'self' 'wasm-unsafe-eval'; "+
+				"style-src 'self' https://fonts.googleapis.com; "+
+				"font-src https://fonts.gstatic.com; "+
+				"img-src 'self' data:")
+		// Required for SharedArrayBuffer (used by Go Wasm runtime).
+		h.Set("Cross-Origin-Opener-Policy", "same-origin")
+		h.Set("Cross-Origin-Embedder-Policy", "require-corp")
 		next.ServeHTTP(w, r)
 	})
 }

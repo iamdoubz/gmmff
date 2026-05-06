@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0f0f0f">
+  <meta name="description" content="Secure peer-to-peer file transfer">
+  <title>gmmff</title>
+
+  <!-- Preconnect for Inter font (optional — remove if self-hosting) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* ── CSS custom properties injected by theme loader ─────────────────────
+       Defaults here match default.json exactly so the page renders correctly
+       even before JS runs.                                                    */
+    :root {
+      --font-family:        'Inter', system-ui, -apple-system, sans-serif;
+      --font-size-base:     16px;
+      --font-size-sm:       0.875rem;
+      --font-size-lg:       1.125rem;
+      --font-size-xl:       1.5rem;
+      --font-weight-normal: 400;
+      --font-weight-medium: 500;
+      --font-weight-bold:   600;
+      --line-height:        1.5;
+
+      --color-bg:             #0f0f0f;
+      --color-surface:        #1a1a1a;
+      --color-surface-raised: #242424;
+      --color-border:         #2e2e2e;
+      --color-border-focus:   #4a9eff;
+
+      --color-text:         #e8e8e8;
+      --color-text-muted:   #888888;
+      --color-text-inverse: #0f0f0f;
+
+      --color-accent:        #4a9eff;
+      --color-accent-hover:  #6aafff;
+      --color-accent-active: #2a7edf;
+
+      --color-success:  #3ecf8e;
+      --color-warning:  #f5a623;
+      --color-error:    #ff5c5c;
+
+      --color-progress-track: #2e2e2e;
+      --color-progress-fill:  #4a9eff;
+
+      --radius-sm:   6px;
+      --radius-md:   10px;
+      --radius-lg:   16px;
+      --radius-pill: 9999px;
+
+      --spacing-xs: 4px;
+      --spacing-sm: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 24px;
+      --spacing-xl: 40px;
+
+      --shadow-card:  0 1px 3px rgba(0,0,0,0.4);
+      --shadow-focus: 0 0 0 3px rgba(74,158,255,0.35);
+
+      --transition: 150ms ease;
+      --max-width:  480px;
+    }
+
+    /* ── Reset ───────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-size: var(--font-size-base);
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family:      var(--font-family);
+      font-size:        var(--font-size-base);
+      font-weight:      var(--font-weight-normal);
+      line-height:      var(--line-height);
+      color:            var(--color-text);
+      background-color: var(--color-bg);
+      min-height:       100dvh;
+      display:          flex;
+      flex-direction:   column;
+      /* Safe area insets for notched phones */
+      padding:
+        env(safe-area-inset-top)
+        env(safe-area-inset-right)
+        env(safe-area-inset-bottom)
+        env(safe-area-inset-left);
+    }
+
+    /* ── Typography ─────────────────────────────────────────────────────── */
+    h1 { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); }
+    h2 { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); }
+    p, label { font-size: var(--font-size-base); color: var(--color-text); }
+    small { font-size: var(--font-size-sm); color: var(--color-text-muted); }
+
+    /* ── Layout ─────────────────────────────────────────────────────────── */
+    .app {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: var(--spacing-md);
+      gap: var(--spacing-md);
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: baseline;
+      gap: var(--spacing-sm);
+      padding-top: var(--spacing-sm);
+    }
+    .header__name {
+      font-size: var(--font-size-xl);
+      font-weight: var(--font-weight-bold);
+      letter-spacing: -0.02em;
+      color: var(--color-text);
+    }
+    .header__tagline {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+    }
+
+    /* ── Tab bar ────────────────────────────────────────────────────────── */
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-xs);
+      gap: var(--spacing-xs);
+    }
+    .tab {
+      padding: var(--spacing-sm) var(--spacing-md);
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--color-text-muted);
+      font-family: var(--font-family);
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-medium);
+      cursor: pointer;
+      transition: background var(--transition), color var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab[aria-selected="true"] {
+      background: var(--color-surface-raised);
+      color: var(--color-text);
+    }
+    .tab:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+    }
+
+    /* ── Card ───────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+      box-shadow: var(--shadow-card);
+    }
+
+    /* ── Form fields ────────────────────────────────────────────────────── */
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-xs);
+    }
+    .field label {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      color: var(--color-text-muted);
+    }
+    .field input[type="text"],
+    .field input[type="url"] {
+      width: 100%;
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--color-surface-raised);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      color: var(--color-text);
+      font-family: var(--font-family);
+      font-size: var(--font-size-base);
+      transition: border-color var(--transition), box-shadow var(--transition);
+      /* Prevent iOS zoom on focus (requires font-size >= 16px) */
+      font-size: max(16px, var(--font-size-base));
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .field input:focus {
+      outline: none;
+      border-color: var(--color-border-focus);
+      box-shadow: var(--shadow-focus);
+    }
+    .field input::placeholder { color: var(--color-text-muted); }
+
+    /* ── File picker ────────────────────────────────────────────────────── */
+    .file-picker {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    .file-picker input[type="file"] { display: none; }
+    .file-picker__btn {
+      flex-shrink: 0;
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--color-surface-raised);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      color: var(--color-text);
+      font-family: var(--font-family);
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      cursor: pointer;
+      transition: background var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .file-picker__btn:active { background: var(--color-border); }
+    .file-picker__name {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .file-picker__name.has-file { color: var(--color-text); }
+
+    /* ── Primary button ─────────────────────────────────────────────────── */
+    .btn-primary {
+      width: 100%;
+      padding: var(--spacing-md);
+      background: var(--color-accent);
+      border: none;
+      border-radius: var(--radius-md);
+      color: var(--color-text-inverse);
+      font-family: var(--font-family);
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-bold);
+      cursor: pointer;
+      transition: background var(--transition), opacity var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-primary:hover  { background: var(--color-accent-hover); }
+    .btn-primary:active { background: var(--color-accent-active); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+    /* ── Ghost button ───────────────────────────────────────────────────── */
+    .btn-ghost {
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: transparent;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      color: var(--color-text-muted);
+      font-family: var(--font-family);
+      font-size: var(--font-size-sm);
+      cursor: pointer;
+      transition: border-color var(--transition), color var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-ghost:hover { border-color: var(--color-text-muted); color: var(--color-text); }
+    .btn-ghost:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+    /* ── Code display ───────────────────────────────────────────────────── */
+    .code-display {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+      align-items: center;
+      text-align: center;
+    }
+    .code-display__word {
+      font-size: 1.75rem;
+      font-weight: var(--font-weight-bold);
+      letter-spacing: 0.04em;
+      color: var(--color-accent);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.2;
+    }
+    .code-display__actions {
+      display: flex;
+      gap: var(--spacing-sm);
+      width: 100%;
+    }
+    .code-display__actions .btn-ghost { flex: 1; }
+
+    /* ── Progress ───────────────────────────────────────────────────────── */
+    .progress {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-sm);
+    }
+    .progress__bar-track {
+      width: 100%;
+      height: 6px;
+      background: var(--color-progress-track);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+    .progress__bar-fill {
+      height: 100%;
+      background: var(--color-progress-fill);
+      border-radius: var(--radius-pill);
+      transition: width 200ms linear;
+      width: 0%;
+    }
+    .progress__meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+    }
+
+    /* ── Status line ────────────────────────────────────────────────────── */
+    .status {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+      min-height: 1.25em;
+    }
+    .status--success { color: var(--color-success); }
+    .status--error   { color: var(--color-error); }
+    .status--warning { color: var(--color-warning); }
+
+    /* ── WASM loading overlay ───────────────────────────────────────────── */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--color-bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing-md);
+      z-index: 100;
+      transition: opacity 400ms ease;
+    }
+    .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    .loading-overlay__spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--color-border);
+      border-top-color: var(--color-accent);
+      border-radius: 50%;
+      animation: spin 700ms linear infinite;
+    }
+    .loading-overlay__text {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Panel visibility ───────────────────────────────────────────────── */
+    .panel { display: none; }
+    .panel.active { display: flex; flex-direction: column; gap: var(--spacing-md); }
+
+    /* ── Footer ─────────────────────────────────────────────────────────── */
+    .footer {
+      margin-top: auto;
+      padding: var(--spacing-md) 0 var(--spacing-sm);
+      display: flex;
+      justify-content: space-between;
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+    }
+    .footer a {
+      color: var(--color-text-muted);
+      text-decoration: none;
+    }
+    .footer a:hover { color: var(--color-text); }
+
+    /* ── Utility ────────────────────────────────────────────────────────── */
+    .hidden { display: none !important; }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<!-- WASM loading overlay -->
+<div class="loading-overlay" id="loading-overlay" role="status" aria-live="polite">
+  <div class="loading-overlay__spinner" aria-hidden="true"></div>
+  <p class="loading-overlay__text" data-i18n="status_connecting">Loading…</p>
+</div>
+
+<div class="app">
+
+  <!-- Header -->
+  <header class="header">
+    <span class="header__name" data-i18n="app_name">gmmff</span>
+    <span class="header__tagline" data-i18n="app_tagline">peer-to-peer file transfer</span>
+  </header>
+
+  <!-- Tab bar -->
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-send" aria-selected="true" aria-controls="panel-send"
+            data-i18n="nav_send">Send</button>
+    <button class="tab" role="tab" id="tab-receive" aria-selected="false" aria-controls="panel-receive"
+            data-i18n="nav_receive">Receive</button>
+  </nav>
+
+  <!-- ── SEND PANEL ──────────────────────────────────────────────────── -->
+  <section class="panel active" id="panel-send" role="tabpanel" aria-labelledby="tab-send">
+
+    <!-- Idle: choose file + server -->
+    <div class="card" id="send-form">
+      <div>
+        <h2 data-i18n="send_heading">Send a file</h2>
+        <p><small data-i18n="send_instruction">Choose a file to send. You will receive a code to share with the receiver.</small></p>
+      </div>
+
+      <div class="field">
+        <label data-i18n="send_choose_file">File</label>
+        <div class="file-picker">
+          <button class="file-picker__btn" id="send-pick-btn" aria-label="Choose file" data-i18n="send_choose_file">
+            Choose file
+          </button>
+          <input type="file" id="send-file-input" tabindex="-1">
+          <span class="file-picker__name" id="send-file-name" data-i18n="send_no_file">No file chosen</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="send-server" data-i18n="send_server_label">Signaling server</label>
+        <input type="url" id="send-server" autocomplete="off" autocorrect="off" autocapitalize="none"
+               spellcheck="false" data-i18n-placeholder="send_server_placeholder">
+      </div>
+
+      <p class="status" id="send-error" role="alert"></p>
+
+      <button class="btn-primary" id="send-btn" data-i18n="send_btn">Send</button>
+    </div>
+
+    <!-- Active: code display + waiting -->
+    <div class="card hidden" id="send-code">
+      <div>
+        <h2 data-i18n="code_heading">Share this code</h2>
+        <p><small data-i18n="code_instruction">Give this code to the person receiving the file. It expires in 10 minutes.</small></p>
+      </div>
+
+      <div class="code-display">
+        <span class="code-display__word" id="send-code-value" aria-live="polite"></span>
+        <div class="code-display__actions">
+          <button class="btn-ghost" id="send-copy-btn" data-i18n="code_copy">Copy</button>
+          <button class="btn-ghost" id="send-cancel-btn" data-i18n="cancel_btn">Cancel</button>
+        </div>
+      </div>
+
+      <p class="status" id="send-wait-status" data-i18n="code_waiting">Waiting for receiver to connect…</p>
+    </div>
+
+    <!-- Active: progress -->
+    <div class="card hidden" id="send-progress">
+      <h2 id="send-progress-label" data-i18n="status_sending">Sending</h2>
+
+      <div class="progress">
+        <div class="progress__bar-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"
+             aria-labelledby="send-progress-label">
+          <div class="progress__bar-fill" id="send-bar"></div>
+        </div>
+        <div class="progress__meta">
+          <span id="send-progress-bytes"></span>
+          <span id="send-progress-speed"></span>
+        </div>
+      </div>
+
+      <p class="status" id="send-status"></p>
+      <button class="btn-ghost" id="send-cancel-progress-btn" data-i18n="cancel_btn">Cancel</button>
+    </div>
+
+  </section>
+
+  <!-- ── RECEIVE PANEL ───────────────────────────────────────────────── -->
+  <section class="panel" id="panel-receive" role="tabpanel" aria-labelledby="tab-receive">
+
+    <!-- Idle: enter code + server -->
+    <div class="card" id="receive-form">
+      <div>
+        <h2 data-i18n="receive_heading">Receive a file</h2>
+        <p><small data-i18n="receive_instruction">Enter the code shared by the sender.</small></p>
+      </div>
+
+      <div class="field">
+        <label for="receive-code" data-i18n="receive_code_label">Code</label>
+        <input type="text" id="receive-code" autocomplete="off" autocorrect="off" autocapitalize="none"
+               spellcheck="false" inputmode="text" data-i18n-placeholder="receive_code_placeholder">
+      </div>
+
+      <div class="field">
+        <label for="receive-server" data-i18n="receive_server_label">Signaling server</label>
+        <input type="url" id="receive-server" autocomplete="off" autocorrect="off" autocapitalize="none"
+               spellcheck="false" data-i18n-placeholder="receive_server_placeholder">
+      </div>
+
+      <p class="status" id="receive-error" role="alert"></p>
+
+      <button class="btn-primary" id="receive-btn" data-i18n="receive_btn">Receive</button>
+    </div>
+
+    <!-- Active: progress -->
+    <div class="card hidden" id="receive-progress">
+      <h2 id="receive-progress-label" data-i18n="status_receiving">Receiving</h2>
+
+      <div class="progress">
+        <div class="progress__bar-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"
+             aria-labelledby="receive-progress-label">
+          <div class="progress__bar-fill" id="receive-bar"></div>
+        </div>
+        <div class="progress__meta">
+          <span id="receive-progress-bytes"></span>
+          <span id="receive-progress-speed"></span>
+        </div>
+      </div>
+
+      <p class="status" id="receive-status"></p>
+      <button class="btn-ghost" id="receive-cancel-btn" data-i18n="cancel_btn">Cancel</button>
+    </div>
+
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <a href="https://github.com/iamdoubz/gmmff" target="_blank" rel="noopener noreferrer"
+       data-i18n="footer_source">Source code</a>
+    <span data-i18n="footer_privacy">No data touches the server</span>
+  </footer>
+
+</div><!-- /.app -->
+
+<script src="wasm_exec.js"></script>
+<script>
+'use strict';
+
+// ── Config ──────────────────────────────────────────────────────────────────
+const THEME_URL = 'themes/default.json';
+const I18N_URL  = 'i18n/en.json';
+const WASM_URL  = 'gmmff.wasm';
+
+// ── State ────────────────────────────────────────────────────────────────────
+let i18n   = {};
+let cancel = null; // function set by Wasm to cancel active transfer
+
+// ── Boot sequence ─────────────────────────────────────────────────────────────
+async function boot() {
+  try {
+    const [theme, strings] = await Promise.all([
+      fetch(THEME_URL).then(r => r.json()),
+      fetch(I18N_URL).then(r => r.json()),
+    ]);
+    applyTheme(theme);
+    applyI18n(strings);
+    await loadWasm();
+    hideLoading();
+  } catch (err) {
+    showFatalError(err);
+  }
+}
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  const map = {
+    font_family:        '--font-family',
+    font_size_base:     '--font-size-base',
+    font_size_sm:       '--font-size-sm',
+    font_size_lg:       '--font-size-lg',
+    font_size_xl:       '--font-size-xl',
+    font_weight_normal: '--font-weight-normal',
+    font_weight_medium: '--font-weight-medium',
+    font_weight_bold:   '--font-weight-bold',
+    line_height:        '--line-height',
+    color_bg:             '--color-bg',
+    color_surface:        '--color-surface',
+    color_surface_raised: '--color-surface-raised',
+    color_border:         '--color-border',
+    color_border_focus:   '--color-border-focus',
+    color_text:           '--color-text',
+    color_text_muted:     '--color-text-muted',
+    color_text_inverse:   '--color-text-inverse',
+    color_accent:         '--color-accent',
+    color_accent_hover:   '--color-accent-hover',
+    color_accent_active:  '--color-accent-active',
+    color_success:        '--color-success',
+    color_warning:        '--color-warning',
+    color_error:          '--color-error',
+    color_progress_track: '--color-progress-track',
+    color_progress_fill:  '--color-progress-fill',
+    radius_sm:   '--radius-sm',
+    radius_md:   '--radius-md',
+    radius_lg:   '--radius-lg',
+    radius_pill: '--radius-pill',
+    spacing_xs: '--spacing-xs',
+    spacing_sm: '--spacing-sm',
+    spacing_md: '--spacing-md',
+    spacing_lg: '--spacing-lg',
+    spacing_xl: '--spacing-xl',
+    shadow_card:  '--shadow-card',
+    shadow_focus: '--shadow-focus',
+    transition: '--transition',
+    max_width:  '--max-width',
+  };
+  const root = document.documentElement;
+  for (const [key, prop] of Object.entries(map)) {
+    if (theme[key] !== undefined) root.style.setProperty(prop, theme[key]);
+  }
+  // Update theme-color meta to match bg
+  const tm = document.querySelector('meta[name="theme-color"]');
+  if (tm && theme.color_bg) tm.content = theme.color_bg;
+}
+
+// ── i18n ───────────────────────────────────────────────────────────────────
+function applyI18n(strings) {
+  i18n = strings;
+  // Text content
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (strings[key] !== undefined) el.textContent = strings[key];
+  });
+  // Placeholders
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.dataset.i18nPlaceholder;
+    if (strings[key] !== undefined) el.placeholder = strings[key];
+  });
+  // Page title
+  if (strings.app_name) document.title = strings.app_name;
+}
+
+function t(key, vars = {}) {
+  let s = i18n[key] || key;
+  for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, v);
+  return s;
+}
+
+// ── Wasm ────────────────────────────────────────────────────────────────────
+async function loadWasm() {
+  const go = new Go();
+  const result = await WebAssembly.instantiateStreaming(fetch(WASM_URL), go.importObject);
+  go.run(result.instance); // runs the Go main() — registers JS callbacks
+}
+
+// ── Loading overlay ──────────────────────────────────────────────────────────
+function hideLoading() {
+  const overlay = document.getElementById('loading-overlay');
+  overlay.classList.add('hidden');
+  setTimeout(() => overlay.remove(), 450);
+}
+
+function showFatalError(err) {
+  const overlay = document.getElementById('loading-overlay');
+  const text    = overlay.querySelector('.loading-overlay__text');
+  overlay.querySelector('.loading-overlay__spinner').style.display = 'none';
+  text.textContent = t('error_wasm_load');
+  text.style.color = 'var(--color-error)';
+  console.error('gmmff boot error:', err);
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', 'false'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.setAttribute('aria-selected', 'true');
+    document.getElementById(btn.getAttribute('aria-controls')).classList.add('active');
+  });
+});
+
+// ── File picker ───────────────────────────────────────────────────────────────
+const fileInput   = document.getElementById('send-file-input');
+const fileName    = document.getElementById('send-file-name');
+const pickBtn     = document.getElementById('send-pick-btn');
+
+pickBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) {
+    fileName.textContent = fileInput.files[0].name;
+    fileName.classList.add('has-file');
+  } else {
+    fileName.textContent = t('send_no_file');
+    fileName.classList.remove('has-file');
+  }
+});
+
+// ── Copy code button ───────────────────────────────────────────────────────────
+document.getElementById('send-copy-btn').addEventListener('click', async () => {
+  const code = document.getElementById('send-code-value').textContent;
+  const btn  = document.getElementById('send-copy-btn');
+  try {
+    await navigator.clipboard.writeText(code);
+    btn.textContent = t('code_copied');
+    setTimeout(() => { btn.textContent = t('code_copy'); }, 2000);
+  } catch (_) {}
+});
+
+// ── Cancel buttons ─────────────────────────────────────────────────────────────
+['send-cancel-btn', 'send-cancel-progress-btn', 'receive-cancel-btn'].forEach(id => {
+  document.getElementById(id)?.addEventListener('click', () => {
+    if (cancel) { cancel(); cancel = null; }
+    resetUI();
+  });
+});
+
+// ── Send button ───────────────────────────────────────────────────────────────
+document.getElementById('send-btn').addEventListener('click', () => {
+  const file   = fileInput.files[0];
+  const server = document.getElementById('send-server').value.trim();
+  const errEl  = document.getElementById('send-error');
+
+  errEl.textContent = '';
+  if (!file)   { errEl.textContent = t('error_no_file');   return; }
+  if (!server) { errEl.textContent = t('error_no_server'); return; }
+
+  // Hand off to Go/Wasm
+  if (typeof window.gmmffSend === 'function') {
+    window.gmmffSend(file, server);
+  }
+});
+
+// ── Receive button ─────────────────────────────────────────────────────────────
+document.getElementById('receive-btn').addEventListener('click', () => {
+  const code   = document.getElementById('receive-code').value.trim();
+  const server = document.getElementById('receive-server').value.trim();
+  const errEl  = document.getElementById('receive-error');
+
+  errEl.textContent = '';
+  if (!code)   { errEl.textContent = t('error_no_code');   return; }
+  if (!server) { errEl.textContent = t('error_no_server'); return; }
+
+  if (typeof window.gmmffReceive === 'function') {
+    window.gmmffReceive(code, server);
+  }
+});
+
+// ── UI state helpers (called by Wasm) ─────────────────────────────────────────
+
+// Show the code box after slot is created
+window.uiShowCode = function(code) {
+  document.getElementById('send-form').classList.add('hidden');
+  document.getElementById('send-code').classList.remove('hidden');
+  document.getElementById('send-code-value').textContent = code;
+};
+
+// Show sender progress bar
+window.uiSendProgress = function(pct, bytesSent, totalBytes, speed) {
+  document.getElementById('send-code').classList.add('hidden');
+  const prog = document.getElementById('send-progress');
+  prog.classList.remove('hidden');
+  const bar = document.getElementById('send-bar');
+  bar.style.width = pct + '%';
+  bar.closest('[role="progressbar"]').setAttribute('aria-valuenow', pct);
+  document.getElementById('send-progress-bytes').textContent =
+    t('progress_of', { sent: fmtBytes(bytesSent), total: fmtBytes(totalBytes) });
+  document.getElementById('send-progress-speed').textContent =
+    t('progress_speed', { speed: fmtBytes(speed) });
+};
+
+// Show receiver progress bar
+window.uiReceiveProgress = function(pct, bytesRecv, totalBytes, speed) {
+  document.getElementById('receive-form').classList.add('hidden');
+  const prog = document.getElementById('receive-progress');
+  prog.classList.remove('hidden');
+  const bar = document.getElementById('receive-bar');
+  bar.style.width = pct + '%';
+  bar.closest('[role="progressbar"]').setAttribute('aria-valuenow', pct);
+  document.getElementById('receive-progress-bytes').textContent =
+    t('progress_of', { sent: fmtBytes(bytesRecv), total: fmtBytes(totalBytes) });
+  document.getElementById('receive-progress-speed').textContent =
+    t('progress_speed', { speed: fmtBytes(speed) });
+};
+
+// Set status text on the active panel
+window.uiStatus = function(key, vars, panel) {
+  const el = document.getElementById(panel === 'send' ? 'send-status' : 'receive-status');
+  if (!el) return;
+  el.className = 'status';
+  el.textContent = t(key, vars || {});
+};
+
+window.uiStatusRaw = function(text, variant, panel) {
+  const el = document.getElementById(panel === 'send' ? 'send-status' : 'receive-status');
+  if (!el) return;
+  el.className = 'status' + (variant ? ` status--${variant}` : '');
+  el.textContent = text;
+};
+
+// Called when Wasm registers the cancel callback
+window.uiRegisterCancel = function(fn) { cancel = fn; };
+
+// Called on clean completion
+window.uiDone = function(panel, message) {
+  window.uiStatusRaw(message || t(panel === 'send' ? 'status_done_send' : 'status_done_receive'),
+                     'success', panel);
+  // Hide cancel button
+  const cancelBtn = panel === 'send'
+    ? document.getElementById('send-cancel-progress-btn')
+    : document.getElementById('receive-cancel-btn');
+  if (cancelBtn) cancelBtn.classList.add('hidden');
+  cancel = null;
+};
+
+// Called on error
+window.uiError = function(message, panel) {
+  if (panel === 'send') {
+    resetSendUI();
+    document.getElementById('send-error').textContent = t('status_error', { message });
+  } else {
+    resetReceiveUI();
+    document.getElementById('receive-error').textContent = t('status_error', { message });
+  }
+};
+
+// ── Reset helpers ────────────────────────────────────────────────────────────
+function resetSendUI() {
+  document.getElementById('send-form').classList.remove('hidden');
+  document.getElementById('send-code').classList.add('hidden');
+  document.getElementById('send-progress').classList.add('hidden');
+  document.getElementById('send-cancel-progress-btn').classList.remove('hidden');
+  document.getElementById('send-status').textContent = '';
+  document.getElementById('send-bar').style.width = '0%';
+}
+function resetReceiveUI() {
+  document.getElementById('receive-form').classList.remove('hidden');
+  document.getElementById('receive-progress').classList.add('hidden');
+  document.getElementById('receive-cancel-btn').classList.remove('hidden');
+  document.getElementById('receive-status').textContent = '';
+  document.getElementById('receive-bar').style.width = '0%';
+}
+function resetUI() { resetSendUI(); resetReceiveUI(); }
+
+// ── Formatting helpers ────────────────────────────────────────────────────────
+function fmtBytes(n) {
+  if (n === undefined || n === null) return '';
+  if (n < 1024)        return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  if (n < 1024 ** 3)   return (n / 1024 / 1024).toFixed(1) + ' MB';
+  return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+}
+
+// ── Go ────────────────────────────────────────────────────────────────────────
+boot();
+</script>
+</body>
+</html>

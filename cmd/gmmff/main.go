@@ -75,6 +75,7 @@ type serveConfig struct {
 	logLevel    string
 	logPretty   bool
 	slotTTL     time.Duration
+	webDir      string
 	// TLS (optional — use a reverse proxy like Caddy/nginx in production)
 	tlsCert string
 	tlsKey  string
@@ -114,6 +115,9 @@ func init() {
 
 	f.StringVar(&serveCfg.tlsKey, "tls-key", envOr("GMMFF_TLS_KEY", ""),
 		"Path to TLS private key (optional)")
+
+	f.StringVar(&serveCfg.webDir, "web", envOr("GMMFF_WEB_DIR", ""),
+		"Path to web/static directory to serve the browser UI (GMMFF_WEB_DIR); omit to show plain landing page")
 }
 
 func runServe(_ *cobra.Command, _ []string) error {
@@ -152,7 +156,7 @@ func runServe(_ *cobra.Command, _ []string) error {
 	b := broker.New(st)
 
 	// ── HTTP server ───────────────────────────────────────────────────────────
-	srv := broker.NewServer(b, st)
+	srv := broker.NewServer(b, st, serveCfg.webDir)
 	httpServer := &http.Server{
 		Addr:         serveCfg.addr,
 		Handler:      srv.Handler(),
