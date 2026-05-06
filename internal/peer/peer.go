@@ -37,6 +37,10 @@ type Config struct {
 	// WindowSize is the number of chunks that may be in flight simultaneously.
 	// Defaults to transfer.DefaultWindowSize (2) when zero.
 	WindowSize int
+
+	// ChunkSize is the number of bytes per chunk.
+	// Defaults to transfer.DefaultChunkSize (16 KiB) when zero.
+	ChunkSize int
 }
 
 func (c Config) stunURL() string {
@@ -51,6 +55,13 @@ func (c Config) windowSize() int {
 		return c.WindowSize
 	}
 	return transfer.DefaultWindowSize
+}
+
+func (c Config) chunkSize() int {
+	if c.ChunkSize > 0 {
+		return c.ChunkSize
+	}
+	return transfer.DefaultChunkSize
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -247,7 +258,7 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 	}
 	fmt.Println("Direct connection established — sending file")
 
-	sender := transfer.NewSender(dc, filePath, ackCh, cfg.windowSize())
+	sender := transfer.NewSender(dc, filePath, ackCh, cfg.windowSize(), cfg.chunkSize())
 	if err := sender.Run(); err != nil {
 		return fmt.Errorf("peer: transfer: %w", err)
 	}
@@ -374,7 +385,19 @@ func Receive(ctx context.Context, sig *signaling.Client, code, outDir string, cf
 // ─────────────────────────────────────────────────────────────────────────────
 
 func newPeerConnection(cfg Config) (*webrtc.PeerConnection, error) {
-	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{
+	// Raise the SCTP max message size to cover our largest possible frame:
+	// 1 tag byte + 8 seq bytes + up to MaxChunkSize data bytes.
+	// Without this, Pion rejects outbound frames larger than its default
+	// (~65535 bytes), which our 64 KiB+ chunks exceed.
+	maxMsg := uint32(transfer.MaxChunkSize + 9)
+	se := webrtc.SettingEngine{}
+	se.SetSCTPMaxReceiveBufferSize(maxMsg * 4) // receive buffer: 4× max frame
+	if err := se.SetReceiveMTU(maxMsg); err != nil {
+		return nil, fmt.Errorf("peer: set receive MTU: %w", err)
+	}
+
+	api := webrtc.NewAPI(webrtc.WithSettingEngine(se))
+	pc, err := api.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{{URLs: []string{cfg.stunURL()}}},
 	})
 	if err != nil {
