@@ -341,7 +341,7 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 // SendBytes is identical to Send but transfers from an in-memory buffer
 // instead of a file path.  Used by the browser Wasm client where the
 // filesystem is unavailable.
-func SendBytes(ctx context.Context, sig *signaling.Client, code, fileName string, data []byte, cfg Config) error {
+func SendBytes(ctx context.Context, sig *signaling.Client, code, fileName string, data []byte, cfg Config, onProgress transfer.ProgressFunc) error {
 	disp := newDispatcher()
 	go disp.run(ctx, sig.Recv())
 
@@ -481,6 +481,9 @@ func SendBytes(ctx context.Context, sig *signaling.Client, code, fileName string
 
 	// Use RunFromBytes instead of Run — no filesystem needed.
 	sender := transfer.NewSender(ctx, remoteCancelCh, dc, "", ackCh, resumeFromCh, cfg.windowSize(), cfg.chunkSize())
+	if onProgress != nil {
+		sender.SetProgress(onProgress)
+	}
 	if err := sender.RunFromBytes(fileName, data); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil
@@ -653,7 +656,7 @@ func Receive(ctx context.Context, sig *signaling.Client, code, outDir string, cf
 // ReceiveToBytes performs the full responder flow and returns the received
 // file as (fileName, data).  Used by the browser Wasm client where the
 // filesystem is unavailable.  Resume is not supported.
-func ReceiveToBytes(ctx context.Context, sig *signaling.Client, code string, cfg Config) (fileName string, data []byte, err error) {
+func ReceiveToBytes(ctx context.Context, sig *signaling.Client, code string, cfg Config, onProgress transfer.ProgressFunc) (fileName string, data []byte, err error) {
 	disp := newDispatcher()
 	go disp.run(ctx, sig.Recv())
 
@@ -704,6 +707,9 @@ func ReceiveToBytes(ctx context.Context, sig *signaling.Client, code string, cfg
 		rs := transfer.NewReceiveStateMem(func(seq uint64) error {
 			return dc.Send(transfer.BuildAckFrame(seq))
 		})
+		if onProgress != nil {
+			rs.SetProgress(onProgress)
+		}
 		dc.OnMessage(func(m webrtc.DataChannelMessage) {
 			done, err := rs.Feed(m.Data)
 			if err != nil {

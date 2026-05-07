@@ -214,7 +214,7 @@ window.uiShowCode = function(code) {
 };
 
 // Show sender progress bar
-window.uiSendProgress = function(pct, bytesSent, totalBytes, speed) {
+window.uiSendProgress = function(pct, bytesSent, totalBytes, speed, eta) {
   document.getElementById('send-code').classList.add('hidden');
   const prog = document.getElementById('send-progress');
   prog.classList.remove('hidden');
@@ -224,11 +224,11 @@ window.uiSendProgress = function(pct, bytesSent, totalBytes, speed) {
   document.getElementById('send-progress-bytes').textContent =
     t('progress_of', { sent: fmtBytes(bytesSent), total: fmtBytes(totalBytes) });
   document.getElementById('send-progress-speed').textContent =
-    t('progress_speed', { speed: fmtBytes(speed) });
+    fmtBytes(speed) + '/s' + (eta > 0 ? '  ' + fmtEta(eta) : '');
 };
 
 // Show receiver progress bar
-window.uiReceiveProgress = function(pct, bytesRecv, totalBytes, speed) {
+window.uiReceiveProgress = function(pct, bytesRecv, totalBytes, speed, eta) {
   document.getElementById('receive-form').classList.add('hidden');
   const prog = document.getElementById('receive-progress');
   prog.classList.remove('hidden');
@@ -238,7 +238,7 @@ window.uiReceiveProgress = function(pct, bytesRecv, totalBytes, speed) {
   document.getElementById('receive-progress-bytes').textContent =
     t('progress_of', { sent: fmtBytes(bytesRecv), total: fmtBytes(totalBytes) });
   document.getElementById('receive-progress-speed').textContent =
-    t('progress_speed', { speed: fmtBytes(speed) });
+    fmtBytes(speed) + '/s' + (eta > 0 ? '  ' + fmtEta(eta) : '');
 };
 
 // Set status text on the active panel
@@ -301,6 +301,16 @@ function resetReceiveUI() {
 function resetUI() { resetSendUI(); resetReceiveUI(); }
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
+function fmtEta(seconds) {
+  if (!seconds || seconds <= 0 || !isFinite(seconds)) return '';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return h + 'h ' + m + 'm';
+  if (m > 0) return m + 'm ' + s + 's';
+  return s + 's';
+}
+
 function fmtBytes(n) {
   if (n === undefined || n === null) return '';
   if (n < 1024)        return n + ' B';
