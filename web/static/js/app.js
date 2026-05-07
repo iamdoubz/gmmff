@@ -97,12 +97,23 @@ function detectLanguage(langs) {
     const saved = localStorage.getItem('gmmff_lang');
     if (saved && codes.includes(saved)) return saved;
   } catch(_) {}
-  // Otherwise match against the browser's language preferences.
-  for (const pref of (navigator.languages || [navigator.language])) {
-    const code = pref.split('-')[0].toLowerCase();
-    if (codes.includes(code)) return code;
+  // Match browser preferences against available codes.
+  // Strategy: exact match first (e.g. 'pt-BR'), then base-language
+  // match (e.g. 'pt' → first 'pt-*' entry), then fallback to 'en'.
+  for (const pref of (navigator.languages || [navigator.language || 'en'])) {
+    const lower = pref.toLowerCase();
+    // 1. Exact match
+    if (codes.includes(lower)) return lower;
+    // 2. Exact match case-insensitive (handles 'pt-BR' vs 'pt-br')
+    const exact = codes.find(c => c.toLowerCase() === lower);
+    if (exact) return exact;
+    // 3. Base-language prefix match (e.g. 'pt' matches 'pt-BR')
+    const base = lower.split('-')[0];
+    const prefix = codes.find(c => c.toLowerCase().startsWith(base + '-') || c.toLowerCase() === base);
+    if (prefix) return prefix;
   }
-  return codes[0] || 'en';
+  // Default to English, or first available language.
+  return codes.includes('en') ? 'en' : (codes[0] || 'en');
 }
 
 // switchLanguage loads a language file, applies it, and re-renders the picker.
@@ -115,34 +126,31 @@ async function switchLanguage(code) {
   renderLangPicker();
 }
 
-// renderLangPicker builds the pipe-separated language buttons in the footer.
+// renderLangPicker builds a <select> dropdown in the footer.
+// Hidden when only one language is available.
 function renderLangPicker() {
   const el = document.getElementById('lang-picker');
-  if (!el || availableLangs.length <= 1) {
-    if (el) el.style.display = 'none';
+  if (!el) return;
+  if (availableLangs.length <= 1) {
+    el.style.display = 'none';
     return;
   }
-  el.innerHTML = '';
-  availableLangs.forEach((lang, idx) => {
-    if (idx > 0) {
-      const sep = document.createElement('span');
-      sep.className = 'lang-picker__sep';
-      sep.textContent = '|';
-      sep.setAttribute('aria-hidden', 'true');
-      el.appendChild(sep);
-    }
-    const btn = document.createElement('button');
-    btn.className = 'lang-picker__btn';
-    btn.textContent = lang.name;
-    btn.setAttribute('aria-current', lang.code === currentLang ? 'true' : 'false');
-    btn.setAttribute('lang', lang.code);
-    if (lang.code === currentLang) {
-      btn.setAttribute('aria-disabled', 'true');
-    } else {
-      btn.addEventListener('click', () => switchLanguage(lang.code));
-    }
-    el.appendChild(btn);
-  });
+  // Re-use existing <select> if already rendered, just update value.
+  let sel = el.querySelector('select');
+  if (!sel) {
+    sel = document.createElement('select');
+    sel.className = 'lang-picker__select';
+    sel.setAttribute('aria-label', 'Language');
+    availableLangs.forEach(lang => {
+      const opt = document.createElement('option');
+      opt.value = lang.code;
+      opt.textContent = lang.name;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', () => switchLanguage(sel.value));
+    el.appendChild(sel);
+  }
+  sel.value = currentLang;
 }
 
 // ── i18n ───────────────────────────────────────────────────────────────────
