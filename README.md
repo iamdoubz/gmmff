@@ -443,6 +443,7 @@ gmmff/
 
 ## In progress features/enhancements
 
+- just send text from sender to receiver (no files)
 - wasm webclient "Choose a file to send. You will receive a code to share with the receiver." -> "Choose/drop a/some file(s) to send. You will receive a code to share with the receiver."
 - wasm webclient: add ability to upload multiple files/directories (just like CLI client)
 - zip file: add ability to password protect zip file. Prompt sender for input, if blank, no password. If set, encrypt zip file with provided input password.
