@@ -34,3 +34,5 @@ bin/
 .env
 tmp/
 .air.toml
+web/static/gmmff.wasm
+web/static/wasm_exec.js
