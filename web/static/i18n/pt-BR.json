@@ -1,10 +1,8 @@
 {
   "app_name": "gmmff",
   "app_tagline": "transferência de arquivos peer-to-peer",
-
   "nav_send": "Enviar",
   "nav_receive": "Receber",
-
   "send_heading": "Enviar um arquivo",
   "send_instruction": "Escolha um arquivo para enviar. Você receberá um código para compartilhar com o receptor.",
   "send_choose_file": "Escolher arquivo",
@@ -12,13 +10,11 @@
   "send_server_label": "Servidor de sinalização",
   "send_server_placeholder": "wss://your-server/ws",
   "send_btn": "Criar",
-
   "code_heading": "Compartilhe este código",
   "code_instruction": "Dê este código para a pessoa que receberá o arquivo. Expira em 10 minutos.",
   "code_copy": "Copiar",
   "code_copied": "Copiado!",
   "code_waiting": "Aguardando receptor se conectar…",
-
   "receive_heading": "Receber um arquivo",
   "receive_instruction": "Digite o código compartilhado pelo remetente.",
   "receive_code_label": "Código",
@@ -26,7 +22,6 @@
   "receive_server_label": "Servidor de sinalização",
   "receive_server_placeholder": "wss://your-server/ws",
   "receive_btn": "Receber",
-
   "status_connecting": "Conectando…",
   "status_handshake": "Autenticando…",
   "status_handshake_ok": "Autenticado",
@@ -40,18 +35,15 @@
   "status_cancelled_remote_receive": "Transferência cancelada pelo remetente",
   "status_resuming": "Retomando de {mb} MB já recebidos",
   "status_error": "Erro: {message}",
-
   "progress_of": "{sent} de {total}",
   "progress_speed": "{speed}/s",
-
   "cancel_btn": "Cancelar",
-
   "error_no_file": "Escolha um arquivo primeiro.",
   "error_no_code": "Digite um código.",
   "error_no_server": "Digite uma URL do servidor de sinalização.",
   "error_wasm_load": "Falha ao carregar motor de transferência. Atualize a página.",
   "error_connection": "Conexão falhou. Verifique a URL do servidor e tente novamente.",
-
   "footer_source": "Código-fonte",
-  "footer_privacy": "Nenhum dado toca o servidor"
+  "footer_privacy": "Nenhum dado toca o servidor",
+  "drop_label": "Solte para enviar"
 }

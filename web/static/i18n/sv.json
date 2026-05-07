@@ -1,10 +1,8 @@
 {
   "app_name": "gmmff",
   "app_tagline": "peer-to-peer-filöverföring",
-
   "nav_send": "Skicka",
   "nav_receive": "Ta emot",
-
   "send_heading": "Skicka en fil",
   "send_instruction": "Välj en fil att skicka. Du får en kod att dela med mottagaren.",
   "send_choose_file": "Välj fil",
@@ -12,13 +10,11 @@
   "send_server_label": "Signaleringsserver",
   "send_server_placeholder": "wss://your-server/ws",
   "send_btn": "Skapa",
-
   "code_heading": "Dela denna kod",
   "code_instruction": "Ge denna kod till personen som tar emot filen. Den går ut om 10 minuter.",
   "code_copy": "Kopiera",
   "code_copied": "Kopierad!",
   "code_waiting": "Väntar på att mottagaren ska ansluta…",
-
   "receive_heading": "Ta emot en fil",
   "receive_instruction": "Ange koden som delats av avsändaren.",
   "receive_code_label": "Kod",
@@ -26,7 +22,6 @@
   "receive_server_label": "Signaleringsserver",
   "receive_server_placeholder": "wss://your-server/ws",
   "receive_btn": "Ta emot",
-
   "status_connecting": "Ansluter…",
   "status_handshake": "Autentiserar…",
   "status_handshake_ok": "Autentiserad",
@@ -40,18 +35,15 @@
   "status_cancelled_remote_receive": "Överföringen avbruten av avsändaren",
   "status_resuming": "Återupptar från {mb} MB redan mottaget",
   "status_error": "Fel: {message}",
-
   "progress_of": "{sent} av {total}",
   "progress_speed": "{speed}/s",
-
   "cancel_btn": "Avbryt",
-
   "error_no_file": "Välj en fil först.",
   "error_no_code": "Ange en kod.",
   "error_no_server": "Ange en URL till signaleringsservern.",
   "error_wasm_load": "Kunde inte läsa in överföringsmotorn. Uppdatera sidan.",
   "error_connection": "Anslutningen misslyckades. Kontrollera serverns URL och försök igen.",
-
   "footer_source": "Källkod",
-  "footer_privacy": "Ingen data når servern"
+  "footer_privacy": "Ingen data når servern",
+  "drop_label": "Släpp för att skicka"
 }
