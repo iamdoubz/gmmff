@@ -1,10 +1,8 @@
 {
   "app_name": "gmmff",
   "app_tagline": "peer-to-peer file transfer",
-
   "nav_send": "Send",
   "nav_receive": "Receive",
-
   "send_heading": "Send a file",
   "send_instruction": "Choose a file to send. You will receive a code to share with the receiver.",
   "send_choose_file": "Choose file",
@@ -12,13 +10,11 @@
   "send_server_label": "Signaling server",
   "send_server_placeholder": "wss://your-server/ws",
   "send_btn": "Create",
-
   "code_heading": "Share this code",
   "code_instruction": "Give this code to the person receiving the file. It expires in 10 minutes.",
   "code_copy": "Copy",
   "code_copied": "Copied!",
-  "code_waiting": "Waiting for receiver to connect\u2026",
-
+  "code_waiting": "Waiting for receiver to connect…",
   "receive_heading": "Receive a file",
   "receive_instruction": "Enter the code shared by the sender.",
   "receive_code_label": "Code",
@@ -26,32 +22,28 @@
   "receive_server_label": "Signaling server",
   "receive_server_placeholder": "wss://your-server/ws",
   "receive_btn": "Receive",
-
-  "status_connecting": "Connecting\u2026",
-  "status_handshake": "Authenticating\u2026",
+  "status_connecting": "Connecting…",
+  "status_handshake": "Authenticating…",
   "status_handshake_ok": "Authenticated",
-  "status_establishing": "Establishing direct connection\u2026",
+  "status_establishing": "Establishing direct connection…",
   "status_sending": "Sending",
   "status_receiving": "Receiving",
-  "status_done_send": "Transfer complete \u2014 file received and verified",
+  "status_done_send": "Transfer complete — file received and verified",
   "status_done_receive": "File saved",
   "status_cancelled_local": "Transfer cancelled",
   "status_cancelled_remote_send": "Transfer cancelled by receiver",
   "status_cancelled_remote_receive": "Transfer cancelled by sender",
   "status_resuming": "Resuming from {mb} MB already received",
   "status_error": "Error: {message}",
-
   "progress_of": "{sent} of {total}",
   "progress_speed": "{speed}/s",
-
   "cancel_btn": "Cancel",
-
   "error_no_file": "Please choose a file first.",
   "error_no_code": "Please enter a code.",
   "error_no_server": "Please enter a signaling server URL.",
   "error_wasm_load": "Failed to load transfer engine. Please refresh.",
   "error_connection": "Connection failed. Check the server URL and try again.",
-
   "footer_source": "Source code",
-  "footer_privacy": "No data touches the server"
+  "footer_privacy": "No data touches the server",
+  "drop_label": "Drop to send"
 }

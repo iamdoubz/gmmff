@@ -233,6 +233,63 @@ fileInput.addEventListener('change', () => {
   }
 });
 
+// ── Drag and drop ────────────────────────────────────────────────────────────
+(function initDragAndDrop() {
+  const overlay  = document.getElementById('drop-overlay');
+  const picker   = document.querySelector('.file-picker');
+  let dragDepth  = 0; // track enter/leave pairs across child elements
+
+  // Show overlay when a file enters the window.
+  window.addEventListener('dragenter', e => {
+    if (!e.dataTransfer?.types?.includes('Files')) return;
+    e.preventDefault();
+    dragDepth++;
+    overlay.classList.remove('hidden');
+  });
+
+  window.addEventListener('dragleave', e => {
+    dragDepth--;
+    if (dragDepth <= 0) {
+      dragDepth = 0;
+      overlay.classList.add('hidden');
+    }
+  });
+
+  // Must prevent default on dragover to allow drop.
+  window.addEventListener('dragover', e => {
+    if (!e.dataTransfer?.types?.includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+
+  window.addEventListener('drop', e => {
+    e.preventDefault();
+    dragDepth = 0;
+    overlay.classList.add('hidden');
+    if (picker) picker.classList.remove('drag-over');
+
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+
+    // Switch to Send tab if not already active.
+    const sendTab = document.getElementById('tab-send');
+    if (sendTab?.getAttribute('aria-selected') !== 'true') sendTab?.click();
+
+    // Populate the file picker.
+    const input = document.getElementById('send-file-input');
+    const nameEl = document.getElementById('send-file-name');
+    // Replace the FileList via DataTransfer so the input reflects the dropped file.
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    nameEl.textContent = file.name;
+    nameEl.classList.add('has-file');
+
+    // Clear any previous error.
+    document.getElementById('send-error').textContent = '';
+  });
+}());
+
 // ── Copy code button ───────────────────────────────────────────────────────────
 document.getElementById('send-copy-btn').addEventListener('click', async () => {
   const code = document.getElementById('send-code-value').textContent;
