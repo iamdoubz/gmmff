@@ -11,7 +11,7 @@
   "send_no_file": "No file chosen",
   "send_server_label": "Signaling server",
   "send_server_placeholder": "wss://your-server/ws",
-  "send_btn": "Send",
+  "send_btn": "Create",
 
   "code_heading": "Share this code",
   "code_instruction": "Give this code to the person receiving the file. It expires in 10 minutes.",

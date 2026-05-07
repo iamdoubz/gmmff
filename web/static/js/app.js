@@ -117,6 +117,14 @@ function hideLoading() {
   const overlay = document.getElementById('loading-overlay');
   overlay.classList.add('hidden');
   setTimeout(() => overlay.remove(), 450);
+
+  // Pre-fill the signaling server fields using the current page URL.
+  // Converts http(s):// → ws(s):// and appends /ws.
+  const serverURL = location.origin.replace(/^http/, 'ws') + '/ws';
+  const sendField    = document.getElementById('send-server');
+  const receiveField = document.getElementById('receive-server');
+  if (sendField    && !sendField.value)    sendField.value    = serverURL;
+  if (receiveField && !receiveField.value) receiveField.value = serverURL;
 }
 
 function showFatalError(err) {
