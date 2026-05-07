@@ -14,41 +14,6 @@ directly between them over an encrypted WebRTC data channel.
 
 ---
 
-## How it works
-
-```
-Peer A ──┐                          ┌── Peer B
-         │  wss://host/ws           │
-         └──── Signaling server ────┘
-                    │
-               Redis (slot state)
-```
-
-<p align="center">
-  <img src="imgs/architecture.png" alt="A diagram explaining the high level design of gmmff">
-</p>
-
-1. The sender runs `gmmff send <file>` and receives a one-time 3-word code
-2. The sender shares that code out-of-band with the receiver
-3. The receiver runs `gmmff receive <code>` on any machine, anywhere
-4. CPace PAKE authenticates both sides — the signaling server stays blind
-5. The SDP offer/answer is HMAC-signed with the PAKE shared key, preventing man-in-the-middle substitution
-6. A direct WebRTC/DTLS data channel opens and the file transfers peer-to-peer
-
-| Phase | What the server does |
-|-------|----------------------|
-| `slot.create`  | Generates a UUID + 3-word code, persists in Redis with 10-min TTL |
-| `slot.join`    | Resolves code → slot, links the responder, sends `slot.ready` to both |
-| Relay          | Forwards `pake.*`, `sdp.*`, `ice.*` frames opaquely to the other peer |
-| `bye` / expire | Deletes both Redis keys; notifies peer |
-
-The server **cannot** intercept the session.  PAKE authentication happens
-entirely between the two clients, and the DTLS session key is bound to the
-PAKE shared secret via HMAC — so a compromised signaling server cannot
-substitute its own SDP fingerprints.
-
----
-
 ## Quick start
 
 ### Sending a file
@@ -113,6 +78,41 @@ Set `GMMFF_SERVER` in your environment to avoid passing `--server` every time:
 export GMMFF_SERVER=wss://your-server/ws
 gmmff send myfile.zip
 ```
+
+---
+
+## How it works
+
+```
+Peer A ──┐                          ┌── Peer B
+         │  wss://host/ws           │
+         └──── Signaling server ────┘
+                    │
+               Redis (slot state)
+```
+
+<p align="center">
+  <img src="imgs/architecture.png" alt="A diagram explaining the high level design of gmmff">
+</p>
+
+1. The sender runs `gmmff send <file>` and receives a one-time 3-word code
+2. The sender shares that code out-of-band with the receiver
+3. The receiver runs `gmmff receive <code>` on any machine, anywhere
+4. CPace PAKE authenticates both sides — the signaling server stays blind
+5. The SDP offer/answer is HMAC-signed with the PAKE shared key, preventing man-in-the-middle substitution
+6. A direct WebRTC/DTLS data channel opens and the file transfers peer-to-peer
+
+| Phase | What the server does |
+|-------|----------------------|
+| `slot.create`  | Generates a UUID + 3-word code, persists in Redis with 10-min TTL |
+| `slot.join`    | Resolves code → slot, links the responder, sends `slot.ready` to both |
+| Relay          | Forwards `pake.*`, `sdp.*`, `ice.*` frames opaquely to the other peer |
+| `bye` / expire | Deletes both Redis keys; notifies peer |
+
+The server **cannot** intercept the session.  PAKE authentication happens
+entirely between the two clients, and the DTLS session key is bound to the
+PAKE shared secret via HMAC — so a compromised signaling server cannot
+substitute its own SDP fingerprints.
 
 ---
 
@@ -183,16 +183,25 @@ in the browser — one codebase, two delivery targets.
 
 ### Build
 
+**Note**: this is for go 1.23 and lower
+
 ```bash
 make wasm
 # Outputs: web/static/gmmff.wasm + web/static/wasm_exec.js
 ```
 
-Or manually:
+Or manually for go <= 1.23:
 
 ```bash
 GOOS=js GOARCH=wasm go build -o web/static/gmmff.wasm ./web/cmd/gmmff-wasm
 cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" web/static/wasm_exec.js
+```
+
+Or manually for go > 1.23:
+
+```bash
+GOOS=js GOARCH=wasm go build -o web/static/gmmff.wasm ./web/cmd/gmmff-wasm
+cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" web/static/wasm_exec.js
 ```
 
 ### Run locally
@@ -424,9 +433,23 @@ gmmff/
 
 ## Planned upcoming features
 
-- **WebAssembly** browser client compiled from the same Go source
 - **coturn** STUN/TURN integration and credential rotation
-- **Sliding window optimisation** — per-session adaptive window sizing
+- **QR Codes** generate easy to share QR codes to scan
+- **Docker images** create a pipeline to package, create, and update docker images
+- **Languages** continue to add more languages (current: en [default], es, fr, de, it, sv, pt-BR, pt-PT)
+- **Multiple recipients** share a *link* with multiple people and enable Multiple P2P transfers between all
+
+---
+
+## In progress features/enhancements
+
+- wasm webclient "Choose a file to send. You will receive a code to share with the receiver." -> "Choose/drop a/some file(s) to send. You will receive a code to share with the receiver."
+- wasm webclient: add ability to upload multiple files/directories (just like CLI client)
+- zip file: add ability to password protect zip file. Prompt sender for input, if blank, no password. If set, encrypt zip file with provided input password.
+- session lifetime: make user configurable (up to 7 days)
+- wasm webclient: receiver when file downloads, show progress bar at 100% and print full size of file and how long the transfer took.
+- STUN: convert STUN into a list of stun servers with format stun:url:port. Can be called with --stun stun:url1:3748 --stun stun:url2:19302. If none specifiec, use default
+- TURN: add TURN config. List of TURN servers with format turn:url:port. Can use multiple. Each turn server must have appropriate auth configured: standard long-term credential and ephemeral credential (static-auth-secret) must be supported
 
 ---
 
