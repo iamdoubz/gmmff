@@ -6,5 +6,7 @@
   { "code": "it", "name": "Italian" },
   { "code": "sv", "name": "Swedish" },
   { "code": "pt-BR", "name": "Portuguese (BR)" },
-  { "code": "pt-PT", "name": "Portuguese (EU)" }
+  { "code": "pt-PT", "name": "Portuguese (EU)" },
+  { "code": "si", "name": "Sinhala" },
+  { "code": "ta", "name": "Tamil" }
 ]
