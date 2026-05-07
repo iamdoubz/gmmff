@@ -1,0 +1,57 @@
+{
+  "app_name": "gmmff",
+  "app_tagline": "trasferimento file peer-to-peer",
+
+  "nav_send": "Invia",
+  "nav_receive": "Ricevi",
+
+  "send_heading": "Invia un file",
+  "send_instruction": "Scegli un file da inviare. Riceverai un codice da condividere con il destinatario.",
+  "send_choose_file": "Scegli file",
+  "send_no_file": "Nessun file selezionato",
+  "send_server_label": "Server di segnalazione",
+  "send_server_placeholder": "wss://your-server/ws",
+  "send_btn": "Crea",
+
+  "code_heading": "Condividi questo codice",
+  "code_instruction": "Dai questo codice alla persona che riceve il file. Scade tra 10 minuti.",
+  "code_copy": "Copia",
+  "code_copied": "Copiato!",
+  "code_waiting": "In attesa che il destinatario si connetta…",
+
+  "receive_heading": "Ricevi un file",
+  "receive_instruction": "Inserisci il codice condiviso dal mittente.",
+  "receive_code_label": "Codice",
+  "receive_code_placeholder": "parola-parola-parola",
+  "receive_server_label": "Server di segnalazione",
+  "receive_server_placeholder": "wss://your-server/ws",
+  "receive_btn": "Ricevi",
+
+  "status_connecting": "Connessione…",
+  "status_handshake": "Autenticazione…",
+  "status_handshake_ok": "Autenticato",
+  "status_establishing": "Stabilimento della connessione diretta…",
+  "status_sending": "Invio",
+  "status_receiving": "Ricezione",
+  "status_done_send": "Trasferimento completato — file ricevuto e verificato",
+  "status_done_receive": "File salvato",
+  "status_cancelled_local": "Trasferimento annullato",
+  "status_cancelled_remote_send": "Trasferimento annullato dal destinatario",
+  "status_cancelled_remote_receive": "Trasferimento annullato dal mittente",
+  "status_resuming": "Ripresa da {mb} MB già ricevuti",
+  "status_error": "Errore: {message}",
+
+  "progress_of": "{sent} di {total}",
+  "progress_speed": "{speed}/s",
+
+  "cancel_btn": "Annulla",
+
+  "error_no_file": "Scegli prima un file.",
+  "error_no_code": "Inserisci un codice.",
+  "error_no_server": "Inserisci un URL del server di segnalazione.",
+  "error_wasm_load": "Impossibile caricare il motore di trasferimento. Aggiorna la pagina.",
+  "error_connection": "Connessione non riuscita. Controlla l’URL del server e riprova.",
+
+  "footer_source": "Codice sorgente",
+  "footer_privacy": "Nessun dato passa dal server"
+}

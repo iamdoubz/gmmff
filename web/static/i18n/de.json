@@ -1,0 +1,57 @@
+{
+  "app_name": "gmmff",
+  "app_tagline": "Peer-to-Peer-Dateiübertragung",
+
+  "nav_send": "Senden",
+  "nav_receive": "Empfangen",
+
+  "send_heading": "Eine Datei senden",
+  "send_instruction": "Wähle eine Datei zum Senden aus. Du erhältst einen Code, den du mit dem Empfänger teilen kannst.",
+  "send_choose_file": "Datei auswählen",
+  "send_no_file": "Keine Datei ausgewählt",
+  "send_server_label": "Signalisierungsserver",
+  "send_server_placeholder": "wss://your-server/ws",
+  "send_btn": "Erstellen",
+
+  "code_heading": "Teile diesen Code",
+  "code_instruction": "Gib diesen Code der Person, die die Datei empfängt. Er läuft in 10 Minuten ab.",
+  "code_copy": "Kopieren",
+  "code_copied": "Kopiert!",
+  "code_waiting": "Warte auf die Verbindung des Empfängers…",
+
+  "receive_heading": "Eine Datei empfangen",
+  "receive_instruction": "Gib den vom Sender geteilten Code ein.",
+  "receive_code_label": "Code",
+  "receive_code_placeholder": "wort-wort-wort",
+  "receive_server_label": "Signalisierungsserver",
+  "receive_server_placeholder": "wss://your-server/ws",
+  "receive_btn": "Empfangen",
+
+  "status_connecting": "Verbinde…",
+  "status_handshake": "Authentifiziere…",
+  "status_handshake_ok": "Authentifiziert",
+  "status_establishing": "Stelle direkte Verbindung her…",
+  "status_sending": "Senden",
+  "status_receiving": "Empfangen",
+  "status_done_send": "Übertragung abgeschlossen — Datei empfangen und verifiziert",
+  "status_done_receive": "Datei gespeichert",
+  "status_cancelled_local": "Übertragung abgebrochen",
+  "status_cancelled_remote_send": "Übertragung vom Empfänger abgebrochen",
+  "status_cancelled_remote_receive": "Übertragung vom Sender abgebrochen",
+  "status_resuming": "Fortsetzen ab {mb} MB bereits empfangen",
+  "status_error": "Fehler: {message}",
+
+  "progress_of": "{sent} von {total}",
+  "progress_speed": "{speed}/s",
+
+  "cancel_btn": "Abbrechen",
+
+  "error_no_file": "Bitte zuerst eine Datei auswählen.",
+  "error_no_code": "Bitte gib einen Code ein.",
+  "error_no_server": "Bitte gib eine URL für den Signalisierungsserver ein.",
+  "error_wasm_load": "Transfer-Engine konnte nicht geladen werden. Bitte aktualisiere die Seite.",
+  "error_connection": "Verbindung fehlgeschlagen. Überprüfe die Server-URL und versuche es erneut.",
+
+  "footer_source": "Quellcode",
+  "footer_privacy": "Keine Daten gelangen zum Server"
+}

@@ -1,0 +1,57 @@
+{
+  "app_name": "gmmff",
+  "app_tagline": "transferencia de archivos entre pares",
+
+  "nav_send": "Enviar",
+  "nav_receive": "Recibir",
+
+  "send_heading": "Enviar un archivo",
+  "send_instruction": "Elige un archivo para enviar. Recibirás un código para compartir con el receptor.",
+  "send_choose_file": "Elegir archivo",
+  "send_no_file": "Ningún archivo seleccionado",
+  "send_server_label": "Servidor de señalización",
+  "send_server_placeholder": "wss://your-server/ws",
+  "send_btn": "Crear",
+
+  "code_heading": "Comparte este código",
+  "code_instruction": "Entrega este código a la persona que recibirá el archivo. Expira en 10 minutos.",
+  "code_copy": "Copiar",
+  "code_copied": "¡Copiado!",
+  "code_waiting": "Esperando a que el receptor se conecte…",
+
+  "receive_heading": "Recibir un archivo",
+  "receive_instruction": "Introduce el código compartido por el remitente.",
+  "receive_code_label": "Código",
+  "receive_code_placeholder": "palabra-palabra-palabra",
+  "receive_server_label": "Servidor de señalización",
+  "receive_server_placeholder": "wss://your-server/ws",
+  "receive_btn": "Recibir",
+
+  "status_connecting": "Conectando…",
+  "status_handshake": "Autenticando…",
+  "status_handshake_ok": "Autenticado",
+  "status_establishing": "Estableciendo conexión directa…",
+  "status_sending": "Enviando",
+  "status_receiving": "Recibiendo",
+  "status_done_send": "Transferencia completada — archivo recibido y verificado",
+  "status_done_receive": "Archivo guardado",
+  "status_cancelled_local": "Transferencia cancelada",
+  "status_cancelled_remote_send": "Transferencia cancelada por el receptor",
+  "status_cancelled_remote_receive": "Transferencia cancelada por el remitente",
+  "status_resuming": "Reanudando desde {mb} MB ya recibidos",
+  "status_error": "Error: {message}",
+
+  "progress_of": "{sent} de {total}",
+  "progress_speed": "{speed}/s",
+
+  "cancel_btn": "Cancelar",
+
+  "error_no_file": "Primero elige un archivo.",
+  "error_no_code": "Introduce un código.",
+  "error_no_server": "Introduce una URL de servidor de señalización.",
+  "error_wasm_load": "No se pudo cargar el motor de transferencia. Actualiza la página.",
+  "error_connection": "La conexión falló. Revisa la URL del servidor e inténtalo de nuevo.",
+
+  "footer_source": "Código fuente",
+  "footer_privacy": "Ningún dato toca el servidor"
+}

@@ -1,0 +1,57 @@
+{
+  "app_name": "gmmff",
+  "app_tagline": "transfert de fichiers pair à pair",
+
+  "nav_send": "Envoyer",
+  "nav_receive": "Recevoir",
+
+  "send_heading": "Envoyer un fichier",
+  "send_instruction": "Choisissez un fichier à envoyer. Vous recevrez un code à partager avec le destinataire.",
+  "send_choose_file": "Choisir un fichier",
+  "send_no_file": "Aucun fichier choisi",
+  "send_server_label": "Serveur de signalisation",
+  "send_server_placeholder": "wss://your-server/ws",
+  "send_btn": "Créer",
+
+  "code_heading": "Partagez ce code",
+  "code_instruction": "Donnez ce code à la personne qui reçoit le fichier. Il expire dans 10 minutes.",
+  "code_copy": "Copier",
+  "code_copied": "Copié !",
+  "code_waiting": "En attente de la connexion du destinataire…",
+
+  "receive_heading": "Recevoir un fichier",
+  "receive_instruction": "Saisissez le code partagé par l’expéditeur.",
+  "receive_code_label": "Code",
+  "receive_code_placeholder": "mot-mot-mot",
+  "receive_server_label": "Serveur de signalisation",
+  "receive_server_placeholder": "wss://your-server/ws",
+  "receive_btn": "Recevoir",
+
+  "status_connecting": "Connexion…",
+  "status_handshake": "Authentification…",
+  "status_handshake_ok": "Authentifié",
+  "status_establishing": "Établissement de la connexion directe…",
+  "status_sending": "Envoi",
+  "status_receiving": "Réception",
+  "status_done_send": "Transfert terminé — fichier reçu et vérifié",
+  "status_done_receive": "Fichier enregistré",
+  "status_cancelled_local": "Transfert annulé",
+  "status_cancelled_remote_send": "Transfert annulé par le destinataire",
+  "status_cancelled_remote_receive": "Transfert annulé par l’expéditeur",
+  "status_resuming": "Reprise à partir de {mb} Mo déjà reçus",
+  "status_error": "Erreur : {message}",
+
+  "progress_of": "{sent} sur {total}",
+  "progress_speed": "{speed}/s",
+
+  "cancel_btn": "Annuler",
+
+  "error_no_file": "Veuillez d’abord choisir un fichier.",
+  "error_no_code": "Veuillez saisir un code.",
+  "error_no_server": "Veuillez saisir une URL de serveur de signalisation.",
+  "error_wasm_load": "Échec du chargement du moteur de transfert. Veuillez actualiser.",
+  "error_connection": "Échec de la connexion. Vérifiez l’URL du serveur et réessayez.",
+
+  "footer_source": "Code source",
+  "footer_privacy": "Aucune donnée ne transite par le serveur"
+}
