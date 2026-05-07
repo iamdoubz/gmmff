@@ -38,11 +38,11 @@ Certbot — no manual intervention needed.
 Copy the provided config and substitute your domain:
 
 ```bash
-sudo cp configs/gmmff.conf /etc/nginx/sites-available/gmmff.conf
+sudo cp configs/gmmff.conf /etc/nginx/sites-available/gmmff.conf # OR sudo cp configs/gmmff.conf /etc/nginx/conf.d/gmmff.conf
 sudo sed -i 's/your.domain.com/signal.yourdomain.com/g' /etc/nginx/sites-available/gmmff.conf
 ```
 
-Enable the site:
+Enable the site (older nginx versions):
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/gmmff.conf /etc/nginx/sites-enabled/
@@ -52,7 +52,7 @@ Test and reload:
 
 ```bash
 sudo nginx -t          # must print "syntax is ok"
-sudo systemctl reload nginx
+sudo nginx -s reload   # loads changes/new files
 ```
 
 ---
@@ -123,7 +123,7 @@ headers from the proxy configuration:
 # log or use client IPs.
 ```
 
-gmmff's logging never records IP addresses.  Forwarding them to the backend
+gmmff's logging never records IP addresses. Forwarding them to the backend
 would be pointless and contrary to the project's privacy goals.
 
 ---
