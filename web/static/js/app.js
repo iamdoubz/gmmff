@@ -1,11 +1,13 @@
 'use strict';
 
 // ── Config ──────────────────────────────────────────────────────────────────
-const THEME_URL = 'themes/default.json';
-const I18N_URL  = 'i18n/en.json';
-const WASM_URL  = 'gmmff.wasm';
+const THEME_URL      = 'themes/default.json';
+const LANGUAGES_URL  = 'i18n/languages.json';
+const WASM_URL       = 'gmmff.wasm';
 
 // ── State ────────────────────────────────────────────────────────────────────
+let currentLang    = 'en';
+let availableLangs = [];
 
 // normaliseServerURL rewrites 'localhost' → '127.0.0.1' so the browser's
 // native WebSocket API can connect without a DNS lookup, which fails in Wasm.
@@ -18,12 +20,14 @@ let cancel = null; // function set by Wasm to cancel active transfer
 // ── Boot sequence ─────────────────────────────────────────────────────────────
 async function boot() {
   try {
-    const [theme, strings] = await Promise.all([
+    const [theme, langs] = await Promise.all([
       fetch(THEME_URL).then(r => r.json()),
-      fetch(I18N_URL).then(r => r.json()),
+      fetch(LANGUAGES_URL).then(r => r.json()),
     ]);
     applyTheme(theme);
-    applyI18n(strings);
+    availableLangs = langs;
+    currentLang = detectLanguage(langs);
+    await switchLanguage(currentLang);
     await loadWasm();
     hideLoading();
   } catch (err) {
@@ -80,6 +84,65 @@ function applyTheme(theme) {
   // Update theme-color meta to match bg
   const tm = document.querySelector('meta[name="theme-color"]');
   if (tm && theme.color_bg) tm.content = theme.color_bg;
+}
+
+// ── Language detection & switching ─────────────────────────────────────────
+
+// detectLanguage picks the best match from availableLangs using the browser's
+// navigator.languages preference list, falling back to 'en'.
+function detectLanguage(langs) {
+  const codes = langs.map(l => l.code);
+  // Honour a previously saved preference first.
+  try {
+    const saved = localStorage.getItem('gmmff_lang');
+    if (saved && codes.includes(saved)) return saved;
+  } catch(_) {}
+  // Otherwise match against the browser's language preferences.
+  for (const pref of (navigator.languages || [navigator.language])) {
+    const code = pref.split('-')[0].toLowerCase();
+    if (codes.includes(code)) return code;
+  }
+  return codes[0] || 'en';
+}
+
+// switchLanguage loads a language file, applies it, and re-renders the picker.
+async function switchLanguage(code) {
+  const strings = await fetch('i18n/' + code + '.json').then(r => r.json());
+  currentLang = code;
+  // Persist choice across page reloads.
+  try { localStorage.setItem('gmmff_lang', code); } catch(_) {}
+  applyI18n(strings);
+  renderLangPicker();
+}
+
+// renderLangPicker builds the pipe-separated language buttons in the footer.
+function renderLangPicker() {
+  const el = document.getElementById('lang-picker');
+  if (!el || availableLangs.length <= 1) {
+    if (el) el.style.display = 'none';
+    return;
+  }
+  el.innerHTML = '';
+  availableLangs.forEach((lang, idx) => {
+    if (idx > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'lang-picker__sep';
+      sep.textContent = '|';
+      sep.setAttribute('aria-hidden', 'true');
+      el.appendChild(sep);
+    }
+    const btn = document.createElement('button');
+    btn.className = 'lang-picker__btn';
+    btn.textContent = lang.name;
+    btn.setAttribute('aria-current', lang.code === currentLang ? 'true' : 'false');
+    btn.setAttribute('lang', lang.code);
+    if (lang.code === currentLang) {
+      btn.setAttribute('aria-disabled', 'true');
+    } else {
+      btn.addEventListener('click', () => switchLanguage(lang.code));
+    }
+    el.appendChild(btn);
+  });
 }
 
 // ── i18n ───────────────────────────────────────────────────────────────────

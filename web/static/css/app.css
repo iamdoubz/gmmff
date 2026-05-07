@@ -356,14 +356,49 @@
       padding: var(--spacing-md) 0 var(--spacing-sm);
       display: flex;
       justify-content: space-between;
+      align-items: center;
       font-size: var(--font-size-sm);
       color: var(--color-text-muted);
+    }
+    .footer__right {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
     }
     .footer a {
       color: var(--color-text-muted);
       text-decoration: none;
     }
     .footer a:hover { color: var(--color-text); }
+
+    /* ── Language picker ────────────────────────────────────────────────── */
+    .lang-picker {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      flex-wrap: wrap;
+    }
+    .lang-picker__btn {
+      background: none;
+      border: none;
+      padding: 0;
+      font-family: var(--font-family);
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+      cursor: pointer;
+      transition: color var(--transition);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .lang-picker__btn:hover { color: var(--color-text); }
+    .lang-picker__btn[aria-current="true"] {
+      color: var(--color-accent);
+      font-weight: var(--font-weight-medium);
+      cursor: default;
+    }
+    .lang-picker__sep {
+      color: var(--color-border);
+      user-select: none;
+    }
 
     /* ── Utility ────────────────────────────────────────────────────────── */
     .hidden { display: none !important; }
