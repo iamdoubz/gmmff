@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"syscall/js"
+	"time"
 
 	"github.com/iamdoubz/gmmff/internal/peer"
 	"github.com/iamdoubz/gmmff/internal/signaling"
@@ -110,10 +111,13 @@ func jsSend(_ js.Value, args []js.Value) any {
 			ChunkSize:  transfer.DefaultChunkSize,
 		}
 
-		if err := peer.SendBytes(ctx, sig, created.Code, fileName, fileData, cfg); err != nil {
+		fileSize := int64(len(fileData))
+		progress := makeProgressFn("send", fileSize)
+		if err := peer.SendBytes(ctx, sig, created.Code, fileName, fileData, cfg, progress); err != nil {
 			uiError(err.Error(), "send")
 			return
 		}
+		js.Global().Call("uiDone", "send", "")
 	}()
 
 	return nil
@@ -167,12 +171,16 @@ func jsReceive(_ js.Value, args []js.Value) any {
 		}
 
 		// ReceiveToBytes keeps everything in memory — no filesystem access.
-		fileName, fileData, err := peer.ReceiveToBytes(ctx, sig, code, cfg)
+		// Progress total is unknown until the FileHeader arrives, so we pass
+		// -1 initially and the JS side handles that gracefully.
+		progress := makeProgressFn("receive", -1)
+		fileName, fileData, err := peer.ReceiveToBytes(ctx, sig, code, cfg, progress)
 		if err != nil {
 			uiError(err.Error(), "receive")
 			return
 		}
 		if len(fileData) > 0 {
+			js.Global().Call("uiDone", "receive", "")
 			browserDownload(fileName, fileData)
 		}
 	}()
@@ -242,6 +250,55 @@ func browserDownload(filename string, data []byte) {
 	anchor.Call("click")
 	doc.Get("body").Call("removeChild", anchor)
 	js.Global().Get("URL").Call("revokeObjectURL", url)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Progress
+// ─────────────────────────────────────────────────────────────────────────────
+
+// makeProgressFn returns a transfer.ProgressFunc that calls window.uiSendProgress
+// or window.uiReceiveProgress with percentage, bytes, total, speed, and ETA.
+// totalBytes may be -1 if unknown (receive path before FileHeader arrives).
+func makeProgressFn(panel string, totalBytes int64) func(done, total int64) {
+	var (
+		startTime  = time.Now()
+		lastCall   time.Time
+		jsFn       = "uiSendProgress"
+	)
+	if panel == "receive" {
+		jsFn = "uiReceiveProgress"
+	}
+	return func(done, total int64) {
+		// Use the live total if our initial estimate was unknown.
+		if totalBytes < 0 && total > 0 {
+			totalBytes = total
+		}
+		if totalBytes <= 0 {
+			return
+		}
+		// Throttle UI updates to ~10 per second to avoid saturating the JS event loop.
+		now := time.Now()
+		if !lastCall.IsZero() && now.Sub(lastCall) < 100*time.Millisecond {
+			return
+		}
+		lastCall = now
+
+		// Clamp done to total so the bar never exceeds 100%.
+		if done > totalBytes {
+			done = totalBytes
+		}
+		elapsed := now.Sub(startTime).Seconds()
+		var speed, eta float64
+		if elapsed > 0 {
+			speed = float64(done) / elapsed           // bytes/sec
+			remaining := float64(totalBytes - done)
+			if speed > 0 {
+				eta = remaining / speed // seconds
+			}
+		}
+		pct := int(float64(done) / float64(totalBytes) * 100)
+		js.Global().Call(jsFn, pct, done, totalBytes, speed, eta)
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

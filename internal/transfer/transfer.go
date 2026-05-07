@@ -123,6 +123,10 @@ type DataChannelWriter interface {
 	Send(data []byte) error
 }
 
+// ProgressFunc is called after each chunk is sent or received.
+// bytesDone is the total bytes transferred so far; total is the file size.
+type ProgressFunc func(bytesDone, total int64)
+
 // Sender manages sending a single file over a data channel.
 type Sender struct {
 	dc           DataChannelWriter
@@ -133,6 +137,7 @@ type Sender struct {
 	resumeFrom   <-chan uint64 // receives the resume seq from the receiver (buffered, len 1)
 	windowSize   int
 	chunkSize    int
+	onProgress   ProgressFunc  // optional; called after each chunk send
 }
 
 // NewSender creates a Sender.
@@ -164,6 +169,10 @@ func NewSender(ctx context.Context, remoteCancel <-chan struct{}, dc DataChannel
 		chunkSize:    chunkSize,
 	}
 }
+
+// SetProgress registers a callback invoked after each chunk is sent.
+// It is safe to call before Run or RunFromBytes.
+func (s *Sender) SetProgress(fn ProgressFunc) { s.onProgress = fn }
 
 // Run executes the full send flow by opening s.path from disk.
 // For in-memory data (e.g. browser Wasm), use RunFromBytes instead.
@@ -298,6 +307,9 @@ func (s *Sender) runFromReader(r io.ReadSeeker, name string, size int64, hexHash
 				}
 				_ = bar.Add(n)
 				nextSeq++
+				if s.onProgress != nil {
+					s.onProgress(startBytes+int64(nextSeq-startSeq)*int64(s.chunkSize), size)
+				}
 			}
 			if readErr == io.EOF {
 				fileEOF = true
@@ -662,18 +674,22 @@ func sanitiseName(name string) string {
 // completed file as []byte via Result().  Resume is not supported —
 // browser sessions are ephemeral and have no persistent storage.
 type ReceiveStateMem struct {
-	Header   *FileHeader
-	buf      bytes.Buffer
-	h        hash.Hash
-	sendAck  func(seq uint64) error
-	done     bool
-	fileName string
+	Header     *FileHeader
+	buf        bytes.Buffer
+	h          hash.Hash
+	sendAck    func(seq uint64) error
+	done       bool
+	fileName   string
+	onProgress ProgressFunc // optional; called after each chunk received
 }
 
 // NewReceiveStateMem creates an in-memory receiver.
 func NewReceiveStateMem(sendAck func(seq uint64) error) *ReceiveStateMem {
 	return &ReceiveStateMem{sendAck: sendAck}
 }
+
+// SetProgress registers a callback invoked after each chunk is received.
+func (r *ReceiveStateMem) SetProgress(fn ProgressFunc) { r.onProgress = fn }
 
 // Feed processes one raw data channel frame.
 // Returns (true, nil) when the transfer is complete and verified.
@@ -708,6 +724,9 @@ func (r *ReceiveStateMem) Feed(frame []byte) (done bool, err error) {
 		r.h.Write(payload)
 		if err := r.sendAck(seq); err != nil {
 			return false, ErrCancelled
+		}
+		if r.onProgress != nil && r.Header != nil {
+			r.onProgress(int64(r.buf.Len()), r.Header.Size)
 		}
 		return false, nil
 

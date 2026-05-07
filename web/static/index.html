@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0f0f0f">
   <meta name="description" content="Secure peer-to-peer file transfer">
+  <link rel="icon" href="./gmmff-logo.png" />
+  <link rel="apple-touch-icon" href="./gmmff-logo.png" />
+  <link rel="icon" href="./gmmff-logo.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="./gmmff-logo.ico" type="image/x-icon">
   <title>gmmff</title>
 
   <!-- Preconnect for Inter font (optional — remove if self-hosting) -->
@@ -62,7 +66,7 @@
       <div class="field">
         <label for="send-server" data-i18n="send_server_label">Signaling server</label>
         <input type="url" id="send-server" autocomplete="off" autocorrect="off" autocapitalize="none"
-               spellcheck="false" data-i18n-placeholder="send_server_placeholder">
+               spellcheck="false" data-i18n-placeholder="send_server_placeholder" value="wss://server/ws">
       </div>
 
       <p class="status" id="send-error" role="alert"></p>
@@ -128,7 +132,7 @@
       <div class="field">
         <label for="receive-server" data-i18n="receive_server_label">Signaling server</label>
         <input type="url" id="receive-server" autocomplete="off" autocorrect="off" autocapitalize="none"
-               spellcheck="false" data-i18n-placeholder="receive_server_placeholder">
+               spellcheck="false" data-i18n-placeholder="receive_server_placeholder" value="wss://server/ws">
       </div>
 
       <p class="status" id="receive-error" role="alert"></p>
