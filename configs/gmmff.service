@@ -1,0 +1,77 @@
+[Unit]
+Description=gmmff signaling server
+Documentation=https://github.com/iamdoubz/gmmff
+After=network-online.target
+Wants=network-online.target
+# If you are running Redis on the same machine, uncomment this:
+# After=redis.service
+# Requires=redis.service
+
+[Service]
+Type=simple
+User=gmmff
+Group=gmmff
+
+# All configuration lives in this file — edit it, then reload:
+#   sudo systemctl reload-or-restart gmmff
+EnvironmentFile=/etc/gmmff/gmmff.env
+
+ExecStart=/usr/local/bin/gmmff serve
+ExecReload=/bin/kill -HUP $MAINPID
+
+# Restart automatically on crash, but not on clean exit (e.g. intentional stop).
+Restart=on-failure
+RestartSec=5s
+
+# Give in-flight requests time to drain on shutdown (matches server's 15s window).
+TimeoutStopSec=20s
+
+# ── Hardening ─────────────────────────────────────────────────────────────────
+# Run with a private /tmp so partial transfer files from other processes
+# are not visible.
+PrivateTmp=true
+
+# Prevent the process from gaining new privileges (e.g. via setuid binaries).
+NoNewPrivileges=true
+
+# Make the entire filesystem read-only except for the paths listed below.
+ProtectSystem=strict
+
+# Allow writes only to the log directory and config directory.
+# If you use file-based logging, add that path here too.
+ReadWritePaths=/var/log/gmmff
+
+# Hide /home, /root, and /run/user from the process.
+ProtectHome=true
+
+# Restrict which address families the process can use.
+# AF_UNIX for local sockets, AF_INET/AF_INET6 for TCP/UDP, AF_NETLINK for ICE.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+# Prevent the process from loading kernel modules.
+ProtectKernelModules=true
+
+# Prevent the process from modifying kernel variables.
+ProtectKernelTunables=true
+
+# Prevent the process from reading or writing to kernel log buffer.
+ProtectKernelLogs=true
+
+# Isolate the process from the control groups filesystem.
+ProtectControlGroups=true
+
+# Restrict system calls to a safe subset.
+# @system-service covers everything a well-behaved server needs.
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Drop all ambient capabilities — gmmff needs none.
+AmbientCapabilities=
+CapabilityBoundingSet=
+
+# Restrict the process to a private network namespace if you want to lock it
+# down further (uncomment only if Redis is on the same host via Unix socket):
+# PrivateNetwork=false
+
+[Install]
+WantedBy=multi-user.target
