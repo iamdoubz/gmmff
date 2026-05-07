@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/iamdoubz/gmmff/internal/archive"
 	"github.com/iamdoubz/gmmff/internal/peer"
 	"github.com/iamdoubz/gmmff/internal/signaling"
 	"github.com/iamdoubz/gmmff/internal/transfer"
@@ -24,10 +25,21 @@ var sendCfg struct {
 }
 
 var sendCmd = &cobra.Command{
-	Use:   "send <file>",
-	Short: "Send a file — prints a one-time code for the receiver",
-	Args:  cobra.ExactArgs(1),
-	RunE:  runSend,
+	Use:   "send <file|dir> [file|dir ...]",
+	Short: "Send one or more files — prints a one-time code for the receiver",
+	Long: `Send one or more files or directories to another gmmff peer.
+
+A single regular file is sent as-is.
+A single directory or multiple paths are zipped on the fly into a single
+archive — the receiver gets one .zip file with everything inside.
+
+Examples:
+  gmmff send photo.jpg
+  gmmff send report.pdf data.csv
+  gmmff send ./project-folder
+  gmmff send *.log`,
+	Args: cobra.MinimumNArgs(1),
+	RunE: runSend,
 }
 
 func init() {
@@ -45,9 +57,18 @@ func init() {
 }
 
 func runSend(_ *cobra.Command, args []string) error {
-	filePath := args[0]
-	if _, err := os.Stat(filePath); err != nil {
-		return fmt.Errorf("cannot access file %q: %w", filePath, err)
+	// ── Prepare the file(s) to send ──────────────────────────────────────────
+	result, err := archive.Prepare(args)
+	if err != nil {
+		return err
+	}
+	defer result.Cleanup()
+
+	// Print what we are about to send.
+	if result.IsTemp {
+		fmt.Printf("Archiving %s → %s\n", archive.Summary(args), result.Name)
+	} else {
+		fmt.Printf("Sending %s\n", archive.Summary(args))
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -73,7 +94,7 @@ func runSend(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("send: decode slot.created: %w", err)
 	}
 
-	// ── Print the code — the only thing the user needs to share ─────────────
+	// ── Print the code ───────────────────────────────────────────────────────
 	fmt.Printf("\n")
 	fmt.Printf("  ╔══════════════════════════════════════╗\n")
 	fmt.Printf("  ║  Share this code with the receiver:  ║\n")
@@ -93,8 +114,12 @@ func runSend(_ *cobra.Command, args []string) error {
 	}
 
 	// ── Run the full send flow ───────────────────────────────────────────────
-	cfg := peer.Config{STUNServer: sendCfg.stunServer, WindowSize: sendCfg.window, ChunkSize: sendCfg.chunkSize}
-	if err := peer.Send(ctx, sig, created.Code, filePath, cfg); err != nil {
+	cfg := peer.Config{
+		STUNServer: sendCfg.stunServer,
+		WindowSize: sendCfg.window,
+		ChunkSize:  sendCfg.chunkSize,
+	}
+	if err := peer.Send(ctx, sig, created.Code, result.Path, cfg); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil
 		}
