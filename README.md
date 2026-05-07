@@ -435,6 +435,7 @@ gmmff/
 
 - **coturn** STUN/TURN integration and credential rotation
 - **QR Codes** generate easy to share QR codes to scan
+- **Browser extension** use your favorite web browser to send/receive files
 - **Docker images** create a pipeline to package, create, and update docker images
 - **Languages** continue to add more languages (current: en [default], es, fr, de, it, sv, pt-BR, pt-PT)
 - **Multiple recipients** share a *link* with multiple people and enable Multiple P2P transfers between all
@@ -453,6 +454,18 @@ gmmff/
 - TURN: add TURN config. List of TURN servers with format turn:url:port. Can use multiple. Each turn server must have appropriate auth configured: standard long-term credential and ephemeral credential (static-auth-secret) must be supported
 
 ---
+
+## Inspiration
+
+[https://xkcd.com/949](https://xkcd.com/949)
+
+<p align="center">
+  <img src="https://imgs.xkcd.com/comics/file_transfer.png" alt="xkcd comic explaining the difficulties of sending large files between two people">
+</p> 
+
+- [X] [webwormhole](https://github.com/saljam/webwormhole) by [@saljam](https://github.com/saljam)
+- [X] [FilePizza](https://github.com/kern/filepizza) by [@kern](https://github.com/kern) and [@neerajbaid](https://github.com/neerajbaid)
+
 
 ## License
 
