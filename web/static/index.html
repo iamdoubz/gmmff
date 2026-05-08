@@ -94,6 +94,8 @@
             data-i18n="nav_send">Send</button>
     <button class="tab" role="tab" id="tab-receive" aria-selected="false" aria-controls="panel-receive"
             data-i18n="nav_receive">Receive</button>
+    <button class="tab" role="tab" id="tab-chat" aria-selected="false" aria-controls="panel-chat"
+            data-i18n="nav_chat">Chat</button>
   </nav>
 
   <!-- ── SEND PANEL ──────────────────────────────────────────────────── -->
@@ -215,6 +217,78 @@
 
       <p class="status" id="receive-status"></p>
       <button class="btn-ghost" id="receive-cancel-btn" data-i18n="cancel_btn">Cancel</button>
+    </div>
+
+  </section>
+
+  <!-- ── CHAT PANEL ────────────────────────────────────────────────── -->
+  <section class="panel" id="panel-chat" role="tabpanel" aria-labelledby="tab-chat">
+
+    <!-- Idle: start or join -->
+    <div class="card" id="chat-form">
+      <div>
+        <h2 data-i18n="chat_heading">Secure Chat</h2>
+        <p><small data-i18n="chat_instruction">Start a session to get a code, or enter a code to join one.</small></p>
+      </div>
+
+      <div class="field">
+        <label for="chat-server" data-i18n="chat_server_label">Signaling server</label>
+        <input type="url" id="chat-server" autocomplete="off" autocorrect="off" autocapitalize="none"
+               spellcheck="false" data-i18n-placeholder="send_server_placeholder">
+      </div>
+
+      <p class="status" id="chat-error" role="alert"></p>
+
+      <button class="btn-primary" id="chat-start-btn" data-i18n="chat_start_btn">Start session</button>
+    </div>
+
+    <!-- Waiting: show code -->
+    <div class="card hidden" id="chat-code">
+      <div>
+        <h2 data-i18n="code_heading">Share this code</h2>
+        <p><small data-i18n="chat_code_instruction">Share this code with the person you want to chat with.</small></p>
+      </div>
+      <div class="code-display">
+        <span class="code-display__word" id="chat-code-value" aria-live="polite"></span>
+        <div class="code-display__actions">
+          <button class="btn-ghost" id="chat-copy-btn" data-i18n="code_copy">Copy</button>
+          <button class="btn-ghost" id="chat-cancel-code-btn" data-i18n="cancel_btn">Cancel</button>
+        </div>
+      </div>
+      <p class="status" id="chat-wait-status" data-i18n="chat_waiting">Waiting for the other party…</p>
+    </div>
+
+    <!-- Join: enter code -->
+    <div class="card hidden" id="chat-join">
+      <div>
+        <h2 data-i18n="chat_join_heading">Join a session</h2>
+      </div>
+      <div class="field">
+        <label for="chat-join-code" data-i18n="receive_code_label">Code</label>
+        <input type="text" id="chat-join-code" autocomplete="off" autocorrect="off" autocapitalize="none"
+               spellcheck="false" inputmode="text" data-i18n-placeholder="receive_code_placeholder">
+      </div>
+      <p class="status" id="chat-join-error" role="alert"></p>
+      <button class="btn-primary" id="chat-join-btn" data-i18n="chat_join_btn">Join</button>
+      <button class="btn-ghost" id="chat-back-btn" data-i18n="chat_back_btn">Back</button>
+    </div>
+
+    <!-- Active: message list + input -->
+    <div class="card hidden" id="chat-active">
+      <div class="chat-header">
+        <h2 data-i18n="chat_heading">Secure Chat</h2>
+        <span class="chat-status" id="chat-active-status" data-i18n="chat_connected">Connected</span>
+      </div>
+
+      <div class="chat-messages" id="chat-messages" aria-live="polite" aria-label="Messages"></div>
+
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" class="chat-input" autocomplete="off"
+               autocorrect="off" autocapitalize="sentences"
+               data-i18n-placeholder="chat_placeholder">
+        <button class="btn-primary chat-send-btn" id="chat-send-btn" data-i18n="chat_send_btn">Send</button>
+      </div>
+      <button class="btn-ghost" id="chat-close-btn" data-i18n="chat_close_btn">End session</button>
     </div>
 
   </section>
