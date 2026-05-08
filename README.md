@@ -53,6 +53,61 @@ Just run the same `send` and `receive` commands again with the same file.
 The receiver detects the partial file automatically and the transfer picks
 up from where it left off — on both progress bars.
 
+### Attaching a message to a file transfer
+
+Use `-m` / `--message` to include a note alongside any file send. With a single
+file the message is printed on the receiver's terminal before the file saves.
+With multiple files the message is injected as `message.txt` inside the zip.
+
+```bash
+gmmff send report.pdf -m "Here is the Q3 report, let me know if you have questions"
+```
+
+### Starting a chat session (CLI)
+
+Machine A starts the session and receives a code:
+
+```bash
+gmmff chat --server wss://your-server/ws
+```
+
+```
+  ╔══════════════════════════════════════╗
+  ║   Share this code to start chatting: ║
+  ║                                      ║
+  ║    river-stone-fog                   ║
+  ║                                      ║
+  ║  Expires in 10 minutes               ║
+  ╚══════════════════════════════════════╝
+
+  Run on the other machine:
+    gmmff join river-stone-fog
+```
+
+Machine B joins with the code:
+
+```bash
+gmmff join river-stone-fog --server wss://your-server/ws
+```
+
+Once connected both sides can type freely. The session closes automatically
+after 10 minutes of inactivity.
+
+**Session control:**
+
+| Who | Action | Effect |
+|-----|--------|--------|
+| Initiator | `\q` | Ends the session for everyone |
+| Initiator | `Ctrl+C` | Leaves quietly; session stays open |
+| Responder | `\q` or `Ctrl+C` | Leaves quietly; session stays open |
+
+### Chat tab (browser UI)
+
+Open the **Chat** tab, click **Start session** to get a code, or click
+**Join with a code** to enter one. The session works the same as the CLI:
+type `\q` in the message box to end the session (initiator) or leave quietly
+(responder). The **End session** button always leaves quietly.
+
 ---
 
 ## Send flags
@@ -71,6 +126,13 @@ up from where it left off — on both progress bars.
 | `--server` | `ws://localhost:8080/ws` | Signaling server WebSocket URL (`GMMFF_SERVER`) |
 | `--stun` | Google STUN | STUN server URL (`GMMFF_STUN`) |
 | `--out` / `-o` | `.` | Directory to save the received file |
+
+## Chat flags (`gmmff chat` / `gmmff join`)
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--server` | `ws://localhost:8080/ws` | Signaling server WebSocket URL (`GMMFF_SERVER`) |
+| `--stun` | Google STUN | STUN server URL (`GMMFF_STUN`) |
 
 Set `GMMFF_SERVER` in your environment to avoid passing `--server` every time:
 
@@ -329,6 +391,9 @@ one-byte tag prefix:
 | `0x06` | either direction | Transfer error |
 | `0x07` | receiver → sender | Resume from chunk N (8-byte seq) |
 | `0x08` | either direction | Cancelled |
+| `0x09` | either direction | Chat message (UTF-8 text) |
+| `0x0A` | initiator → all | Chat close — ends session for everyone |
+| `0x0B` | any participant | Participant leave — quiet exit; session continues |
 
 ### Error frames
 
@@ -362,8 +427,9 @@ slot codes, or any data that could identify a transfer or a user.
 gmmff/
 ├── cmd/gmmff/              # Binary entrypoint (Cobra CLI)
 │   ├── main.go             # Root command + serve subcommand
-│   ├── send.go             # gmmff send <file>
-│   └── receive.go          # gmmff receive <code>
+│   ├── send.go             # gmmff send <file> [-m message]
+│   ├── receive.go          # gmmff receive <code>
+│   └── chat.go             # gmmff chat / gmmff join <code>
 ├── internal/
 │   ├── broker/             # WebSocket hub, message router, HTTP server
 │   │   ├── broker.go
@@ -376,12 +442,17 @@ gmmff/
 │   │   └── codegen.go
 │   ├── log/                # Privacy-safe structured logger
 │   │   └── log.go
+│   ├── archive/            # On-the-fly zip for multi-file transfers
+│   │   └── archive.go
+│   ├── chat/               # Symmetric chat session (CLI REPL + idle timer)
+│   │   └── session.go
 │   ├── pake/               # HKDF subkey derivation + SDP MAC signing
 │   │   └── session.go
 │   ├── peer/               # WebRTC + PAKE orchestration
 │   │   └── peer.go
 │   ├── signaling/          # WebSocket signaling client
-│   │   ├── client.go
+│   │   ├── client_native.go  # gorilla/websocket (CLI)
+│   │   ├── client_js.go      # browser native WebSocket (Wasm)
 │   │   └── b64.go
 │   └── transfer/           # Binary chunk protocol (send + receive state)
 │       └── transfer.go
