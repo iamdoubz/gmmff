@@ -277,3 +277,10 @@ func zipArchiveName(files []NamedFile) string {
 	}
 	return fmt.Sprintf("gmmff-%s.zip", time.Now().Format("20060102-150405"))
 }
+
+// InjectMessage prepends a message.txt entry into a slice of NamedFiles.
+// Used when the sender provides both files and a message.
+func InjectMessage(files []NamedFile, message string) []NamedFile {
+	msg := NamedFile{ZipPath: "message.txt", Data: []byte(message)}
+	return append([]NamedFile{msg}, files...)
+}

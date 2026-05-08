@@ -27,6 +27,8 @@ import (
 
 	"github.com/iamdoubz/gmmff/internal/archive"
 	"github.com/iamdoubz/gmmff/internal/peer"
+	filippo.io/cpace
+	github.com/iamdoubz/gmmff/internal/pake
 	"github.com/iamdoubz/gmmff/internal/signaling"
 	"github.com/iamdoubz/gmmff/internal/transfer"
 	"github.com/iamdoubz/gmmff/pkg/protocol"
@@ -35,6 +37,9 @@ import (
 func main() {
 	js.Global().Set("gmmffSend", js.FuncOf(jsSend))
 	js.Global().Set("gmmffReceive", js.FuncOf(jsReceive))
+	js.Global().Set("gmmffChat", js.FuncOf(jsChat))
+	js.Global().Set("gmmffChatSend", js.FuncOf(jsChatSend))
+	js.Global().Set("gmmffChatJoin", js.FuncOf(jsChatJoin))
 
 	// Block forever — Go Wasm must not exit or the runtime shuts down.
 	select {}
@@ -119,7 +124,7 @@ func jsSend(_ js.Value, args []js.Value) any {
 
 		fileSize := int64(len(fileData))
 		progress := makeProgressFn("send", fileSize)
-		if err := peer.SendBytes(ctx, sig, created.Code, fileName, fileData, cfg, progress); err != nil {
+		if err := peer.SendBytes(ctx, sig, created.Code, fileName, fileData, cfg, progress, ""); err != nil {
 			uiError(err.Error(), "send")
 			return
 		}
@@ -246,6 +251,182 @@ func readJSFile(jsFile js.Value) ([]byte, error) {
 		return nil, err
 	}
 	return buf, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chat
+// ─────────────────────────────────────────────────────────────────────────────
+
+// activeChatDC holds the open data channel for the current chat session.
+var activeChatDC *webrtc.DataChannel
+
+// jsChat is called from JS as: window.gmmffChat(serverURL)
+// Initiator path — creates a slot, shows code, opens chat.
+func jsChat(_ js.Value, args []js.Value) any {
+	if len(args) < 1 {
+		return nil
+	}
+	serverURL := args[0].String()
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	cancelFn := js.FuncOf(func(_ js.Value, _ []js.Value) any { cancelCtx(); return nil })
+	js.Global().Call("uiRegisterCancel", cancelFn)
+	go func() {
+		defer cancelCtx()
+		defer cancelFn.Release()
+		sig, err := signaling.Connect(ctx, serverURL)
+		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		if err := sig.CreateSlot(); err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		createdMsg, err := sig.WaitFor(ctx, protocol.MsgSlotCreated)
+		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		var created protocol.SlotCreatedPayload
+		if err := json.Unmarshal(createdMsg.Payload, &created); err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		js.Global().Call("uiChatShowCode", created.Code)
+		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		dc, err := runChatSession(ctx, sig, created.Code, "Receiver", peer.Config{})
+		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		activeChatDC = dc
+	}()
+	return nil
+}
+
+// jsChatJoin is called from JS as: window.gmmffChatJoin(code, serverURL)
+// Responder path — joins with the given code.
+func jsChatJoin(_ js.Value, args []js.Value) any {
+	if len(args) < 2 {
+		return nil
+	}
+	code, serverURL := args[0].String(), args[1].String()
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	cancelFn := js.FuncOf(func(_ js.Value, _ []js.Value) any { cancelCtx(); return nil })
+	js.Global().Call("uiRegisterCancel", cancelFn)
+	go func() {
+		defer cancelCtx()
+		defer cancelFn.Release()
+		sig, err := signaling.Connect(ctx, serverURL)
+		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		if err := sig.JoinSlot(code); err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		dc, err := runChatSession(ctx, sig, code, "Sender", peer.Config{})
+		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		activeChatDC = dc
+	}()
+	return nil
+}
+
+// jsChatSend sends a message on the active chat data channel.
+func jsChatSend(_ js.Value, args []js.Value) any {
+	if len(args) < 1 || activeChatDC == nil {
+		return nil
+	}
+	_ = activeChatDC.Send(transfer.BuildMessageFrame(args[0].String()))
+	return nil
+}
+
+// jsChat (legacy — kept for back-compat, maps to jsChat initiator)
+func jsChatNoop(_ js.Value, _ []js.Value) any { return nil }
+
+// runChatSession sets up the WebRTC data channel for chat and wires JS callbacks.
+// Returns the open data channel so jsChatSend can use it.
+func runChatSession(ctx context.Context, sig *signaling.Client, code, remoteRole string, cfg peer.Config) (*webrtc.DataChannel, error) {
+	disp := newDispatcher()
+	go disp.run(ctx, sig.Recv())
+
+	// PAKE
+	ci := cpace.NewContextInfo("gmmff-initiator", "gmmff-responder", nil)
+	var sharedKey []byte
+	if remoteRole == "Sender" {
+		// We are Receiver (joined)
+		msgAEnv, err := disp.waitFor(ctx, disp.pakeA)
+		if err != nil { return nil, err }
+		msgA, err := signaling.DecodeOpaque(msgAEnv)
+		if err != nil { return nil, err }
+		msgB, sk, err := cpace.Exchange(code, ci, msgA)
+		if err != nil { return nil, err }
+		sharedKey = sk
+		if err := sig.SendOpaque(protocol.MsgPakeB, msgB); err != nil { return nil, err }
+	} else {
+		// We are Sender (initiated)
+		msgA, state, err := cpace.Start(code, ci)
+		if err != nil { return nil, err }
+		if err := sig.SendOpaque(protocol.MsgPakeA, msgA); err != nil { return nil, err }
+		msg, err := disp.waitFor(ctx, disp.pakeB)
+		if err != nil { return nil, err }
+		msgB, err := signaling.DecodeOpaque(msg)
+		if err != nil { return nil, err }
+		sk, err := state.Finish(msgB)
+		if err != nil { return nil, err }
+		sharedKey = sk
+	}
+	session, err := pake.NewSession(sharedKey)
+	if err != nil { return nil, err }
+
+	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{
+		ICEServers: []webrtc.ICEServer{{URLs: []string{cfg.STUNServer}}},
+	})
+	if err != nil { return nil, err }
+
+	dcReady := make(chan *webrtc.DataChannel, 1)
+	if remoteRole == "Receiver" {
+		ordered := true
+		dc, err := pc.CreateDataChannel("gmmff-chat", &webrtc.DataChannelInit{Ordered: &ordered})
+		if err != nil { return nil, err }
+		dc.OnOpen(func() { dcReady <- dc })
+	} else {
+		pc.OnDataChannel(func(dc *webrtc.DataChannel) { dcReady <- dc })
+	}
+
+	trickleICE(sig, pc)
+	go disp.pumpICE(ctx, pc)
+
+	if remoteRole == "Receiver" {
+		offer, _ := pc.CreateOffer(nil)
+		_ = pc.SetLocalDescription(offer)
+		sdpJSON, _ := json.Marshal(offer)
+		offerMAC := session.SignOffer(sdpJSON)
+		_ = sig.SendSignedSDP(protocol.MsgSDPOffer, sdpJSON, offerMAC)
+		answerMsg, err := disp.waitFor(ctx, disp.answer)
+		if err != nil { return nil, err }
+		answerJSON, answerMAC, err := signaling.DecodeSignedSDP(answerMsg)
+		if err != nil { return nil, err }
+		if err := session.VerifyAnswer(answerJSON, answerMAC); err != nil { return nil, err }
+		var answer webrtc.SessionDescription
+		_ = json.Unmarshal(answerJSON, &answer)
+		_ = pc.SetRemoteDescription(answer)
+	} else {
+		offerMsg, err := disp.waitFor(ctx, disp.offer)
+		if err != nil { return nil, err }
+		offerJSON, offerMAC, err := signaling.DecodeSignedSDP(offerMsg)
+		if err != nil { return nil, err }
+		if err := session.VerifyOffer(offerJSON, offerMAC); err != nil { return nil, err }
+		var offer webrtc.SessionDescription
+		_ = json.Unmarshal(offerJSON, &offer)
+		_ = pc.SetRemoteDescription(offer)
+		answer, _ := pc.CreateAnswer(nil)
+		_ = pc.SetLocalDescription(answer)
+		answerJSON, _ := json.Marshal(answer)
+		answerMAC := session.SignAnswer(answerJSON)
+		_ = sig.SendSignedSDP(protocol.MsgSDPAnswer, answerJSON, answerMAC)
+	}
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case dc := <-dcReady:
+		// Wire incoming messages to JS
+		dc.OnMessage(func(m webrtc.DataChannelMessage) {
+			if len(m.Data) == 0 { return }
+			switch m.Data[0] {
+			case transfer.TagMessage:
+				text := transfer.ParseMessageFrame(m.Data)
+				js.Global().Call("uiChatMessage", remoteRole, text)
+			case transfer.TagChatClose, transfer.TagCancelled:
+				js.Global().Call("uiChatClosed", remoteRole+" ended the session.")
+				activeChatDC = nil
+			}
+		})
+		js.Global().Call("uiChatOpen", remoteRole)
+		return dc, nil
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
