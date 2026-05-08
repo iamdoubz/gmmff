@@ -13,6 +13,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"net/http"
 	"os"
 	"os/signal"
@@ -229,6 +230,28 @@ var versionCmd = &cobra.Command{
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+// stunServersDefault returns the default STUN server list.
+// GMMFF_STUN may be a comma-separated list of stun:/stuns: URLs.
+// If unset, returns []string{peer.DefaultSTUN}.
+func stunServersDefault() []string {
+	v := os.Getenv("GMMFF_STUN")
+	if v == "" {
+		return []string{peer.DefaultSTUN}
+	}
+	parts := strings.Split(v, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	if len(result) == 0 {
+		return []string{peer.DefaultSTUN}
+	}
+	return result
+}
 
 // envOr returns the environment variable value or the fallback.
 func envOr(key, fallback string) string {

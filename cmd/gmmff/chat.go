@@ -17,7 +17,7 @@ import (
 
 var chatCfg struct {
 	serverURL  string
-	stunServer string
+	stunServers []string
 }
 
 // ── chat (initiator) ──────────────────────────────────────────────────────────
@@ -46,8 +46,8 @@ func init() {
 	f := chatCmd.Flags()
 	f.StringVar(&chatCfg.serverURL, "server", envOr("GMMFF_SERVER", "ws://localhost:8080/ws"),
 		"Signaling server WebSocket URL (GMMFF_SERVER)")
-	f.StringVar(&chatCfg.stunServer, "stun", envOr("GMMFF_STUN", peer.DefaultSTUN),
-		"STUN server URL (GMMFF_STUN)")
+	f.StringArrayVar(&chatCfg.stunServers, "stun", stunServersDefault(),
+		"STUN/STUNS server URL (repeatable); env GMMFF_STUN accepts comma-separated list")
 }
 
 func runChat(_ *cobra.Command, _ []string) error {
@@ -89,7 +89,7 @@ func runChat(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("chat: wait slot.ready: %w", err)
 	}
 
-	cfg := peer.Config{STUNServer: chatCfg.stunServer}
+	cfg := peer.Config{STUNServers: chatCfg.stunServers}
 	if err := peer.Chat(ctx, sig, created.Code, "Receiver", cfg); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil
@@ -114,8 +114,8 @@ func init() {
 	f := joinCmd.Flags()
 	f.StringVar(&chatCfg.serverURL, "server", envOr("GMMFF_SERVER", "ws://localhost:8080/ws"),
 		"Signaling server WebSocket URL (GMMFF_SERVER)")
-	f.StringVar(&chatCfg.stunServer, "stun", envOr("GMMFF_STUN", peer.DefaultSTUN),
-		"STUN server URL (GMMFF_STUN)")
+	f.StringArrayVar(&chatCfg.stunServers, "stun", stunServersDefault(),
+		"STUN/STUNS server URL (repeatable); env GMMFF_STUN accepts comma-separated list")
 }
 
 func runJoin(_ *cobra.Command, args []string) error {
@@ -138,7 +138,7 @@ func runJoin(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("join: wait slot.ready: %w", err)
 	}
 
-	cfg := peer.Config{STUNServer: chatCfg.stunServer}
+	cfg := peer.Config{STUNServers: chatCfg.stunServers}
 	if err := peer.Chat(ctx, sig, code, "Sender", cfg); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil

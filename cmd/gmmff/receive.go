@@ -16,7 +16,7 @@ import (
 
 var receiveCfg struct {
 	serverURL  string
-	stunServer string
+	stunServers []string
 	outDir     string
 }
 
@@ -33,8 +33,8 @@ func init() {
 	f := receiveCmd.Flags()
 	f.StringVar(&receiveCfg.serverURL, "server", envOr("GMMFF_SERVER", "ws://localhost:8080/ws"),
 		"Signaling server WebSocket URL (GMMFF_SERVER)")
-	f.StringVar(&receiveCfg.stunServer, "stun", envOr("GMMFF_STUN", peer.DefaultSTUN),
-		"STUN server URL (GMMFF_STUN)")
+	f.StringArrayVar(&receiveCfg.stunServers, "stun", stunServersDefault(),
+		"STUN/STUNS server URL (repeatable); env GMMFF_STUN accepts comma-separated list")
 	f.StringVarP(&receiveCfg.outDir, "out", "o", ".",
 		"Directory to save the received file")
 }
@@ -66,7 +66,7 @@ func runReceive(_ *cobra.Command, args []string) error {
 	}
 
 	// ── Run the full receive flow ─────────────────────────────────────────────
-	cfg := peer.Config{STUNServer: receiveCfg.stunServer}
+	cfg := peer.Config{STUNServers: receiveCfg.stunServers}
 	outDir := peer.DefaultOutDir(receiveCfg.outDir)
 	if err := peer.Receive(ctx, sig, code, outDir, cfg); err != nil {
 		if errors.Is(err, context.Canceled) {

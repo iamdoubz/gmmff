@@ -115,7 +115,7 @@ type `\q` in the message box to end the session (initiator) or leave quietly
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--server` | `ws://localhost:8080/ws` | Signaling server WebSocket URL (`GMMFF_SERVER`) |
-| `--stun` | Google STUN | STUN server URL (`GMMFF_STUN`) |
+| `--stun` | Google STUN | STUN/STUNS server URL, repeatable (`GMMFF_STUN` accepts comma-separated list) |
 | `--window` | `2` | Sliding window size — chunks in flight simultaneously |
 | `--chunk-size` | `65526` | Chunk size in bytes (SCTP maximum; tune for your network) |
 
@@ -124,7 +124,7 @@ type `\q` in the message box to end the session (initiator) or leave quietly
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--server` | `ws://localhost:8080/ws` | Signaling server WebSocket URL (`GMMFF_SERVER`) |
-| `--stun` | Google STUN | STUN server URL (`GMMFF_STUN`) |
+| `--stun` | Google STUN | STUN/STUNS server URL, repeatable (`GMMFF_STUN` accepts comma-separated list) |
 | `--out` / `-o` | `.` | Directory to save the received file |
 
 ## Chat flags (`gmmff chat` / `gmmff join`)
@@ -132,13 +132,23 @@ type `\q` in the message box to end the session (initiator) or leave quietly
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--server` | `ws://localhost:8080/ws` | Signaling server WebSocket URL (`GMMFF_SERVER`) |
-| `--stun` | Google STUN | STUN server URL (`GMMFF_STUN`) |
+| `--stun` | Google STUN | STUN/STUNS server URL, repeatable (`GMMFF_STUN` accepts comma-separated list) |
 
 Set `GMMFF_SERVER` in your environment to avoid passing `--server` every time:
 
 ```bash
 export GMMFF_SERVER=wss://your-server/ws
 gmmff send myfile.zip
+```
+
+Use multiple STUN servers by repeating the flag, or via a comma-separated env var:
+
+```bash
+# Flag — repeat for each server
+gmmff send myfile.zip --stun stun:stun1.example.com:3478 --stun stuns:stun2.example.com:5349
+
+# Environment variable — comma-separated
+export GMMFF_STUN=stun:stun1.example.com:3478,stuns:stun2.example.com:5349
 ```
 
 ---

@@ -31,12 +31,19 @@ import (
 	"github.com/pion/webrtc/v4"
 )
 
-// DefaultSTUN is the STUN server used when none is configured.
+// DefaultSTUN is the default STUN server URL.
 const DefaultSTUN = "stun:stun.l.google.com:19302"
+
+// DefaultSTUNServers is the slice form of the default, used when STUNServers is empty.
+var DefaultSTUNServers = []string{DefaultSTUN}
 
 // Config holds peer connection settings.
 type Config struct {
-	STUNServer string
+	// STUNServers is the list of STUN/STUNS URLs to use for ICE negotiation.
+	// Each entry must begin with "stun:" or "stuns:".
+	// Defaults to DefaultSTUNServers when empty.
+	STUNServers []string
+
 	// WindowSize is the number of chunks that may be in flight simultaneously.
 	// Defaults to transfer.DefaultWindowSize (2) when zero.
 	WindowSize int
@@ -46,11 +53,14 @@ type Config struct {
 	ChunkSize int
 }
 
-func (c Config) stunURL() string {
-	if c.STUNServer != "" {
-		return c.STUNServer
+// stunServers returns the ICEServer slice to pass to Pion.
+// All configured URLs are bundled into a single ICEServer entry.
+func (c Config) stunServers() []webrtc.ICEServer {
+	urls := c.STUNServers
+	if len(urls) == 0 {
+		urls = DefaultSTUNServers
 	}
-	return DefaultSTUN
+	return []webrtc.ICEServer{{URLs: urls}}
 }
 
 func (c Config) windowSize() int {
@@ -1134,7 +1144,7 @@ func ChatWithCallback(
 
 func newPeerConnection(cfg Config) (*webrtc.PeerConnection, error) {
 	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{
-		ICEServers: []webrtc.ICEServer{{URLs: []string{cfg.stunURL()}}},
+		ICEServers: cfg.stunServers(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("peer: new PeerConnection: %w", err)
