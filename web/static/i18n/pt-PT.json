@@ -45,5 +45,7 @@
   "error_connection": "Ligação falhou. Verifique a URL do servidor e tente novamente.",
   "footer_source": "Código-fonte",
   "footer_privacy": "Nenhum dado passa pelo servidor",
-  "drop_label": "Largar para enviar"
+  "drop_label": "Largar para enviar",
+  "send_choose_folder": "Escolher pasta",
+  "files_count": "ficheiros"
 }

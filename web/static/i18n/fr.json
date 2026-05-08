@@ -45,5 +45,7 @@
   "error_connection": "Échec de la connexion. Vérifiez l’URL du serveur et réessayez.",
   "footer_source": "Code source",
   "footer_privacy": "Aucune donnée ne transite par le serveur",
-  "drop_label": "Déposer pour envoyer"
+  "drop_label": "Déposer pour envoyer",
+  "send_choose_folder": "Choisir un dossier",
+  "files_count": "fichiers"
 }

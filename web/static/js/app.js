@@ -218,19 +218,45 @@ document.querySelectorAll('.tab').forEach(btn => {
 });
 
 // ── File picker ───────────────────────────────────────────────────────────────
-const fileInput   = document.getElementById('send-file-input');
-const fileName    = document.getElementById('send-file-name');
-const pickBtn     = document.getElementById('send-pick-btn');
+// selectedFiles accumulates File objects from both pickers and drag-and-drop.
+// It is always a plain Array (not a FileList) for easy manipulation.
+let selectedFiles = [];
+
+function setSelectedFiles(files) {
+  selectedFiles = Array.from(files);
+  const nameEl = document.getElementById('send-file-name');
+  if (selectedFiles.length === 0) {
+    nameEl.textContent = t('send_no_file');
+    nameEl.classList.remove('has-file');
+  } else if (selectedFiles.length === 1) {
+    nameEl.textContent = selectedFiles[0].name;
+    nameEl.classList.add('has-file');
+  } else {
+    // Show folder name if all share a common prefix, otherwise count.
+    const first = selectedFiles[0].webkitRelativePath;
+    const folder = first ? first.split('/')[0] : null;
+    const allSame = folder && selectedFiles.every(f => f.webkitRelativePath?.startsWith(folder + '/'));
+    nameEl.textContent = allSame
+      ? folder + '/ (' + selectedFiles.length + ' ' + t('files_count') + ')'
+      : selectedFiles.length + ' ' + t('files_count');
+    nameEl.classList.add('has-file');
+  }
+  document.getElementById('send-error').textContent = '';
+}
+
+const fileInput    = document.getElementById('send-file-input');
+const folderInput  = document.getElementById('send-folder-input');
+const pickBtn      = document.getElementById('send-pick-btn');
+const pickFolderBtn = document.getElementById('send-pick-folder-btn');
 
 pickBtn.addEventListener('click', () => fileInput.click());
+pickFolderBtn.addEventListener('click', () => folderInput.click());
+
 fileInput.addEventListener('change', () => {
-  if (fileInput.files[0]) {
-    fileName.textContent = fileInput.files[0].name;
-    fileName.classList.add('has-file');
-  } else {
-    fileName.textContent = t('send_no_file');
-    fileName.classList.remove('has-file');
-  }
+  if (fileInput.files.length > 0) setSelectedFiles(fileInput.files);
+});
+folderInput.addEventListener('change', () => {
+  if (folderInput.files.length > 0) setSelectedFiles(folderInput.files);
 });
 
 // ── Drag and drop ────────────────────────────────────────────────────────────
@@ -268,25 +294,15 @@ fileInput.addEventListener('change', () => {
     overlay.classList.add('hidden');
     if (picker) picker.classList.remove('drag-over');
 
-    const file = e.dataTransfer?.files?.[0];
-    if (!file) return;
+    const droppedFiles = e.dataTransfer?.files;
+    if (!droppedFiles?.length) return;
 
     // Switch to Send tab if not already active.
     const sendTab = document.getElementById('tab-send');
     if (sendTab?.getAttribute('aria-selected') !== 'true') sendTab?.click();
 
-    // Populate the file picker.
-    const input = document.getElementById('send-file-input');
-    const nameEl = document.getElementById('send-file-name');
-    // Replace the FileList via DataTransfer so the input reflects the dropped file.
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    input.files = dt.files;
-    nameEl.textContent = file.name;
-    nameEl.classList.add('has-file');
-
-    // Clear any previous error.
-    document.getElementById('send-error').textContent = '';
+    // Populate via setSelectedFiles — works for single or multiple dropped files.
+    setSelectedFiles(droppedFiles);
   });
 }());
 
@@ -311,17 +327,16 @@ document.getElementById('send-copy-btn').addEventListener('click', async () => {
 
 // ── Send button ───────────────────────────────────────────────────────────────
 document.getElementById('send-btn').addEventListener('click', () => {
-  const file   = fileInput.files[0];
   const server = normaliseServerURL(document.getElementById('send-server').value.trim());
   const errEl  = document.getElementById('send-error');
 
   errEl.textContent = '';
-  if (!file)   { errEl.textContent = t('error_no_file');   return; }
-  if (!server) { errEl.textContent = t('error_no_server'); return; }
+  if (selectedFiles.length === 0) { errEl.textContent = t('error_no_file');   return; }
+  if (!server)                    { errEl.textContent = t('error_no_server'); return; }
 
-  // Hand off to Go/Wasm
+  // Hand off to Go/Wasm — selectedFiles is a plain JS Array.
   if (typeof window.gmmffSend === 'function') {
-    window.gmmffSend(file, server);
+    window.gmmffSend(selectedFiles, server);
   }
 });
 

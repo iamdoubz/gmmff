@@ -45,5 +45,7 @@
   "error_connection": "Connection failed. Check the server URL and try again.",
   "footer_source": "Source code",
   "footer_privacy": "No data touches the server",
-  "drop_label": "Drop to send"
+  "drop_label": "Drop to send",
+  "send_choose_folder": "Choose folder",
+  "files_count": "files"
 }
