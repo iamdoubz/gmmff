@@ -65,5 +65,6 @@
   "chat_connected": "Ligado",
   "chat_disconnected": "Desligado",
   "chat_session_open": "Sessão aberta. As mensagens são encriptadas de ponta a ponta.",
-  "chat_you_left": "Terminou a sessão."
+  "chat_you_left": "Terminou a sessão.",
+  "chat_participant": "Participante"
 }

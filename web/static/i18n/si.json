@@ -65,5 +65,6 @@
   "chat_connected": "සම්බන්ධිත",
   "chat_disconnected": "විසන්ධිව",
   "chat_session_open": "සැසිය විවෘතයි. පණිවිඩ අන්ත-සිට-අන්ත සංකේතනය කර ඇත.",
-  "chat_you_left": "ඔබ සැසිය අවසන් කළා."
+  "chat_you_left": "ඔබ සැසිය අවසන් කළා.",
+  "chat_participant": "සහභාගිවන්නා"
 }

@@ -65,5 +65,6 @@
   "chat_connected": "Conectado",
   "chat_disconnected": "Desconectado",
   "chat_session_open": "Sesión abierta. Los mensajes están cifrados de extremo a extremo.",
-  "chat_you_left": "Has terminado la sesión."
+  "chat_you_left": "Has terminado la sesión.",
+  "chat_participant": "Participante"
 }

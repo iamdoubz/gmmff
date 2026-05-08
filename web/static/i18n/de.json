@@ -65,5 +65,6 @@
   "chat_connected": "Verbunden",
   "chat_disconnected": "Getrennt",
   "chat_session_open": "Sitzung offen. Nachrichten sind Ende-zu-Ende verschlüsselt.",
-  "chat_you_left": "Du hast die Sitzung beendet."
+  "chat_you_left": "Du hast die Sitzung beendet.",
+  "chat_participant": "Teilnehmer"
 }

@@ -65,5 +65,6 @@
   "chat_connected": "Ansluten",
   "chat_disconnected": "Frånkopplad",
   "chat_session_open": "Session öppen. Meddelanden är end-to-end-krypterade.",
-  "chat_you_left": "Du avslutade sessionen."
+  "chat_you_left": "Du avslutade sessionen.",
+  "chat_participant": "Deltagare"
 }

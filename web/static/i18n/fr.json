@@ -65,5 +65,6 @@
   "chat_connected": "Connecté",
   "chat_disconnected": "Déconnecté",
   "chat_session_open": "Session ouverte. Les messages sont chiffrés de bout en bout.",
-  "chat_you_left": "Vous avez terminé la session."
+  "chat_you_left": "Vous avez terminé la session.",
+  "chat_participant": "Participant"
 }

@@ -620,6 +620,13 @@ function sendChatMessage() {
   const input = document.getElementById('chat-input');
   const text  = input?.value.trim();
   if (!text) return;
+  // Initiator typing \q ends the session for everyone.
+  // Responder typing \q leaves quietly.
+  if (text === '\\q') {
+    input.value = '';
+    if (typeof window.gmmffChatQuit === 'function') window.gmmffChatQuit();
+    return;
+  }
   if (typeof window.gmmffChatSend === 'function') window.gmmffChatSend(text);
   appendChatBubble('me', 'You', text);
   input.value = '';
@@ -628,16 +635,26 @@ function sendChatMessage() {
 
 // ── Close chat ───────────────────────────────────────────────────────────────
 document.getElementById('chat-close-btn')?.addEventListener('click', () => {
-  if (cancel) { cancel(); cancel = null; }
-  appendChatSystem(t('chat_you_left') || 'You ended the session.');
-  document.getElementById('chat-active-status').textContent = t('chat_disconnected') || 'Disconnected';
-  document.getElementById('chat-active-status').style.color = 'var(--color-text-muted)';
-  document.getElementById('chat-close-btn').classList.add('hidden');
-  document.getElementById('chat-send-btn').disabled = true;
-  document.getElementById('chat-input').disabled = true;
+  if (typeof window.gmmffChatLeave === 'function') window.gmmffChatLeave();
+  appendChatSystem(t('chat_you_left') || 'You left the session.');
+  chatDisableInput();
 });
 
 // ── Bubble helpers ────────────────────────────────────────────────────────────
+function chatDisableInput() {
+  const statusEl = document.getElementById('chat-active-status');
+  if (statusEl) {
+    statusEl.textContent = t('chat_disconnected') || 'Disconnected';
+    statusEl.style.color = 'var(--color-text-muted)';
+  }
+  const sendBtn  = document.getElementById('chat-send-btn');
+  const input    = document.getElementById('chat-input');
+  const closeBtn = document.getElementById('chat-close-btn');
+  if (sendBtn)  sendBtn.disabled = true;
+  if (input)    input.disabled = true;
+  if (closeBtn) closeBtn.classList.add('hidden');
+}
+
 function appendChatBubble(side, from, text) {
   const list = document.getElementById('chat-messages');
   if (!list) return;
@@ -687,22 +704,22 @@ window.uiChatOpen = function(remoteRole) {
 };
 
 window.uiChatMessage = function(from, text) {
-  appendChatBubble('them', from, text);
+  // Always display as 'Participant' regardless of underlying role.
+  // Future: 'Participant 1', 'Participant 2', etc.
+  appendChatBubble('them', t('chat_participant') || 'Participant', text);
 };
 
+// uiChatClosed — called when session ends for everyone (TagChatClose).
 window.uiChatClosed = function(reason) {
   appendChatSystem(reason);
-  const statusEl = document.getElementById('chat-active-status');
-  if (statusEl) {
-    statusEl.textContent = t('chat_disconnected') || 'Disconnected';
-    statusEl.style.color = 'var(--color-text-muted)';
-  }
-  const sendBtn = document.getElementById('chat-send-btn');
-  const input   = document.getElementById('chat-input');
-  const closeBtn = document.getElementById('chat-close-btn');
-  if (sendBtn)  sendBtn.disabled = true;
-  if (input)    input.disabled = true;
-  if (closeBtn) closeBtn.classList.add('hidden');
+  chatDisableInput();
+};
+
+// uiChatParticipantLeft — called when a participant leaves quietly (TagParticipantLeave).
+// Input stays enabled for the local user (they remain in the session).
+window.uiChatParticipantLeft = function(who) {
+  appendChatSystem((who || 'Participant') + ' left the session.');
+  // Do NOT disable input — local user stays connected.
 };
 
 window.uiChatError = function(message) {

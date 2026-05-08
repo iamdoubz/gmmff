@@ -65,5 +65,6 @@
   "chat_connected": "Connected",
   "chat_disconnected": "Disconnected",
   "chat_session_open": "Session open. Messages are end-to-end encrypted.",
-  "chat_you_left": "You ended the session."
+  "chat_you_left": "You ended the session.",
+  "chat_participant": "Participant"
 }
