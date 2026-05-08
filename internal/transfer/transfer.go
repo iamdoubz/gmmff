@@ -73,7 +73,8 @@ const (
 	TagResumeFrom    byte = 0x07
 	TagCancelled     byte = 0x08 // sender or receiver intentionally stopped
 	TagMessage       byte = 0x09 // UTF-8 chat message
-	TagChatClose     byte = 0x0A // graceful chat session close
+	TagChatClose        byte = 0x0A // initiator closes session for everyone
+	TagParticipantLeave byte = 0x0B // one participant leaves; session continues
 )
 
 // ErrCancelled is returned when the remote peer intentionally cancelled the
@@ -662,7 +663,12 @@ func ParseMessageFrame(frame []byte) string {
 }
 
 // BuildChatCloseFrame builds a TagChatClose frame.
+// Only the session initiator should send this — it ends the session for everyone.
 func BuildChatCloseFrame() []byte { return []byte{TagChatClose} }
+
+// BuildParticipantLeaveFrame builds a TagParticipantLeave frame.
+// Any participant can send this to leave quietly without ending the session.
+func BuildParticipantLeaveFrame() []byte { return []byte{TagParticipantLeave} }
 
 // BuildCancelledFrame builds a TagCancelled frame.
 func BuildCancelledFrame() []byte {

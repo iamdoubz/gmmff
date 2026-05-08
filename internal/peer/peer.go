@@ -961,7 +961,8 @@ func Chat(ctx context.Context, sig *signaling.Client, code, role string, cfg Con
 	case <-ctx.Done():
 		return nil
 	case dc := <-dcReady:
-		s := chat.NewSession(dc, role, nil, nil)
+		isInitiator := (role == "Sender")
+		s := chat.NewSession(dc, "Participant", isInitiator, nil, nil, nil)
 		sig.Close()
 		return s.RunCLI(ctx)
 	}
@@ -972,11 +973,12 @@ func Chat(ctx context.Context, sig *signaling.Client, code, role string, cfg Con
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ChatSession is the handle returned by ChatWithCallback.
-// The caller sends messages via Send() and receives them via the onMessage
-// callback registered at construction time.
+// The caller sends messages via Send(), leaves quietly via Leave(),
+// or ends the session for everyone via Close() (initiator only).
 type ChatSession struct {
-	dc     *webrtc.DataChannel
-	cancel context.CancelFunc
+	dc          *webrtc.DataChannel
+	cancel      context.CancelFunc
+	IsInitiator bool
 }
 
 // Send delivers a text message to the remote peer.
@@ -984,9 +986,17 @@ func (s *ChatSession) Send(text string) error {
 	return s.dc.Send(transfer.BuildMessageFrame(text))
 }
 
-// Close sends a ChatClose frame and tears down the session.
+// Close ends the session for everyone (initiator only).
+// Sends TagChatClose so all participants are notified to shut down.
 func (s *ChatSession) Close() {
 	_ = s.dc.Send(transfer.BuildChatCloseFrame())
+	s.cancel()
+}
+
+// Leave sends TagParticipantLeave (quiet departure) and tears down locally.
+// The session continues for other participants.
+func (s *ChatSession) Leave() {
+	_ = s.dc.Send(transfer.BuildParticipantLeaveFrame())
 	s.cancel()
 }
 
@@ -1001,6 +1011,7 @@ func ChatWithCallback(
 	cfg Config,
 	onMessage func(from, text string),
 	onClose func(reason string),
+	onLeave func(who string),
 ) (*ChatSession, error) {
 	disp := newDispatcher()
 	go disp.run(ctx, sig.Recv())
@@ -1092,13 +1103,19 @@ func ChatWithCallback(
 			switch m.Data[0] {
 			case transfer.TagMessage:
 				if onMessage != nil {
-					onMessage(role, transfer.ParseMessageFrame(m.Data))
+					onMessage("Participant", transfer.ParseMessageFrame(m.Data))
 				}
 			case transfer.TagChatClose, transfer.TagCancelled:
+				// Initiator ended the session for everyone.
 				if onClose != nil {
-					onClose(role + " ended the session.")
+					onClose("Session ended by Participant.")
 				}
 				cancel()
+			case transfer.TagParticipantLeave:
+				// Participant left quietly — notify but do NOT cancel the session.
+				if onLeave != nil {
+					onLeave("Participant")
+				}
 			}
 		})
 		dc.OnClose(func() {
@@ -1107,7 +1124,7 @@ func ChatWithCallback(
 			}
 			cancel()
 		})
-		return &ChatSession{dc: dc, cancel: cancel}, nil
+		return &ChatSession{dc: dc, cancel: cancel, IsInitiator: role == "Sender"}, nil
 	}
 }
 

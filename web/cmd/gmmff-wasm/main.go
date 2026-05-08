@@ -38,6 +38,8 @@ func main() {
 	js.Global().Set("gmmffChat", js.FuncOf(jsChat))
 	js.Global().Set("gmmffChatSend", js.FuncOf(jsChatSend))
 	js.Global().Set("gmmffChatJoin", js.FuncOf(jsChatJoin))
+	js.Global().Set("gmmffChatQuit", js.FuncOf(jsChatQuit))
+	js.Global().Set("gmmffChatLeave", js.FuncOf(jsChatLeave))
 
 	// Block forever — Go Wasm must not exit or the runtime shuts down.
 	select {}
@@ -283,6 +285,7 @@ func jsChat(_ js.Value, args []js.Value) any {
 			peer.Config{},
 			func(from, text string) { js.Global().Call("uiChatMessage", from, text) },
 			func(reason string)     { js.Global().Call("uiChatClosed", reason) },
+			func(who string)        { js.Global().Call("uiChatParticipantLeft", who) },
 		)
 		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
 		activeChatSession = session
@@ -311,11 +314,38 @@ func jsChatJoin(_ js.Value, args []js.Value) any {
 			peer.Config{},
 			func(from, text string) { js.Global().Call("uiChatMessage", from, text) },
 			func(reason string)     { js.Global().Call("uiChatClosed", reason) },
+			func(who string)        { js.Global().Call("uiChatParticipantLeft", who) },
 		)
 		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
 		activeChatSession = session
 		js.Global().Call("uiChatOpen", "Sender")
 	}()
+	return nil
+}
+
+// jsChatQuit — initiator ends session for everyone; responder leaves quietly.
+func jsChatQuit(_ js.Value, _ []js.Value) any {
+	if activeChatSession == nil {
+		return nil
+	}
+	if activeChatSession.IsInitiator {
+		activeChatSession.Close() // TagChatClose — ends for everyone
+		js.Global().Call("uiChatClosed", "You ended the session.")
+	} else {
+		activeChatSession.Leave() // TagParticipantLeave — quiet exit
+		js.Global().Call("uiChatClosed", "You left the session.")
+	}
+	activeChatSession = nil
+	return nil
+}
+
+// jsChatLeave — any participant leaves quietly ("End session" button).
+func jsChatLeave(_ js.Value, _ []js.Value) any {
+	if activeChatSession == nil {
+		return nil
+	}
+	activeChatSession.Leave()
+	activeChatSession = nil
 	return nil
 }
 

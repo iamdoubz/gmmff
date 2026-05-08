@@ -1,10 +1,22 @@
 // Package chat implements a symmetric bidirectional text chat session over a
 // WebRTC data channel.
 //
-// Either peer can send messages at any time.  If no message is sent or
-// received for IdleTimeout, the session closes automatically with a clean
-// notification to the other side.  Either peer can also type \q to quit
-// immediately.
+// Protocol:
+//
+//	TagMessage          — normal text message (any participant)
+//	TagChatClose        — initiator ends the session for everyone
+//	TagParticipantLeave — one participant leaves quietly; session continues
+//	TagCancelled        — connection-level cancel (treated as TagChatClose)
+//
+// CLI behaviour:
+//
+//	Initiator  \q      → sends TagChatClose (ends for everyone)
+//	Initiator  Ctrl+C  → sends TagParticipantLeave (leaves quietly)
+//	Responder  \q      → sends TagParticipantLeave (leaves quietly)
+//	Responder  Ctrl+C  → sends TagParticipantLeave (leaves quietly)
+//
+// If no message is sent or received for IdleTimeout, the session closes with
+// TagChatClose (idle timeout is treated as an initiator-level event).
 package chat
 
 import (
@@ -22,23 +34,34 @@ import (
 // IdleTimeout is how long the session stays open with no activity.
 const IdleTimeout = 10 * time.Minute
 
-// QuitCommand is the text a user types to end the session.
+// QuitCommand is the text a user types to quit.
+// For the initiator this ends the session for everyone.
+// For a responder this leaves quietly.
 const QuitCommand = `\q`
 
 // Session manages a live chat session over a data channel.
 type Session struct {
-	dc       *webrtc.DataChannel
-	role     string // "Sender" or "Receiver" — used in display prefix
-	onMsg    func(from, text string) // called when a message arrives
-	onClose  func(reason string)     // called when the session ends
+	dc          *webrtc.DataChannel
+	remoteLabel string            // display label for the remote peer
+	isInitiator bool              // true if this peer started the session
+	onMsg       func(from, text string)
+	onClose     func(reason string) // session ended for everyone
+	onLeave     func(who string)    // a participant left but session continues
 }
 
 // NewSession creates a Session.
 //   - dc is the open WebRTC data channel.
-//   - role is the display label for the remote peer ("Sender" or "Receiver").
-//   - onMsg is called on every incoming message (may be nil — defaults to printing).
-//   - onClose is called when the session ends for any reason.
-func NewSession(dc *webrtc.DataChannel, role string, onMsg func(from, text string), onClose func(reason string)) *Session {
+//   - remoteLabel is the display name for the remote peer (e.g. "Participant").
+//   - isInitiator distinguishes who can kill the session vs leave quietly.
+//   - onMsg, onClose, onLeave may be nil — defaults print to stdout.
+func NewSession(
+	dc *webrtc.DataChannel,
+	remoteLabel string,
+	isInitiator bool,
+	onMsg func(from, text string),
+	onClose func(reason string),
+	onLeave func(who string),
+) *Session {
 	if onMsg == nil {
 		onMsg = func(from, text string) {
 			fmt.Printf("\r\033[K%s: %s\n> ", from, text)
@@ -49,15 +72,27 @@ func NewSession(dc *webrtc.DataChannel, role string, onMsg func(from, text strin
 			fmt.Println("\n" + reason)
 		}
 	}
-	return &Session{dc: dc, role: role, onMsg: onMsg, onClose: onClose}
+	if onLeave == nil {
+		onLeave = func(who string) {
+			fmt.Printf("\r\033[K%s has left the session.\n> ", who)
+		}
+	}
+	return &Session{
+		dc:          dc,
+		remoteLabel: remoteLabel,
+		isInitiator: isInitiator,
+		onMsg:       onMsg,
+		onClose:     onClose,
+		onLeave:     onLeave,
+	}
 }
 
-// RunCLI runs a blocking read-eval-print loop on stdin.
-// Incoming messages arrive via the data channel OnMessage handler set here.
-// Returns when the session ends (idle timeout, \q, remote close, or ctx cancel).
+// RunCLI runs a blocking REPL on stdin.
+// Returns when the local user quits, the session ends, or ctx is cancelled.
 func (s *Session) RunCLI(ctx context.Context) error {
-	done    := make(chan struct{})
-	idle    := time.NewTimer(IdleTimeout)
+	done := make(chan struct{})
+	idle := time.NewTimer(IdleTimeout)
+
 	resetIdle := func() {
 		if !idle.Stop() {
 			select {
@@ -68,29 +103,42 @@ func (s *Session) RunCLI(ctx context.Context) error {
 		idle.Reset(IdleTimeout)
 	}
 
-	// Register incoming message handler.
+	// Register incoming frame handler.
 	s.dc.OnMessage(func(m webrtc.DataChannelMessage) {
 		if len(m.Data) == 0 {
 			return
 		}
 		switch m.Data[0] {
 		case transfer.TagMessage:
-			text := transfer.ParseMessageFrame(m.Data)
 			resetIdle()
-			s.onMsg(s.role, text)
-		case transfer.TagChatClose:
-			s.onClose("Session closed by " + s.role + ".")
-			close(done)
-		case transfer.TagCancelled:
-			s.onClose("Session closed by " + s.role + ".")
-			close(done)
+			s.onMsg(s.remoteLabel, transfer.ParseMessageFrame(m.Data))
+
+		case transfer.TagChatClose, transfer.TagCancelled:
+			// Session killed by the initiator — everyone must leave.
+			s.onClose("Session ended by " + s.remoteLabel + ".")
+			select {
+			case <-done:
+			default:
+				close(done)
+			}
+
+		case transfer.TagParticipantLeave:
+			// A participant left quietly; session continues.
+			s.onLeave(s.remoteLabel)
+			// For two-person chat this effectively ends the useful session,
+			// but we leave it open so the initiator can wait for a new joiner
+			// in a future multi-user implementation.
 		}
 	})
 
 	fmt.Println("Chat session open. Type a message and press Enter to send.")
-	fmt.Printf("Type %s to quit.  Session closes after %s of inactivity.\n\n", QuitCommand, IdleTimeout)
+	if s.isInitiator {
+		fmt.Printf("Type %s to end the session for everyone.  Ctrl+C to leave quietly.\n", QuitCommand)
+	} else {
+		fmt.Printf("Type %s or press Ctrl+C to leave.  Session stays open for others.\n", QuitCommand)
+	}
+	fmt.Printf("Session closes after %s of inactivity.\n\n", IdleTimeout)
 
-	// Read stdin in a goroutine.
 	lineCh := make(chan string, 4)
 	go func() {
 		scanner := bufio.NewScanner(os.Stdin)
@@ -104,11 +152,13 @@ func (s *Session) RunCLI(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			_ = s.dc.Send(transfer.BuildChatCloseFrame())
-			s.onClose("Session cancelled.")
+			// Ctrl+C — always a quiet leave regardless of role.
+			_ = s.dc.Send(transfer.BuildParticipantLeaveFrame())
+			fmt.Println("\nLeft session.")
 			return nil
 
 		case <-idle.C:
+			// Idle timeout — initiator-level event, close for everyone.
 			_ = s.dc.Send(transfer.BuildChatCloseFrame())
 			s.onClose("Session closed — no activity for " + IdleTimeout.String() + ".")
 			return nil
@@ -118,15 +168,22 @@ func (s *Session) RunCLI(ctx context.Context) error {
 
 		case line, ok := <-lineCh:
 			if !ok {
-				// EOF on stdin.
-				_ = s.dc.Send(transfer.BuildChatCloseFrame())
-				s.onClose("Session closed.")
+				// stdin EOF — quiet leave.
+				_ = s.dc.Send(transfer.BuildParticipantLeaveFrame())
+				fmt.Println("\nLeft session.")
 				return nil
 			}
 			line = strings.TrimSpace(line)
 			if line == QuitCommand {
-				_ = s.dc.Send(transfer.BuildChatCloseFrame())
-				s.onClose("Session closed.")
+				if s.isInitiator {
+					// Initiator \q — end session for everyone.
+					_ = s.dc.Send(transfer.BuildChatCloseFrame())
+					s.onClose("Session ended.")
+				} else {
+					// Responder \q — leave quietly.
+					_ = s.dc.Send(transfer.BuildParticipantLeaveFrame())
+					fmt.Println("\nLeft session.")
+				}
 				return nil
 			}
 			if line == "" {
@@ -134,7 +191,7 @@ func (s *Session) RunCLI(ctx context.Context) error {
 				continue
 			}
 			if err := s.dc.Send(transfer.BuildMessageFrame(line)); err != nil {
-				return fmt.Errorf("chat: send message: %w", err)
+				return fmt.Errorf("chat: send: %w", err)
 			}
 			resetIdle()
 			fmt.Print("> ")
