@@ -9,6 +9,13 @@ const WASM_URL       = 'gmmff.wasm';
 let currentLang    = 'en';
 let availableLangs = [];
 
+// Track the last known progress values for each panel so uiDone can
+// snapshot them for the completion summary line.
+const lastProgress = {
+  send:    { total: 0, speed: 0, startTime: null },
+  receive: { total: 0, speed: 0, startTime: null },
+};
+
 // normaliseServerURL rewrites 'localhost' → '127.0.0.1' so the browser's
 // native WebSocket API can connect without a DNS lookup, which fails in Wasm.
 function normaliseServerURL(url) {
@@ -214,6 +221,11 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     btn.setAttribute('aria-selected', 'true');
     document.getElementById(btn.getAttribute('aria-controls')).classList.add('active');
+    // Auto-focus the code input when switching to the Receive tab.
+    if (btn.getAttribute('aria-controls') === 'panel-receive') {
+      const codeInput = document.getElementById('receive-code');
+      if (codeInput && !codeInput.value) codeInput.focus();
+    }
   });
 });
 
@@ -366,6 +378,9 @@ window.uiShowCode = function(code) {
 
 // Show sender progress bar
 window.uiSendProgress = function(pct, bytesSent, totalBytes, speed, eta) {
+  if (!lastProgress.send.startTime) lastProgress.send.startTime = Date.now();
+  lastProgress.send.total = totalBytes;
+  lastProgress.send.speed = speed;
   document.getElementById('send-code').classList.add('hidden');
   const prog = document.getElementById('send-progress');
   prog.classList.remove('hidden');
@@ -380,6 +395,9 @@ window.uiSendProgress = function(pct, bytesSent, totalBytes, speed, eta) {
 
 // Show receiver progress bar
 window.uiReceiveProgress = function(pct, bytesRecv, totalBytes, speed, eta) {
+  if (!lastProgress.receive.startTime) lastProgress.receive.startTime = Date.now();
+  lastProgress.receive.total = totalBytes;
+  lastProgress.receive.speed = speed;
   document.getElementById('receive-form').classList.add('hidden');
   const prog = document.getElementById('receive-progress');
   prog.classList.remove('hidden');
@@ -412,13 +430,45 @@ window.uiRegisterCancel = function(fn) { cancel = fn; };
 
 // Called on clean completion
 window.uiDone = function(panel, message) {
+  const lp = lastProgress[panel];
+  const elapsedSec = lp.startTime ? (Date.now() - lp.startTime) / 1000 : 0;
+
+  // Lock the bar at 100%.
+  const barId  = panel === 'send' ? 'send-bar'  : 'receive-bar';
+  const bar    = document.getElementById(barId);
+  if (bar) {
+    bar.style.width = '100%';
+    bar.closest('[role="progressbar"]')?.setAttribute('aria-valuenow', 100);
+  }
+
+  // Completion summary below the bar:
+  //   left:  "X MB of X MB"  (total of total — both equal at 100%)
+  //   right: last known speed
+  const bytesId = panel === 'send' ? 'send-progress-bytes'  : 'receive-progress-bytes';
+  const spdId   = panel === 'send' ? 'send-progress-speed'  : 'receive-progress-speed';
+  const bytesEl = document.getElementById(bytesId);
+  const spdEl   = document.getElementById(spdId);
+  if (bytesEl && lp.total > 0) {
+    const totalStr = fmtBytes(lp.total);
+    const timeStr  = fmtElapsed(elapsedSec);
+    bytesEl.textContent = totalStr + ' of ' + totalStr + ' — ' + timeStr;
+  }
+  if (spdEl && lp.speed > 0) {
+    spdEl.textContent = fmtBytes(lp.speed) + '/s';
+  }
+
+  // Status message (kept as-is per spec).
   window.uiStatusRaw(message || t(panel === 'send' ? 'status_done_send' : 'status_done_receive'),
                      'success', panel);
-  // Hide cancel button
+
+  // Hide cancel button.
   const cancelBtn = panel === 'send'
     ? document.getElementById('send-cancel-progress-btn')
     : document.getElementById('receive-cancel-btn');
   if (cancelBtn) cancelBtn.classList.add('hidden');
+
+  // Reset state for a potential next transfer.
+  lastProgress[panel] = { total: 0, speed: 0, startTime: null };
   cancel = null;
 };
 
@@ -452,6 +502,16 @@ function resetReceiveUI() {
 function resetUI() { resetSendUI(); resetReceiveUI(); }
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
+// fmtElapsed formats a completed duration as "Xm Ys" or just "Ys".
+// Per spec: only show minutes if the transfer took >= 60 seconds.
+function fmtElapsed(seconds) {
+  if (!seconds || seconds < 0) return '';
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  if (m > 0) return m + 'm ' + s + 's';
+  return s + 's';
+}
+
 function fmtEta(seconds) {
   if (!seconds || seconds <= 0 || !isFinite(seconds)) return '';
   const h = Math.floor(seconds / 3600);
