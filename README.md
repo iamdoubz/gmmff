@@ -417,7 +417,9 @@ gmmff/
 
 ---
 
-## Current features
+## Features
+
+### Current
 
 - **Signaling server** — Go, Redis-backed, privacy-safe structured logs, Docker-ready
 - **CLI client** — `gmmff send <file>` / `gmmff receive <code>`
@@ -429,27 +431,28 @@ gmmff/
 - **Resumable transfers** — partial + meta sidecar files; both progress bars pick up at the correct offset
 - **Clean cancellation** — Ctrl+C on either side delivers a clear message to both peers; partial file preserved for resume
 - **SHA-256 integrity** — full-file hash verified before `TransferOK` is sent; corrupt or incomplete files are rejected
-- **Browser UI (Wasm)** — same Go source compiled to WebAssembly; mobile-first HTML/CSS UI with theme and i18n support
+- **Browser UI (Wasm)** — same Go source compiled to WebAssembly; mobile-first HTML/CSS/JS UI with theme and i18n support
+- **Current languages** — English (en, default), Spanish (es), French (fr), German (de), Italian (it), Swedish (sv), Brazilian Portuguese (pt-BR), European Portuguese (pt-PT), Sinhala (si), Tamil (ta)
+- **Multi-file and directory transfers** — transfer multiple files and directories support (CLI and wasm webclient)
+- **Secure chat** — chat back and forth with someone by exchanging messages (CLI and wasm webclient)
 
-## Planned upcoming features
+### Backlog
 
 - **coturn** STUN/TURN integration and credential rotation
 - **QR Codes** generate easy to share QR codes to scan
 - **Browser extension** use your favorite web browser to send/receive files
 - **Docker images** create a pipeline to package, create, and update docker images
-- **Languages** continue to add more languages (current: en [default], es, fr, de, it, sv, pt-BR, pt-PT)
+- **Languages** continue to add more languages
 - **Multiple recipients** share a *link* with multiple people and enable Multiple P2P transfers between all
+- **Transfer files in chat** add files directly into chat session (sender and receiver)
 
 ---
 
-## In progress features/enhancements
+### In queue
 
-- just send text from sender to receiver (no files)
-- wasm webclient "Choose a file to send. You will receive a code to share with the receiver." -> "Choose/drop a/some file(s) to send. You will receive a code to share with the receiver."
-- wasm webclient: add ability to upload multiple files/directories (just like CLI client)
+- wasm webclient: "Choose a file to send. You will receive a code to share with the receiver." -> "Choose/drop a/some file(s) to send. You will receive a code to share with the receiver."
 - zip file: add ability to password protect zip file. Prompt sender for input, if blank, no password. If set, encrypt zip file with provided input password.
-- session lifetime: make user configurable (up to 7 days)
-- wasm webclient: receiver when file downloads, show progress bar at 100% and print full size of file and how long the transfer took.
+- wasm webclient: window slider (defaults to 2, 1-16 range)
 - STUN: convert STUN into a list of stun servers with format stun:url:port. Can be called with --stun stun:url1:3748 --stun stun:url2:19302. If none specifiec, use default
 - TURN: add TURN config. List of TURN servers with format turn:url:port. Can use multiple. Each turn server must have appropriate auth configured: standard long-term credential and ephemeral credential (static-auth-secret) must be supported
 
