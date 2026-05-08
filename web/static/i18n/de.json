@@ -45,5 +45,7 @@
   "error_connection": "Verbindung fehlgeschlagen. Überprüfe die Server-URL und versuche es erneut.",
   "footer_source": "Quellcode",
   "footer_privacy": "Keine Daten gelangen zum Server",
-  "drop_label": "Ablegen zum Senden"
+  "drop_label": "Ablegen zum Senden",
+  "send_choose_folder": "Ordner auswählen",
+  "files_count": "Dateien"
 }

@@ -25,6 +25,7 @@ import (
 	"syscall/js"
 	"time"
 
+	"github.com/iamdoubz/gmmff/internal/archive"
 	"github.com/iamdoubz/gmmff/internal/peer"
 	"github.com/iamdoubz/gmmff/internal/signaling"
 	"github.com/iamdoubz/gmmff/internal/transfer"
@@ -49,7 +50,7 @@ func jsSend(_ js.Value, args []js.Value) any {
 	if len(args) < 2 {
 		return nil
 	}
-	jsFile    := args[0]
+	jsFiles   := args[0] // JS Array of File objects
 	serverURL := args[1].String()
 
 	ctx, cancelCtx := context.WithCancel(context.Background())
@@ -99,8 +100,13 @@ func jsSend(_ js.Value, args []js.Value) any {
 			return
 		}
 
-		// Read the JS File into memory — no filesystem access needed.
-		fileName, fileData, err := jsFileToBytes(jsFile)
+		// Read all JS File objects into memory and zip if needed.
+		namedFiles, err := jsFilesToNamedFiles(jsFiles)
+		if err != nil {
+			uiError(err.Error(), "send")
+			return
+		}
+		fileData, fileName, err := archive.ZipFilesFromMemory(namedFiles)
 		if err != nil {
 			uiError(err.Error(), "send")
 			return
@@ -192,38 +198,54 @@ func jsReceive(_ js.Value, args []js.Value) any {
 // JS File → Wasm in-memory temp file
 // ─────────────────────────────────────────────────────────────────────────────
 
-// jsFileToBytes reads a JS File object entirely into memory.
-// Returns the file name and raw bytes — no filesystem access required.
-func jsFileToBytes(jsFile js.Value) (name string, data []byte, err error) {
-	name = jsFile.Get("name").String()
-	size := jsFile.Get("size").Int()
+// jsFilesToNamedFiles reads a JS Array of File objects into archive.NamedFile slices.
+// webkitRelativePath is used when available to preserve directory structure.
+func jsFilesToNamedFiles(jsFiles js.Value) ([]archive.NamedFile, error) {
+	count := jsFiles.Length()
+	if count == 0 {
+		return nil, fmt.Errorf("no files selected")
+	}
+	result := make([]archive.NamedFile, 0, count)
+	for i := 0; i < count; i++ {
+		f := jsFiles.Index(i)
+		data, err := readJSFile(f)
+		if err != nil {
+			return nil, err
+		}
+		zipPath := f.Get("webkitRelativePath").String()
+		if zipPath == "" {
+			zipPath = f.Get("name").String()
+		}
+		result = append(result, archive.NamedFile{ZipPath: zipPath, Data: data})
+	}
+	return result, nil
+}
 
+// readJSFile reads a single JS File object into a []byte via FileReader.
+func readJSFile(jsFile js.Value) ([]byte, error) {
+	size := jsFile.Get("size").Int()
 	done := make(chan error, 1)
 	buf  := make([]byte, size)
-
 	reader := js.Global().Get("FileReader").New()
 	onLoad := js.FuncOf(func(_ js.Value, args []js.Value) any {
-		result := args[0].Get("target").Get("result")
-		arr    := js.Global().Get("Uint8Array").New(result)
+		arr := js.Global().Get("Uint8Array").New(args[0].Get("target").Get("result"))
 		js.CopyBytesToGo(buf, arr)
 		done <- nil
 		return nil
 	})
 	onErr := js.FuncOf(func(_ js.Value, _ []js.Value) any {
-		done <- fmt.Errorf("FileReader failed")
+		done <- fmt.Errorf("FileReader error")
 		return nil
 	})
 	defer onLoad.Release()
 	defer onErr.Release()
-
 	reader.Set("onload", onLoad)
 	reader.Set("onerror", onErr)
 	reader.Call("readAsArrayBuffer", jsFile)
-
 	if err := <-done; err != nil {
-		return "", nil, err
+		return nil, err
 	}
-	return name, buf, nil
+	return buf, nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

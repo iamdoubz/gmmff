@@ -45,5 +45,7 @@
   "error_connection": "Anslutningen misslyckades. Kontrollera serverns URL och försök igen.",
   "footer_source": "Källkod",
   "footer_privacy": "Ingen data når servern",
-  "drop_label": "Släpp för att skicka"
+  "drop_label": "Släpp för att skicka",
+  "send_choose_folder": "Välj mapp",
+  "files_count": "filer"
 }

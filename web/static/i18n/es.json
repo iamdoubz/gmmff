@@ -45,5 +45,7 @@
   "error_connection": "La conexión falló. Revisa la URL del servidor e inténtalo de nuevo.",
   "footer_source": "Código fuente",
   "footer_privacy": "Ningún dato toca el servidor",
-  "drop_label": "Suelta para enviar"
+  "drop_label": "Suelta para enviar",
+  "send_choose_folder": "Elegir carpeta",
+  "files_count": "archivos"
 }

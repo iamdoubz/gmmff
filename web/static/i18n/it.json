@@ -45,5 +45,7 @@
   "error_connection": "Connessione non riuscita. Controlla l’URL del server e riprova.",
   "footer_source": "Codice sorgente",
   "footer_privacy": "Nessun dato passa dal server",
-  "drop_label": "Trascina per inviare"
+  "drop_label": "Trascina per inviare",
+  "send_choose_folder": "Scegli cartella",
+  "files_count": "file"
 }

@@ -10,6 +10,7 @@ package archive
 
 import (
 	"archive/zip"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -203,4 +204,76 @@ func Summary(paths []string) string {
 		return fmt.Sprintf("%q (%.1f MB)", filepath.Base(paths[0]), float64(info.Size())/1024/1024)
 	}
 	return fmt.Sprintf("%d files", len(paths))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// In-memory zip (browser Wasm — no filesystem)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// NamedFile is an in-memory file with its path inside the archive.
+type NamedFile struct {
+	// ZipPath is the path the file will have inside the zip archive.
+	// Use forward slashes; include subdirectory components to preserve structure.
+	ZipPath string
+	// Data is the raw file content.
+	Data []byte
+}
+
+// ZipFilesFromMemory zips a slice of in-memory files into a []byte.
+// If only one file is provided and it is not in a subdirectory, it is
+// returned as-is (no zip wrapper) along with its bare filename.
+// Returns (data, name, zipped) where zipped reports whether a zip was made.
+func ZipFilesFromMemory(files []NamedFile) (data []byte, name string, err error) {
+	if len(files) == 0 {
+		return nil, "", fmt.Errorf("archive: no files provided")
+	}
+
+	// Single flat file — return as-is, no zip overhead.
+	if len(files) == 1 && !strings.Contains(files[0].ZipPath, "/") {
+		return files[0].Data, files[0].ZipPath, nil
+	}
+
+	// Multiple files or directory structure — zip them.
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, f := range files {
+		w, err := zw.Create(f.ZipPath)
+		if err != nil {
+			return nil, "", fmt.Errorf("archive: create entry %q: %w", f.ZipPath, err)
+		}
+		if _, err := w.Write(f.Data); err != nil {
+			return nil, "", fmt.Errorf("archive: write entry %q: %w", f.ZipPath, err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		return nil, "", fmt.Errorf("archive: close zip: %w", err)
+	}
+
+	// Name the archive after the top-level directory if all files share one,
+	// otherwise use a timestamp.
+	archiveName := zipArchiveName(files)
+	return buf.Bytes(), archiveName, nil
+}
+
+// zipArchiveName picks a display name for the archive.
+// If all entries share a common top-level prefix, use "<prefix>.zip".
+// Otherwise use "gmmff-<timestamp>.zip".
+func zipArchiveName(files []NamedFile) string {
+	if len(files) == 0 {
+		return "gmmff.zip"
+	}
+	// Find common top-level directory.
+	first := strings.SplitN(files[0].ZipPath, "/", 2)[0]
+	allSame := true
+	for _, f := range files[1:] {
+		top := strings.SplitN(f.ZipPath, "/", 2)[0]
+		if top != first {
+			allSame = false
+			break
+		}
+	}
+	if allSame && first != "" {
+		return first + ".zip"
+	}
+	return fmt.Sprintf("gmmff-%s.zip", time.Now().Format("20060102-150405"))
 }
