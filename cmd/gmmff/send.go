@@ -19,7 +19,7 @@ import (
 
 var sendCfg struct {
 	serverURL  string
-	stunServer string
+	stunServers []string
 	window     int
 	chunkSize  int
 	message    string
@@ -53,8 +53,8 @@ func init() {
 	f := sendCmd.Flags()
 	f.StringVar(&sendCfg.serverURL, "server", envOr("GMMFF_SERVER", "ws://localhost:8080/ws"),
 		"Signaling server WebSocket URL (GMMFF_SERVER)")
-	f.StringVar(&sendCfg.stunServer, "stun", envOr("GMMFF_STUN", peer.DefaultSTUN),
-		"STUN server URL (GMMFF_STUN)")
+	f.StringArrayVar(&sendCfg.stunServers, "stun", stunServersDefault(),
+		"STUN/STUNS server URL (repeatable, e.g. --stun stun:h1:3478 --stun stuns:h2:5349); env GMMFF_STUN accepts comma-separated list")
 	f.IntVar(&sendCfg.window, "window", transfer.DefaultWindowSize,
 		"Sliding window size — chunks in flight simultaneously (min 1)")
 	f.IntVar(&sendCfg.chunkSize, "chunk-size", transfer.DefaultChunkSize,
@@ -119,7 +119,7 @@ func runSend(_ *cobra.Command, args []string) error {
 	}
 
 	cfg := peer.Config{
-		STUNServer: sendCfg.stunServer,
+		STUNServers: sendCfg.stunServers,
 		WindowSize: sendCfg.window,
 		ChunkSize:  sendCfg.chunkSize,
 	}
