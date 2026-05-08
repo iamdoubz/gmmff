@@ -23,7 +23,6 @@ import (
 	"os"
 
 	"filippo.io/cpace"
-	"github.com/iamdoubz/gmmff/internal/archive"
 	"github.com/iamdoubz/gmmff/internal/chat"
 	"github.com/iamdoubz/gmmff/internal/pake"
 	"github.com/iamdoubz/gmmff/internal/signaling"
