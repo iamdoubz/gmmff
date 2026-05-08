@@ -445,6 +445,7 @@ gmmff/
 - **Languages** continue to add more languages
 - **Multiple recipients** share a *link* with multiple people and enable Multiple P2P transfers between all
 - **Transfer files in chat** add files directly into chat session (sender and receiver)
+- **Quantum safe encryption** use quantum safe first algorithyms, falling back to elyptic if unavailable
 
 ---
 
