@@ -23,6 +23,7 @@ import (
 	"os"
 
 	"filippo.io/cpace"
+	"github.com/iamdoubz/gmmff/internal/chat"
 	"github.com/iamdoubz/gmmff/internal/pake"
 	"github.com/iamdoubz/gmmff/internal/signaling"
 	"github.com/iamdoubz/gmmff/internal/transfer"
@@ -159,7 +160,7 @@ func (d *dispatcher) pumpICE(ctx context.Context, pc *webrtc.PeerConnection) {
 // Send — initiator path
 // ─────────────────────────────────────────────────────────────────────────────
 
-func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg Config) error {
+func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg Config, message string, isZip bool) error {
 	disp := newDispatcher()
 	go disp.run(ctx, sig.Recv())
 
@@ -311,6 +312,9 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 	fmt.Println("Direct connection established — sending file")
 
 	sender := transfer.NewSender(ctx, remoteCancelCh, dc, filePath, ackCh, resumeFromCh, cfg.windowSize(), cfg.chunkSize())
+	if message != "" && !isZip {
+		sender.SetMessage(message)
+	}
 	if err := sender.Run(); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil // message already printed by sender loop
@@ -341,7 +345,7 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 // SendBytes is identical to Send but transfers from an in-memory buffer
 // instead of a file path.  Used by the browser Wasm client where the
 // filesystem is unavailable.
-func SendBytes(ctx context.Context, sig *signaling.Client, code, fileName string, data []byte, cfg Config, onProgress transfer.ProgressFunc) error {
+func SendBytes(ctx context.Context, sig *signaling.Client, code, fileName string, data []byte, cfg Config, onProgress transfer.ProgressFunc, message string) error {
 	disp := newDispatcher()
 	go disp.run(ctx, sig.Recv())
 
@@ -484,6 +488,9 @@ func SendBytes(ctx context.Context, sig *signaling.Client, code, fileName string
 	if onProgress != nil {
 		sender.SetProgress(onProgress)
 	}
+	if message != "" {
+		sender.SetMessage(message)
+	}
 	if err := sender.RunFromBytes(fileName, data); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil
@@ -584,6 +591,9 @@ func Receive(ctx context.Context, sig *signaling.Client, code, outDir string, cf
 			}
 			if done {
 				_ = dc.Send([]byte{transfer.TagTransferOK})
+				if rs.Header != nil && rs.Header.Message != "" {
+					fmt.Printf("Sender message: %s\n", rs.Header.Message)
+				}
 				fmt.Printf("Saved to: %s\n", rs.OutputPath())
 				select {
 				case transferDone <- nil:
@@ -792,6 +802,329 @@ func ReceiveToBytes(ctx context.Context, sig *signaling.Client, code string, cfg
 			return "", nil, res.err
 		}
 		return res.name, res.data, nil
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chat — symmetric bidirectional text session
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Chat performs the PAKE+WebRTC handshake and then runs a symmetric chat
+// session.  Either peer can send messages; the session closes on \q, idle
+// timeout, or ctx cancellation.
+// role is "Sender" or "Receiver" — used as the remote peer's display name.
+func Chat(ctx context.Context, sig *signaling.Client, code, role string, cfg Config) error {
+	disp := newDispatcher()
+	go disp.run(ctx, sig.Recv())
+
+	// PAKE — same as Send/Receive
+	fmt.Println("Performing cryptographic handshake...")
+	ci := cpace.NewContextInfo("gmmff-initiator", "gmmff-responder", nil)
+
+	var sharedKey []byte
+	if role == "Receiver" {
+		msgAEnv, err := disp.waitFor(ctx, disp.pakeA)
+		if err != nil {
+			return fmt.Errorf("peer: chat wait pake.a: %w", err)
+		}
+		msgA, err := signaling.DecodeOpaque(msgAEnv)
+		if err != nil {
+			return fmt.Errorf("peer: chat decode pake.a: %w", err)
+		}
+		msgB, sk, err := cpace.Exchange(code, ci, msgA)
+		if err != nil {
+			return fmt.Errorf("peer: chat PAKE exchange: %w", err)
+		}
+		sharedKey = sk
+		if err := sig.SendOpaque(protocol.MsgPakeB, msgB); err != nil {
+			return fmt.Errorf("peer: chat send pake.b: %w", err)
+		}
+	} else {
+		msgA, state, err := cpace.Start(code, ci)
+		if err != nil {
+			return fmt.Errorf("peer: chat PAKE start: %w", err)
+		}
+		if err := sig.SendOpaque(protocol.MsgPakeA, msgA); err != nil {
+			return fmt.Errorf("peer: chat send pake.a: %w", err)
+		}
+		msg, err := disp.waitFor(ctx, disp.pakeB)
+		if err != nil {
+			return fmt.Errorf("peer: chat wait pake.b: %w", err)
+		}
+		msgB, err := signaling.DecodeOpaque(msg)
+		if err != nil {
+			return fmt.Errorf("peer: chat decode pake.b: %w", err)
+		}
+		sk, err := state.Finish(msgB)
+		if err != nil {
+			return fmt.Errorf("peer: chat PAKE finish: %w", err)
+		}
+		sharedKey = sk
+	}
+
+	session, err := pake.NewSession(sharedKey)
+	if err != nil {
+		return fmt.Errorf("peer: chat derive session keys: %w", err)
+	}
+	fmt.Println("Handshake complete — connection authenticated")
+
+	pc, err := newPeerConnection(cfg)
+	if err != nil {
+		return err
+	}
+	defer pc.Close()
+
+	dcReady := make(chan *webrtc.DataChannel, 1)
+
+	if role == "Sender" {
+		// Initiator creates data channel
+		ordered := true
+		dc, err := pc.CreateDataChannel("gmmff-chat", &webrtc.DataChannelInit{Ordered: &ordered})
+		if err != nil {
+			return fmt.Errorf("peer: chat create data channel: %w", err)
+		}
+		dc.OnOpen(func() { dcReady <- dc })
+	} else {
+		pc.OnDataChannel(func(dc *webrtc.DataChannel) { dcReady <- dc })
+	}
+
+	trickleICE(sig, pc)
+	go disp.pumpICE(ctx, pc)
+
+	if role == "Sender" {
+		offer, err := pc.CreateOffer(nil)
+		if err != nil {
+			return fmt.Errorf("peer: chat create offer: %w", err)
+		}
+		if err := pc.SetLocalDescription(offer); err != nil {
+			return fmt.Errorf("peer: chat set local description: %w", err)
+		}
+		sdpJSON, _ := json.Marshal(offer)
+		offerMAC := session.SignOffer(sdpJSON)
+		if err := sig.SendSignedSDP(protocol.MsgSDPOffer, sdpJSON, offerMAC); err != nil {
+			return fmt.Errorf("peer: chat send sdp.offer: %w", err)
+		}
+		answerMsg, err := disp.waitFor(ctx, disp.answer)
+		if err != nil {
+			return fmt.Errorf("peer: chat wait sdp.answer: %w", err)
+		}
+		answerJSON, answerMAC, err := signaling.DecodeSignedSDP(answerMsg)
+		if err != nil {
+			return fmt.Errorf("peer: chat decode sdp.answer: %w", err)
+		}
+		if err := session.VerifyAnswer(answerJSON, answerMAC); err != nil {
+			return fmt.Errorf("peer: chat %w", err)
+		}
+		var answer webrtc.SessionDescription
+		if err := json.Unmarshal(answerJSON, &answer); err != nil {
+			return fmt.Errorf("peer: chat unmarshal answer: %w", err)
+		}
+		if err := pc.SetRemoteDescription(answer); err != nil {
+			return fmt.Errorf("peer: chat set remote description: %w", err)
+		}
+	} else {
+		fmt.Println("Waiting for sender...")
+		offerMsg, err := disp.waitFor(ctx, disp.offer)
+		if err != nil {
+			return fmt.Errorf("peer: chat wait sdp.offer: %w", err)
+		}
+		offerJSON, offerMAC, err := signaling.DecodeSignedSDP(offerMsg)
+		if err != nil {
+			return fmt.Errorf("peer: chat decode sdp.offer: %w", err)
+		}
+		if err := session.VerifyOffer(offerJSON, offerMAC); err != nil {
+			return fmt.Errorf("peer: chat %w", err)
+		}
+		var offer webrtc.SessionDescription
+		if err := json.Unmarshal(offerJSON, &offer); err != nil {
+			return fmt.Errorf("peer: chat unmarshal offer: %w", err)
+		}
+		if err := pc.SetRemoteDescription(offer); err != nil {
+			return fmt.Errorf("peer: chat set remote description: %w", err)
+		}
+		answer, err := pc.CreateAnswer(nil)
+		if err != nil {
+			return fmt.Errorf("peer: chat create answer: %w", err)
+		}
+		if err := pc.SetLocalDescription(answer); err != nil {
+			return fmt.Errorf("peer: chat set local description: %w", err)
+		}
+		answerJSON, _ := json.Marshal(answer)
+		answerMAC := session.SignAnswer(answerJSON)
+		if err := sig.SendSignedSDP(protocol.MsgSDPAnswer, answerJSON, answerMAC); err != nil {
+			return fmt.Errorf("peer: chat send sdp.answer: %w", err)
+		}
+	}
+
+	fmt.Println("Direct connection established.")
+	select {
+	case <-ctx.Done():
+		return nil
+	case dc := <-dcReady:
+		isInitiator := (role == "Sender")
+		s := chat.NewSession(dc, "Participant", isInitiator, nil, nil, nil)
+		sig.Close()
+		return s.RunCLI(ctx)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ChatWithCallback — chat session for Wasm (no stdin REPL)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ChatSession is the handle returned by ChatWithCallback.
+// The caller sends messages via Send(), leaves quietly via Leave(),
+// or ends the session for everyone via Close() (initiator only).
+type ChatSession struct {
+	dc          *webrtc.DataChannel
+	cancel      context.CancelFunc
+	IsInitiator bool
+}
+
+// Send delivers a text message to the remote peer.
+func (s *ChatSession) Send(text string) error {
+	return s.dc.Send(transfer.BuildMessageFrame(text))
+}
+
+// Close ends the session for everyone (initiator only).
+// Sends TagChatClose so all participants are notified to shut down.
+func (s *ChatSession) Close() {
+	_ = s.dc.Send(transfer.BuildChatCloseFrame())
+	s.cancel()
+}
+
+// Leave sends TagParticipantLeave (quiet departure) and tears down locally.
+// The session continues for other participants.
+func (s *ChatSession) Leave() {
+	_ = s.dc.Send(transfer.BuildParticipantLeaveFrame())
+	s.cancel()
+}
+
+// ChatWithCallback performs the PAKE+WebRTC handshake and returns a
+// ChatSession.  Incoming messages are delivered via onMessage(from, text).
+// onClose is called when the remote peer closes or the connection drops.
+// role must be "Sender" (initiator) or "Receiver" (responder).
+func ChatWithCallback(
+	ctx context.Context,
+	sig *signaling.Client,
+	code, role string,
+	cfg Config,
+	onMessage func(from, text string),
+	onClose func(reason string),
+	onLeave func(who string),
+) (*ChatSession, error) {
+	disp := newDispatcher()
+	go disp.run(ctx, sig.Recv())
+
+	ci := cpace.NewContextInfo("gmmff-initiator", "gmmff-responder", nil)
+	var sharedKey []byte
+
+	if role == "Receiver" {
+		msgAEnv, err := disp.waitFor(ctx, disp.pakeA)
+		if err != nil { return nil, err }
+		msgA, err := signaling.DecodeOpaque(msgAEnv)
+		if err != nil { return nil, err }
+		msgB, sk, err := cpace.Exchange(code, ci, msgA)
+		if err != nil { return nil, err }
+		sharedKey = sk
+		if err := sig.SendOpaque(protocol.MsgPakeB, msgB); err != nil { return nil, err }
+	} else {
+		msgA, state, err := cpace.Start(code, ci)
+		if err != nil { return nil, err }
+		if err := sig.SendOpaque(protocol.MsgPakeA, msgA); err != nil { return nil, err }
+		msg, err := disp.waitFor(ctx, disp.pakeB)
+		if err != nil { return nil, err }
+		msgB, err := signaling.DecodeOpaque(msg)
+		if err != nil { return nil, err }
+		sk, err := state.Finish(msgB)
+		if err != nil { return nil, err }
+		sharedKey = sk
+	}
+
+	session, err := pake.NewSession(sharedKey)
+	if err != nil { return nil, err }
+
+	pc, err := newPeerConnection(cfg)
+	if err != nil { return nil, err }
+
+	dcReady := make(chan *webrtc.DataChannel, 1)
+	if role == "Sender" {
+		ordered := true
+		dc, err := pc.CreateDataChannel("gmmff-chat", &webrtc.DataChannelInit{Ordered: &ordered})
+		if err != nil { return nil, err }
+		dc.OnOpen(func() { dcReady <- dc })
+	} else {
+		pc.OnDataChannel(func(dc *webrtc.DataChannel) { dcReady <- dc })
+	}
+
+	trickleICE(sig, pc)
+	go disp.pumpICE(ctx, pc)
+
+	if role == "Sender" {
+		offer, err := pc.CreateOffer(nil)
+		if err != nil { return nil, err }
+		if err := pc.SetLocalDescription(offer); err != nil { return nil, err }
+		sdpJSON, _ := json.Marshal(offer)
+		offerMAC := session.SignOffer(sdpJSON)
+		if err := sig.SendSignedSDP(protocol.MsgSDPOffer, sdpJSON, offerMAC); err != nil { return nil, err }
+		answerMsg, err := disp.waitFor(ctx, disp.answer)
+		if err != nil { return nil, err }
+		answerJSON, answerMAC, err := signaling.DecodeSignedSDP(answerMsg)
+		if err != nil { return nil, err }
+		if err := session.VerifyAnswer(answerJSON, answerMAC); err != nil { return nil, err }
+		var answer webrtc.SessionDescription
+		if err := json.Unmarshal(answerJSON, &answer); err != nil { return nil, err }
+		if err := pc.SetRemoteDescription(answer); err != nil { return nil, err }
+	} else {
+		offerMsg, err := disp.waitFor(ctx, disp.offer)
+		if err != nil { return nil, err }
+		offerJSON, offerMAC, err := signaling.DecodeSignedSDP(offerMsg)
+		if err != nil { return nil, err }
+		if err := session.VerifyOffer(offerJSON, offerMAC); err != nil { return nil, err }
+		var offer webrtc.SessionDescription
+		if err := json.Unmarshal(offerJSON, &offer); err != nil { return nil, err }
+		if err := pc.SetRemoteDescription(offer); err != nil { return nil, err }
+		answer, err := pc.CreateAnswer(nil)
+		if err != nil { return nil, err }
+		if err := pc.SetLocalDescription(answer); err != nil { return nil, err }
+		answerJSON, _ := json.Marshal(answer)
+		answerMAC := session.SignAnswer(answerJSON)
+		if err := sig.SendSignedSDP(protocol.MsgSDPAnswer, answerJSON, answerMAC); err != nil { return nil, err }
+	}
+
+	ctxChild, cancel := context.WithCancel(ctx)
+	select {
+	case <-ctxChild.Done():
+		cancel()
+		return nil, ctxChild.Err()
+	case dc := <-dcReady:
+		dc.OnMessage(func(m webrtc.DataChannelMessage) {
+			if len(m.Data) == 0 { return }
+			switch m.Data[0] {
+			case transfer.TagMessage:
+				if onMessage != nil {
+					onMessage("Participant", transfer.ParseMessageFrame(m.Data))
+				}
+			case transfer.TagChatClose, transfer.TagCancelled:
+				// Initiator ended the session for everyone.
+				if onClose != nil {
+					onClose("Session ended by Participant.")
+				}
+				cancel()
+			case transfer.TagParticipantLeave:
+				// Participant left quietly — notify but do NOT cancel the session.
+				if onLeave != nil {
+					onLeave("Participant")
+				}
+			}
+		})
+		dc.OnClose(func() {
+			if onClose != nil {
+				onClose("Connection closed.")
+			}
+			cancel()
+		})
+		return &ChatSession{dc: dc, cancel: cancel, IsInitiator: role == "Sender"}, nil
 	}
 }
 

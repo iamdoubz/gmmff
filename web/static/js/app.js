@@ -163,6 +163,7 @@ function renderLangPicker() {
 // ── i18n ───────────────────────────────────────────────────────────────────
 function applyI18n(strings) {
   i18n = strings;
+  ensureChatJoinLink();
   // Text content
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
@@ -225,6 +226,11 @@ document.querySelectorAll('.tab').forEach(btn => {
     if (btn.getAttribute('aria-controls') === 'panel-receive') {
       const codeInput = document.getElementById('receive-code');
       if (codeInput && !codeInput.value) codeInput.focus();
+    }
+    // Pre-fill chat server field when switching to Chat tab.
+    if (btn.getAttribute('aria-controls') === 'panel-chat') {
+      const sf = document.getElementById('chat-server');
+      if (sf && !sf.value) sf.value = normaliseServerURL(location.origin.replace(/^http/, 'ws') + '/ws');
     }
   });
 });
@@ -529,6 +535,197 @@ function fmtBytes(n) {
   if (n < 1024 ** 3)   return (n / 1024 / 1024).toFixed(1) + ' MB';
   return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
 }
+
+// ── Chat UI ──────────────────────────────────────────────────────────────────
+
+// ── Chat state machine ────────────────────────────────────────────────────────
+// States: idle | code | join | active
+function showChatState(state) {
+  ['chat-form','chat-code','chat-join','chat-active'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', id !== 'chat-' + state);
+  });
+}
+
+// ── Start session button ──────────────────────────────────────────────────────
+document.getElementById('chat-start-btn')?.addEventListener('click', () => {
+  const server = normaliseServerURL(document.getElementById('chat-server').value.trim());
+  const errEl  = document.getElementById('chat-error');
+  errEl.textContent = '';
+  if (!server) { errEl.textContent = t('error_no_server'); return; }
+  if (typeof window.gmmffChat === 'function') window.gmmffChat(server);
+});
+
+// Show join form
+document.getElementById('chat-form')?.addEventListener('dblclick', () => showChatState('join'));
+
+// A separate 'Join' button below the start button (added via a listener)
+// We add a join button to chat-form dynamically after i18n loads:
+function ensureChatJoinLink() {
+  const form = document.getElementById('chat-form');
+  if (!form || form.querySelector('#chat-show-join-btn')) return;
+  const btn = document.createElement('button');
+  btn.id = 'chat-show-join-btn';
+  btn.className = 'btn-ghost';
+  btn.setAttribute('data-i18n', 'chat_join_link');
+  btn.textContent = t('chat_join_link') || 'Join with a code';
+  btn.addEventListener('click', () => {
+    showChatState('join');
+    document.getElementById('chat-join-code')?.focus();
+  });
+  form.appendChild(btn);
+}
+
+// ── Back button ───────────────────────────────────────────────────────────────
+document.getElementById('chat-back-btn')?.addEventListener('click', () => {
+  showChatState('form');
+});
+
+// ── Cancel during code display ────────────────────────────────────────────────
+document.getElementById('chat-cancel-code-btn')?.addEventListener('click', () => {
+  if (cancel) { cancel(); cancel = null; }
+  showChatState('form');
+});
+
+// ── Copy chat code ────────────────────────────────────────────────────────────
+document.getElementById('chat-copy-btn')?.addEventListener('click', async () => {
+  const code = document.getElementById('chat-code-value')?.textContent;
+  const btn  = document.getElementById('chat-copy-btn');
+  try {
+    await navigator.clipboard.writeText(code);
+    btn.textContent = t('code_copied');
+    setTimeout(() => { btn.textContent = t('code_copy'); }, 2000);
+  } catch(_) {}
+});
+
+// ── Join with code ────────────────────────────────────────────────────────────
+document.getElementById('chat-join-btn')?.addEventListener('click', () => {
+  const code   = document.getElementById('chat-join-code').value.trim();
+  const server = normaliseServerURL(document.getElementById('chat-server').value.trim()
+    || location.origin.replace(/^http/, 'ws') + '/ws');
+  const errEl  = document.getElementById('chat-join-error');
+  errEl.textContent = '';
+  if (!code)   { errEl.textContent = t('error_no_code');   return; }
+  if (!server) { errEl.textContent = t('error_no_server'); return; }
+  if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server);
+});
+
+// ── Send chat message ─────────────────────────────────────────────────────────
+document.getElementById('chat-send-btn')?.addEventListener('click', sendChatMessage);
+document.getElementById('chat-input')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+});
+
+function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const text  = input?.value.trim();
+  if (!text) return;
+  // Initiator typing \q ends the session for everyone.
+  // Responder typing \q leaves quietly.
+  if (text === '\\q') {
+    input.value = '';
+    if (typeof window.gmmffChatQuit === 'function') window.gmmffChatQuit();
+    return;
+  }
+  if (typeof window.gmmffChatSend === 'function') window.gmmffChatSend(text);
+  appendChatBubble('me', 'You', text);
+  input.value = '';
+  input.focus();
+}
+
+// ── Close chat ───────────────────────────────────────────────────────────────
+document.getElementById('chat-close-btn')?.addEventListener('click', () => {
+  if (typeof window.gmmffChatLeave === 'function') window.gmmffChatLeave();
+  appendChatSystem(t('chat_you_left') || 'You left the session.');
+  chatDisableInput();
+});
+
+// ── Bubble helpers ────────────────────────────────────────────────────────────
+function chatDisableInput() {
+  const statusEl = document.getElementById('chat-active-status');
+  if (statusEl) {
+    statusEl.textContent = t('chat_disconnected') || 'Disconnected';
+    statusEl.style.color = 'var(--color-text-muted)';
+  }
+  const sendBtn  = document.getElementById('chat-send-btn');
+  const input    = document.getElementById('chat-input');
+  const closeBtn = document.getElementById('chat-close-btn');
+  if (sendBtn)  sendBtn.disabled = true;
+  if (input)    input.disabled = true;
+  if (closeBtn) closeBtn.classList.add('hidden');
+}
+
+function appendChatBubble(side, from, text) {
+  const list = document.getElementById('chat-messages');
+  if (!list) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'chat-bubble chat-bubble--' + side;
+  if (side === 'them') {
+    const meta = document.createElement('div');
+    meta.className = 'chat-bubble__meta';
+    meta.textContent = from;
+    wrap.appendChild(meta);
+  }
+  const body = document.createElement('div');
+  body.textContent = text;
+  wrap.appendChild(body);
+  list.appendChild(wrap);
+  list.scrollTop = list.scrollHeight;
+}
+
+function appendChatSystem(text) {
+  const list = document.getElementById('chat-messages');
+  if (!list) return;
+  const el = document.createElement('div');
+  el.className = 'chat-system';
+  el.textContent = text;
+  list.appendChild(el);
+  list.scrollTop = list.scrollHeight;
+}
+
+// ── Wasm → JS callbacks ───────────────────────────────────────────────────────
+
+window.uiChatShowCode = function(code) {
+  document.getElementById('chat-code-value').textContent = code;
+  showChatState('code');
+};
+
+window.uiChatOpen = function(remoteRole) {
+  document.getElementById('chat-messages').innerHTML = '';
+  const statusEl = document.getElementById('chat-active-status');
+  statusEl.textContent = t('chat_connected') || 'Connected';
+  statusEl.style.color = 'var(--color-success)';
+  document.getElementById('chat-send-btn').disabled = false;
+  document.getElementById('chat-input').disabled = false;
+  document.getElementById('chat-close-btn').classList.remove('hidden');
+  showChatState('active');
+  document.getElementById('chat-input').focus();
+  appendChatSystem(t('chat_session_open') || 'Session open. Messages are end-to-end encrypted.');
+};
+
+window.uiChatMessage = function(from, text) {
+  // Always display as 'Participant' regardless of underlying role.
+  // Future: 'Participant 1', 'Participant 2', etc.
+  appendChatBubble('them', t('chat_participant') || 'Participant', text);
+};
+
+// uiChatClosed — called when session ends for everyone (TagChatClose).
+window.uiChatClosed = function(reason) {
+  appendChatSystem(reason);
+  chatDisableInput();
+};
+
+// uiChatParticipantLeft — called when a participant leaves quietly (TagParticipantLeave).
+// Input stays enabled for the local user (they remain in the session).
+window.uiChatParticipantLeft = function(who) {
+  appendChatSystem((who || 'Participant') + ' left the session.');
+  // Do NOT disable input — local user stays connected.
+};
+
+window.uiChatError = function(message) {
+  document.getElementById('chat-error').textContent = t('status_error', { message });
+  showChatState('form');
+};
 
 // ── Go ────────────────────────────────────────────────────────────────────────
 boot();

@@ -72,6 +72,9 @@ const (
 	TagTransferError byte = 0x06
 	TagResumeFrom    byte = 0x07
 	TagCancelled     byte = 0x08 // sender or receiver intentionally stopped
+	TagMessage       byte = 0x09 // UTF-8 chat message
+	TagChatClose        byte = 0x0A // initiator closes session for everyone
+	TagParticipantLeave byte = 0x0B // one participant leaves; session continues
 )
 
 // ErrCancelled is returned when the remote peer intentionally cancelled the
@@ -90,6 +93,7 @@ type FileHeader struct {
 	ChunkSize int    `json:"chunk_size"` // bytes per chunk
 	SHA256    string `json:"sha256"`     // hex-encoded full-file hash
 	Chunks    int64  `json:"chunks"`     // total number of chunks
+	Message   string `json:"message,omitempty"` // optional message from sender
 }
 
 // ResumeFromPayload is sent by the responder when a valid partial exists.
@@ -138,6 +142,7 @@ type Sender struct {
 	windowSize   int
 	chunkSize    int
 	onProgress   ProgressFunc  // optional; called after each chunk send
+	message      string        // optional message attached to FileHeader
 }
 
 // NewSender creates a Sender.
@@ -173,6 +178,10 @@ func NewSender(ctx context.Context, remoteCancel <-chan struct{}, dc DataChannel
 // SetProgress registers a callback invoked after each chunk is sent.
 // It is safe to call before Run or RunFromBytes.
 func (s *Sender) SetProgress(fn ProgressFunc) { s.onProgress = fn }
+
+// SetMessage attaches an optional text message to the FileHeader.
+// For single-file sends, the receiver will print this alongside the file.
+func (s *Sender) SetMessage(msg string) { s.message = msg }
 
 // Run executes the full send flow by opening s.path from disk.
 // For in-memory data (e.g. browser Wasm), use RunFromBytes instead.
@@ -220,6 +229,7 @@ func (s *Sender) runFromReader(r io.ReadSeeker, name string, size int64, hexHash
 		ChunkSize: s.chunkSize,
 		SHA256:    hexHash,
 		Chunks:    totalChunks,
+		Message:   s.message,
 	}
 	if err := s.sendHeader(hdr); err != nil {
 		return err
@@ -634,6 +644,31 @@ func ParseResumeFrame(frame []byte) (uint64, error) {
 	}
 	return binary.BigEndian.Uint64(frame[1:]), nil
 }
+
+// BuildMessageFrame builds a TagMessage frame containing UTF-8 text.
+func BuildMessageFrame(text string) []byte {
+	b := []byte(text)
+	frame := make([]byte, 1+len(b))
+	frame[0] = TagMessage
+	copy(frame[1:], b)
+	return frame
+}
+
+// ParseMessageFrame extracts the text from a TagMessage frame.
+func ParseMessageFrame(frame []byte) string {
+	if len(frame) < 2 || frame[0] != TagMessage {
+		return ""
+	}
+	return string(frame[1:])
+}
+
+// BuildChatCloseFrame builds a TagChatClose frame.
+// Only the session initiator should send this — it ends the session for everyone.
+func BuildChatCloseFrame() []byte { return []byte{TagChatClose} }
+
+// BuildParticipantLeaveFrame builds a TagParticipantLeave frame.
+// Any participant can send this to leave quietly without ending the session.
+func BuildParticipantLeaveFrame() []byte { return []byte{TagParticipantLeave} }
 
 // BuildCancelledFrame builds a TagCancelled frame.
 func BuildCancelledFrame() []byte {

@@ -35,6 +35,11 @@ import (
 func main() {
 	js.Global().Set("gmmffSend", js.FuncOf(jsSend))
 	js.Global().Set("gmmffReceive", js.FuncOf(jsReceive))
+	js.Global().Set("gmmffChat", js.FuncOf(jsChat))
+	js.Global().Set("gmmffChatSend", js.FuncOf(jsChatSend))
+	js.Global().Set("gmmffChatJoin", js.FuncOf(jsChatJoin))
+	js.Global().Set("gmmffChatQuit", js.FuncOf(jsChatQuit))
+	js.Global().Set("gmmffChatLeave", js.FuncOf(jsChatLeave))
 
 	// Block forever — Go Wasm must not exit or the runtime shuts down.
 	select {}
@@ -119,7 +124,7 @@ func jsSend(_ js.Value, args []js.Value) any {
 
 		fileSize := int64(len(fileData))
 		progress := makeProgressFn("send", fileSize)
-		if err := peer.SendBytes(ctx, sig, created.Code, fileName, fileData, cfg, progress); err != nil {
+		if err := peer.SendBytes(ctx, sig, created.Code, fileName, fileData, cfg, progress, ""); err != nil {
 			uiError(err.Error(), "send")
 			return
 		}
@@ -246,6 +251,111 @@ func readJSFile(jsFile js.Value) ([]byte, error) {
 		return nil, err
 	}
 	return buf, nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Chat
+// ─────────────────────────────────────────────────────────────────────────────
+
+// activeChatSession holds the live chat session so jsChatSend can reach it.
+var activeChatSession *peer.ChatSession
+
+// jsChat — initiator: creates slot, shows code, opens chat session.
+func jsChat(_ js.Value, args []js.Value) any {
+	if len(args) < 1 {
+		return nil
+	}
+	serverURL := args[0].String()
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	cancelFn := js.FuncOf(func(_ js.Value, _ []js.Value) any { cancelCtx(); return nil })
+	js.Global().Call("uiRegisterCancel", cancelFn)
+	go func() {
+		defer cancelCtx()
+		defer cancelFn.Release()
+		sig, err := signaling.Connect(ctx, serverURL)
+		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		if err := sig.CreateSlot(); err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		createdMsg, err := sig.WaitFor(ctx, protocol.MsgSlotCreated)
+		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		var created protocol.SlotCreatedPayload
+		if err := json.Unmarshal(createdMsg.Payload, &created); err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		js.Global().Call("uiChatShowCode", created.Code)
+		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		session, err := peer.ChatWithCallback(ctx, sig, created.Code, "Sender",
+			peer.Config{},
+			func(from, text string) { js.Global().Call("uiChatMessage", from, text) },
+			func(reason string)     { js.Global().Call("uiChatClosed", reason) },
+			func(who string)        { js.Global().Call("uiChatParticipantLeft", who) },
+		)
+		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		activeChatSession = session
+		js.Global().Call("uiChatOpen", "Receiver")
+	}()
+	return nil
+}
+
+// jsChatJoin — responder: joins an existing slot by code.
+func jsChatJoin(_ js.Value, args []js.Value) any {
+	if len(args) < 2 {
+		return nil
+	}
+	code, serverURL := args[0].String(), args[1].String()
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	cancelFn := js.FuncOf(func(_ js.Value, _ []js.Value) any { cancelCtx(); return nil })
+	js.Global().Call("uiRegisterCancel", cancelFn)
+	go func() {
+		defer cancelCtx()
+		defer cancelFn.Release()
+		sig, err := signaling.Connect(ctx, serverURL)
+		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		if err := sig.JoinSlot(code); err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		session, err := peer.ChatWithCallback(ctx, sig, code, "Receiver",
+			peer.Config{},
+			func(from, text string) { js.Global().Call("uiChatMessage", from, text) },
+			func(reason string)     { js.Global().Call("uiChatClosed", reason) },
+			func(who string)        { js.Global().Call("uiChatParticipantLeft", who) },
+		)
+		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		activeChatSession = session
+		js.Global().Call("uiChatOpen", "Sender")
+	}()
+	return nil
+}
+
+// jsChatQuit — initiator ends session for everyone; responder leaves quietly.
+func jsChatQuit(_ js.Value, _ []js.Value) any {
+	if activeChatSession == nil {
+		return nil
+	}
+	if activeChatSession.IsInitiator {
+		activeChatSession.Close() // TagChatClose — ends for everyone
+		js.Global().Call("uiChatClosed", "You ended the session.")
+	} else {
+		activeChatSession.Leave() // TagParticipantLeave — quiet exit
+		js.Global().Call("uiChatClosed", "You left the session.")
+	}
+	activeChatSession = nil
+	return nil
+}
+
+// jsChatLeave — any participant leaves quietly ("End session" button).
+func jsChatLeave(_ js.Value, _ []js.Value) any {
+	if activeChatSession == nil {
+		return nil
+	}
+	activeChatSession.Leave()
+	activeChatSession = nil
+	return nil
+}
+
+// jsChatSend sends a message on the active chat session.
+func jsChatSend(_ js.Value, args []js.Value) any {
+	if len(args) < 1 || activeChatSession == nil {
+		return nil
+	}
+	_ = activeChatSession.Send(args[0].String())
+	return nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

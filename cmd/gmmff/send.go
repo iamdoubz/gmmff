@@ -22,6 +22,7 @@ var sendCfg struct {
 	stunServer string
 	window     int
 	chunkSize  int
+	message    string
 }
 
 var sendCmd = &cobra.Command{
@@ -33,11 +34,15 @@ A single regular file is sent as-is.
 A single directory or multiple paths are zipped on the fly into a single
 archive — the receiver gets one .zip file with everything inside.
 
+Use --message / -m to attach a text message alongside the transfer.
+With a single file the message is delivered as a printed note.
+With multiple files the message is injected as message.txt in the zip.
+
 Examples:
   gmmff send photo.jpg
   gmmff send report.pdf data.csv
   gmmff send ./project-folder
-  gmmff send *.log`,
+  gmmff send notes.txt -m "Here is the context"`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: runSend,
 }
@@ -54,6 +59,8 @@ func init() {
 		"Sliding window size — chunks in flight simultaneously (min 1)")
 	f.IntVar(&sendCfg.chunkSize, "chunk-size", transfer.DefaultChunkSize,
 		"Chunk size in bytes (default 65526 — SCTP max; min 1)")
+	f.StringVarP(&sendCfg.message, "message", "m", "",
+		"Attach a text message to the transfer")
 }
 
 func runSend(_ *cobra.Command, args []string) error {
@@ -64,24 +71,24 @@ func runSend(_ *cobra.Command, args []string) error {
 	}
 	defer result.Cleanup()
 
-	// Print what we are about to send.
 	if result.IsTemp {
 		fmt.Printf("Archiving %s → %s\n", archive.Summary(args), result.Name)
 	} else {
 		fmt.Printf("Sending %s\n", archive.Summary(args))
 	}
+	if sendCfg.message != "" {
+		fmt.Printf("Message: %s\n", sendCfg.message)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// ── Connect to signaling server ──────────────────────────────────────────
 	fmt.Printf("Connecting to signaling server %s...\n", sendCfg.serverURL)
 	sig, err := signaling.Connect(ctx, sendCfg.serverURL)
 	if err != nil {
 		return fmt.Errorf("send: connect: %w", err)
 	}
 
-	// ── Create slot, get code ────────────────────────────────────────────────
 	if err := sig.CreateSlot(); err != nil {
 		return fmt.Errorf("send: create slot: %w", err)
 	}
@@ -94,7 +101,6 @@ func runSend(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("send: decode slot.created: %w", err)
 	}
 
-	// ── Print the code ───────────────────────────────────────────────────────
 	fmt.Printf("\n")
 	fmt.Printf("  ╔══════════════════════════════════════╗\n")
 	fmt.Printf("  ║  Share this code with the receiver:  ║\n")
@@ -106,20 +112,18 @@ func runSend(_ *cobra.Command, args []string) error {
 	fmt.Printf("\n  Run on the other machine:\n")
 	fmt.Printf("    gmmff receive %s\n\n", created.Code)
 
-	// ── Wait for receiver to join ────────────────────────────────────────────
 	fmt.Println("Waiting for receiver to connect...")
 	_, err = sig.WaitFor(ctx, protocol.MsgSlotReady)
 	if err != nil {
 		return fmt.Errorf("send: wait slot.ready: %w", err)
 	}
 
-	// ── Run the full send flow ───────────────────────────────────────────────
 	cfg := peer.Config{
 		STUNServer: sendCfg.stunServer,
 		WindowSize: sendCfg.window,
 		ChunkSize:  sendCfg.chunkSize,
 	}
-	if err := peer.Send(ctx, sig, created.Code, result.Path, cfg); err != nil {
+	if err := peer.Send(ctx, sig, created.Code, result.Path, cfg, sendCfg.message, result.IsTemp); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil
 		}
