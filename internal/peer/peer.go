@@ -27,6 +27,7 @@ import (
 	"github.com/iamdoubz/gmmff/internal/pake"
 	"github.com/iamdoubz/gmmff/internal/signaling"
 	"github.com/iamdoubz/gmmff/internal/transfer"
+	"github.com/iamdoubz/gmmff/internal/turn"
 	"github.com/iamdoubz/gmmff/pkg/protocol"
 	"github.com/pion/webrtc/v4"
 )
@@ -51,16 +52,21 @@ type Config struct {
 	// ChunkSize is the number of bytes per chunk.
 	// Defaults to transfer.DefaultChunkSize (16 KiB) when zero.
 	ChunkSize int
+
+	// TURNServers is the list of pre-parsed TURN server entries.
+	// Use turn.ParseAll to convert raw flag strings into this slice.
+	TURNServers []turn.Server
 }
 
-// stunServers returns the ICEServer slice to pass to Pion.
-// All configured URLs are bundled into a single ICEServer entry.
-func (c Config) stunServers() []webrtc.ICEServer {
+// iceServers returns the full ICEServer slice — STUN entries first, then TURN.
+func (c Config) iceServers() []webrtc.ICEServer {
 	urls := c.STUNServers
 	if len(urls) == 0 {
 		urls = DefaultSTUNServers
 	}
-	return []webrtc.ICEServer{{URLs: urls}}
+	ice := []webrtc.ICEServer{{URLs: urls}}
+	ice = append(ice, turn.ICEServers(c.TURNServers)...)
+	return ice
 }
 
 func (c Config) windowSize() int {
@@ -1144,7 +1150,7 @@ func ChatWithCallback(
 
 func newPeerConnection(cfg Config) (*webrtc.PeerConnection, error) {
 	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{
-		ICEServers: cfg.stunServers(),
+		ICEServers: cfg.iceServers(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("peer: new PeerConnection: %w", err)
