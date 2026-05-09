@@ -33,6 +33,8 @@ func init() {
 	f := receiveCmd.Flags()
 	f.StringVar(&receiveCfg.serverURL, "server", envOr("GMMFF_SERVER", "ws://localhost:8080/ws"),
 		"Signaling server WebSocket URL (GMMFF_SERVER)")
+	f.StringArrayVar(&receiveCfg.turnServers, "turn", turnServersDefault(),
+		`TURN server (repeatable); env GMMFF_TURN accepts comma-separated list`)
 	f.StringArrayVar(&receiveCfg.stunServers, "stun", stunServersDefault(),
 		"STUN/STUNS server URL (repeatable); env GMMFF_STUN accepts comma-separated list")
 	f.StringVarP(&receiveCfg.outDir, "out", "o", ".",
@@ -66,7 +68,11 @@ func runReceive(_ *cobra.Command, args []string) error {
 	}
 
 	// ── Run the full receive flow ─────────────────────────────────────────────
-	cfg := peer.Config{STUNServers: receiveCfg.stunServers}
+	turnSrvs, err := parseTURNServers(receiveCfg.turnServers)
+	if err != nil {
+		return err
+	}
+	cfg := peer.Config{STUNServers: receiveCfg.stunServers, TURNServers: turnSrvs}
 	outDir := peer.DefaultOutDir(receiveCfg.outDir)
 	if err := peer.Receive(ctx, sig, code, outDir, cfg); err != nil {
 		if errors.Is(err, context.Canceled) {

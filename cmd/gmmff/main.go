@@ -23,6 +23,7 @@ import (
 	"github.com/iamdoubz/gmmff/internal/broker"
 	applog "github.com/iamdoubz/gmmff/internal/log"
 	"github.com/iamdoubz/gmmff/internal/store"
+	"github.com/iamdoubz/gmmff/internal/turn"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 )
@@ -259,6 +260,29 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// turnServersDefault parses GMMFF_TURN env var (comma-separated) into raw strings.
+// Returns nil when the env var is unset — callers treat nil as "no TURN".
+func turnServersDefault() []string {
+	v := os.Getenv("GMMFF_TURN")
+	if v == "" {
+		return nil
+	}
+	parts := strings.Split(v, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
+// parseTURNServers validates and parses raw TURN strings into turn.Server entries.
+func parseTURNServers(raw []string) ([]turn.Server, error) {
+	return turn.ParseAll(raw)
 }
 
 // redactURL strips credentials from a Redis URL before logging.

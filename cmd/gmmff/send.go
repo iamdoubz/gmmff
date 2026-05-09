@@ -20,9 +20,10 @@ import (
 var sendCfg struct {
 	serverURL  string
 	stunServers []string
-	window     int
-	chunkSize  int
-	message    string
+	window      int
+	chunkSize   int
+	message     string
+	turnServers []string
 }
 
 var sendCmd = &cobra.Command{
@@ -55,6 +56,8 @@ func init() {
 		"Signaling server WebSocket URL (GMMFF_SERVER)")
 	f.StringArrayVar(&sendCfg.stunServers, "stun", stunServersDefault(),
 		"STUN/STUNS server URL (repeatable, e.g. --stun stun:h1:3478 --stun stuns:h2:5349); env GMMFF_STUN accepts comma-separated list")
+	f.StringArrayVar(&sendCfg.turnServers, "turn", turnServersDefault(),
+		`TURN server (repeatable, format: turn:host:port?[transport=udp|tcp&][user=u&pass=p | secret=s]); env GMMFF_TURN accepts comma-separated list`)
 	f.IntVar(&sendCfg.window, "window", transfer.DefaultWindowSize,
 		"Sliding window size — chunks in flight simultaneously (min 1)")
 	f.IntVar(&sendCfg.chunkSize, "chunk-size", transfer.DefaultChunkSize,
@@ -118,10 +121,15 @@ func runSend(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("send: wait slot.ready: %w", err)
 	}
 
+	turnSrvs, err := parseTURNServers(sendCfg.turnServers)
+	if err != nil {
+		return err
+	}
 	cfg := peer.Config{
 		STUNServers: sendCfg.stunServers,
-		WindowSize: sendCfg.window,
-		ChunkSize:  sendCfg.chunkSize,
+		TURNServers: turnSrvs,
+		WindowSize:  sendCfg.window,
+		ChunkSize:   sendCfg.chunkSize,
 	}
 	if err := peer.Send(ctx, sig, created.Code, result.Path, cfg, sendCfg.message, result.IsTemp); err != nil {
 		if errors.Is(err, context.Canceled) {
