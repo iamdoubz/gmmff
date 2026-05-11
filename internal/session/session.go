@@ -200,11 +200,15 @@ func (s *Session) Run() {
 	})
 
 	// Wire inbound transfer channels — remote opens a new DC for each transfer.
+	// OnDataChannel fires synchronously when Pion delivers a new data channel.
+	// We register dc.OnMessage here — before returning — so no frames can
+	// arrive before the handler is in place. The blocking completion wait
+	// happens in a goroutine launched from inside prepareInboundTransfer.
 	s.pc.OnDataChannel(func(dc *webrtc.DataChannel) {
 		if dc.Label() == "control" {
-			return // ignore; control channel handled separately
+			return
 		}
-		go s.receiveTransfer(dc)
+		s.prepareInboundTransfer(dc)
 	})
 
 	// Outbound sender loop.
@@ -370,16 +374,14 @@ func (s *Session) execTransfer(req *transferRequest) error {
 // Inbound transfer receiver
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (s *Session) receiveTransfer(dc *webrtc.DataChannel) {
-	// Serialize receives — one at a time.
-	s.recvMu.Lock()
-	defer s.recvMu.Unlock()
-
+// prepareInboundTransfer is called synchronously inside pc.OnDataChannel.
+// It registers dc.OnMessage immediately so no messages can be lost to a
+// scheduling race. The blocking wait and completion logic run in a goroutine.
+func (s *Session) prepareInboundTransfer(dc *webrtc.DataChannel) {
 	rs := transfer.NewReceiveStateMem(func(seq uint64) error {
 		return dc.Send(transfer.BuildAckFrame(seq))
 	})
 
-	// Wire progress to emit events as chunks arrive.
 	var headerEmitted bool
 	rs.SetProgress(func(bytesRecv, total int64) {
 		s.emit(Event{
@@ -390,18 +392,18 @@ func (s *Session) receiveTransfer(dc *webrtc.DataChannel) {
 		})
 	})
 
-	done := make(chan struct{})
-	var recvErr error
+	done      := make(chan struct{})
+	errCh     := make(chan error, 1)
+	var closeOnce sync.Once
 
+	// Register OnMessage synchronously — guaranteed race-free with Pion.
 	dc.OnMessage(func(m webrtc.DataChannelMessage) {
 		finished, err := rs.Feed(m.Data)
 		if err != nil {
-			recvErr = err
 			_ = dc.Send(transfer.BuildErrorFrame("ERR_RECEIVE", err.Error()))
-			close(done)
+			closeOnce.Do(func() { errCh <- err; close(done) })
 			return
 		}
-		// Emit EventTransferStarted once we have the header.
 		if rs.Header != nil && !headerEmitted {
 			headerEmitted = true
 			s.emit(Event{
@@ -413,61 +415,63 @@ func (s *Session) receiveTransfer(dc *webrtc.DataChannel) {
 		if finished {
 			_ = dc.Send([]byte{transfer.TagTransferOK})
 			s.resetIdle()
-			close(done)
+			closeOnce.Do(func() { close(done) })
 		}
 	})
 
-	select {
-	case <-s.ctx.Done():
-		return
-	case <-done:
-	}
+	// Wait for completion in a goroutine.
+	// recvMu serializes inbound transfers so they complete one at a time.
+	go func() {
+		s.recvMu.Lock()
+		defer s.recvMu.Unlock()
 
-	if recvErr != nil {
-		s.emit(Event{Type: EventError, Message: recvErr.Error()})
-		return
-	}
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-done:
+		}
 
-	msg := ""
-	if rs.Header != nil {
-		msg = rs.Header.Message
-	}
-
-	var savedPath string
-	if s.OutDir != "" && len(rs.Result()) > 0 {
-		// CLI path — save to disk.
-		path, err := saveReceivedFile(s.OutDir, rs.FileName(), rs.Result())
-		if err != nil {
-			s.emit(Event{Type: EventError, Message: fmt.Sprintf("save file: %v", err)})
+		var recvErr error
+		select {
+		case recvErr = <-errCh:
+		default:
+		}
+		if recvErr != nil {
+			s.emit(Event{Type: EventError, Message: recvErr.Error()})
 			return
 		}
-		savedPath = path
-	}
 
-	s.emit(Event{
-		Type:    EventTransferDone,
-		Message: msg,
-		Label:   dc.Label(),
-		Data:    rs.Result(),
-		Path:    rs.FileName(), // always the filename; savedPath used for CLI display
-	})
+		msg := ""
+		if rs.Header != nil {
+			msg = rs.Header.Message
+		}
 
-	// For CLI, if a message was attached, show it and the save path.
-	// For Wasm, savedPath is empty and Path carries the filename for browserDownload.
-	displayMsg := msg
-	if savedPath != "" && msg == "" {
-		displayMsg = "Saved to: " + savedPath
-	} else if savedPath != "" {
-		displayMsg = msg + "\nSaved to: " + savedPath
-	}
+		var savedPath string
+		if s.OutDir != "" && len(rs.Result()) > 0 {
+			path, err := saveReceivedFile(s.OutDir, rs.FileName(), rs.Result())
+			if err != nil {
+				s.emit(Event{Type: EventError, Message: fmt.Sprintf("save file: %v", err)})
+				return
+			}
+			savedPath = path
+		}
 
-	s.emit(Event{
-		Type:    EventTransferDone,
-		Message: displayMsg,
-		Label:   dc.Label(),
-		Data:    rs.Result(),
-		Path:    rs.FileName(), // always the bare filename for browserDownload
-	})
+		displayMsg := msg
+		if savedPath != "" && msg == "" {
+			displayMsg = "Saved to: " + savedPath
+		} else if savedPath != "" && msg != "" {
+			displayMsg = msg + "
+Saved to: " + savedPath
+		}
+
+		s.emit(Event{
+			Type:    EventTransferDone,
+			Message: displayMsg,
+			Label:   dc.Label(),
+			Data:    rs.Result(),
+			Path:    rs.FileName(), // bare filename — used by browserDownload on Wasm
+		})
+	}()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
