@@ -66,5 +66,17 @@
   "chat_disconnected": "Disconnesso",
   "chat_session_open": "Sessione aperta. I messaggi sono cifrati end-to-end.",
   "chat_you_left": "Hai terminato la sessione.",
-  "chat_participant": "Partecipante"
+  "chat_participant": "Partecipante",
+  "ice_settings_label": "Server ICE",
+  "ice_stun_label": "Server STUN",
+  "ice_turn_label": "Server TURN",
+  "ice_add_btn": "+ Aggiungi",
+  "ice_remove_btn": "Rimuovi",
+  "ice_reset_btn": "Ripristina predefiniti",
+  "ice_turn_hint": "Formato: turn:host:porta?transport=udp&user=u&pass=p  o  ?secret=s",
+  "ice_stun_prompt": "Inserisci URL STUN (es. stun:host:3478)",
+  "ice_turn_prompt": "Inserisci URL TURN (es. turn:host:3478?user=u&pass=p)",
+  "ice_stun_invalid": "L'URL deve iniziare con stun: o stuns:",
+  "ice_turn_invalid": "L'URL deve iniziare con turn: o turns:",
+  "ice_limit": "Massimo 3 server per tipo."
 }

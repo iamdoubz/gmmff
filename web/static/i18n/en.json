@@ -66,5 +66,17 @@
   "chat_disconnected": "Disconnected",
   "chat_session_open": "Session open. Messages are end-to-end encrypted.",
   "chat_you_left": "You ended the session.",
-  "chat_participant": "Participant"
+  "chat_participant": "Participant",
+  "ice_settings_label": "ICE servers",
+  "ice_stun_label": "STUN servers",
+  "ice_turn_label": "TURN servers",
+  "ice_add_btn": "+ Add",
+  "ice_remove_btn": "Remove",
+  "ice_reset_btn": "Reset to defaults",
+  "ice_turn_hint": "Format: turn:host:port?transport=udp&user=u&pass=p  or  ?secret=s",
+  "ice_stun_prompt": "Enter STUN URL (e.g. stun:host:3478)",
+  "ice_turn_prompt": "Enter TURN URL (e.g. turn:host:3478?user=u&pass=p)",
+  "ice_stun_invalid": "URL must start with stun: or stuns:",
+  "ice_turn_invalid": "URL must start with turn: or turns:",
+  "ice_limit": "Maximum 3 servers per type."
 }

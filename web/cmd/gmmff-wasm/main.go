@@ -27,6 +27,7 @@ import (
 
 	"github.com/iamdoubz/gmmff/internal/archive"
 	"github.com/iamdoubz/gmmff/internal/peer"
+	"github.com/iamdoubz/gmmff/internal/turn"
 	"github.com/iamdoubz/gmmff/internal/signaling"
 	"github.com/iamdoubz/gmmff/internal/transfer"
 	"github.com/iamdoubz/gmmff/pkg/protocol"
@@ -35,6 +36,7 @@ import (
 func main() {
 	js.Global().Set("gmmffSend", js.FuncOf(jsSend))
 	js.Global().Set("gmmffReceive", js.FuncOf(jsReceive))
+	js.Global().Set("gmmffGetDefaultICE", js.FuncOf(jsGetDefaultICE))
 	js.Global().Set("gmmffChat", js.FuncOf(jsChat))
 	js.Global().Set("gmmffChatSend", js.FuncOf(jsChatSend))
 	js.Global().Set("gmmffChatJoin", js.FuncOf(jsChatJoin))
@@ -49,14 +51,15 @@ func main() {
 // Send
 // ─────────────────────────────────────────────────────────────────────────────
 
-// jsSend is called from JS as: window.gmmffSend(file, serverURL)
-// file is a JS File object from an <input type="file">.
+// jsSend is called from JS as: window.gmmffSend(files, serverURL, iceConfig)
 func jsSend(_ js.Value, args []js.Value) any {
 	if len(args) < 2 {
 		return nil
 	}
-	jsFiles   := args[0] // JS Array of File objects
+	jsFiles   := args[0]
 	serverURL := args[1].String()
+	var iceCfg js.Value
+	if len(args) > 2 { iceCfg = args[2] }
 
 	ctx, cancelCtx := context.WithCancel(context.Background())
 
@@ -117,10 +120,7 @@ func jsSend(_ js.Value, args []js.Value) any {
 			return
 		}
 
-		cfg := peer.Config{
-			WindowSize: transfer.DefaultWindowSize,
-			ChunkSize:  transfer.DefaultChunkSize,
-		}
+		cfg := configFromJS(iceCfg)
 
 		fileSize := int64(len(fileData))
 		progress := makeProgressFn("send", fileSize)
@@ -138,13 +138,15 @@ func jsSend(_ js.Value, args []js.Value) any {
 // Receive
 // ─────────────────────────────────────────────────────────────────────────────
 
-// jsReceive is called from JS as: window.gmmffReceive(code, serverURL)
+// jsReceive is called from JS as: window.gmmffReceive(code, serverURL, iceConfig)
 func jsReceive(_ js.Value, args []js.Value) any {
 	if len(args) < 2 {
 		return nil
 	}
 	code      := args[0].String()
 	serverURL := args[1].String()
+	var iceCfg js.Value
+	if len(args) > 2 { iceCfg = args[2] }
 
 	ctx, cancelCtx := context.WithCancel(context.Background())
 
@@ -176,10 +178,7 @@ func jsReceive(_ js.Value, args []js.Value) any {
 			return
 		}
 
-		cfg := peer.Config{
-			WindowSize: transfer.DefaultWindowSize,
-			ChunkSize:  transfer.DefaultChunkSize,
-		}
+		cfg := configFromJS(iceCfg)
 
 		// ReceiveToBytes keeps everything in memory — no filesystem access.
 		// Progress total is unknown until the FileHeader arrives, so we pass
@@ -266,6 +265,8 @@ func jsChat(_ js.Value, args []js.Value) any {
 		return nil
 	}
 	serverURL := args[0].String()
+	var iceCfg js.Value
+	if len(args) > 1 { iceCfg = args[1] }
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	cancelFn := js.FuncOf(func(_ js.Value, _ []js.Value) any { cancelCtx(); return nil })
 	js.Global().Call("uiRegisterCancel", cancelFn)
@@ -282,7 +283,7 @@ func jsChat(_ js.Value, args []js.Value) any {
 		js.Global().Call("uiChatShowCode", created.Code)
 		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil { js.Global().Call("uiChatError", err.Error()); return }
 		session, err := peer.ChatWithCallback(ctx, sig, created.Code, "Sender",
-			peer.Config{},
+			configFromJS(iceCfg),
 			func(from, text string) { js.Global().Call("uiChatMessage", from, text) },
 			func(reason string)     { js.Global().Call("uiChatClosed", reason) },
 			func(who string)        { js.Global().Call("uiChatParticipantLeft", who) },
@@ -300,6 +301,8 @@ func jsChatJoin(_ js.Value, args []js.Value) any {
 		return nil
 	}
 	code, serverURL := args[0].String(), args[1].String()
+	var iceCfg js.Value
+	if len(args) > 2 { iceCfg = args[2] }
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	cancelFn := js.FuncOf(func(_ js.Value, _ []js.Value) any { cancelCtx(); return nil })
 	js.Global().Call("uiRegisterCancel", cancelFn)
@@ -311,7 +314,7 @@ func jsChatJoin(_ js.Value, args []js.Value) any {
 		if err := sig.JoinSlot(code); err != nil { js.Global().Call("uiChatError", err.Error()); return }
 		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil { js.Global().Call("uiChatError", err.Error()); return }
 		session, err := peer.ChatWithCallback(ctx, sig, code, "Receiver",
-			peer.Config{},
+			configFromJS(iceCfg),
 			func(from, text string) { js.Global().Call("uiChatMessage", from, text) },
 			func(reason string)     { js.Global().Call("uiChatClosed", reason) },
 			func(who string)        { js.Global().Call("uiChatParticipantLeft", who) },
@@ -356,6 +359,62 @@ func jsChatSend(_ js.Value, args []js.Value) any {
 	}
 	_ = activeChatSession.Send(args[0].String())
 	return nil
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ICE configuration helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+// configFromJS builds a peer.Config from a JS object {stun: [...], turn: [...]}.
+// If iceCfg is zero/undefined the default config is returned.
+func configFromJS(iceCfg js.Value) peer.Config {
+	cfg := peer.Config{
+		WindowSize: transfer.DefaultWindowSize,
+		ChunkSize:  transfer.DefaultChunkSize,
+	}
+	if iceCfg.IsUndefined() || iceCfg.IsNull() {
+		return cfg
+	}
+	// STUN: append user list to defaults
+	stunArr := iceCfg.Get("stun")
+	if !stunArr.IsUndefined() && !stunArr.IsNull() {
+		stuns := peer.DefaultSTUNServers
+		for i := 0; i < stunArr.Length(); i++ {
+			v := stunArr.Index(i).String()
+			if v != "" {
+				stuns = append(stuns, v)
+			}
+		}
+		cfg.STUNServers = stuns
+	}
+	// TURN: parse each entry via turn.ParseOne
+	turnArr := iceCfg.Get("turn")
+	if !turnArr.IsUndefined() && !turnArr.IsNull() {
+		for i := 0; i < turnArr.Length(); i++ {
+			raw := turnArr.Index(i).String()
+			if raw == "" {
+				continue
+			}
+			srv, err := turn.ParseOne(raw)
+			if err == nil {
+				cfg.TURNServers = append(cfg.TURNServers, srv)
+			}
+		}
+	}
+	return cfg
+}
+
+// jsGetDefaultICE returns the default ICE config as a JS object.
+// Called by the UI to pre-populate the ICE settings panel.
+func jsGetDefaultICE(_ js.Value, _ []js.Value) any {
+	obj := js.Global().Get("Object").New()
+	stunArr := js.Global().Get("Array").New()
+	for i, s := range peer.DefaultSTUNServers {
+		stunArr.SetIndex(i, s)
+	}
+	obj.Set("stun", stunArr)
+	obj.Set("turn", js.Global().Get("Array").New())
+	return obj
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

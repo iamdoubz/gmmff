@@ -98,6 +98,41 @@
             data-i18n="nav_chat">Chat</button>
   </nav>
 
+  <!-- ── ICE SETTINGS (shared, collapsible) ─────────────────────────── -->
+  <div class="ice-settings" id="ice-settings">
+    <button class="ice-settings__toggle" id="ice-toggle" aria-expanded="false"
+            aria-controls="ice-settings-body">
+      <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="ice-settings__icon">
+        <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+      </svg>
+      <span data-i18n="ice_settings_label">ICE servers</span>
+      <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="ice-settings__chevron">
+        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+      </svg>
+    </button>
+
+    <div class="ice-settings__body hidden" id="ice-settings-body">
+      <div class="ice-section">
+        <div class="ice-section__header">
+          <span class="ice-section__label" data-i18n="ice_stun_label">STUN servers</span>
+          <button class="btn-ghost ice-section__add" id="ice-stun-add-btn" data-i18n="ice_add_btn">+ Add</button>
+        </div>
+        <ul class="ice-list" id="ice-stun-list" aria-label="STUN server list"></ul>
+      </div>
+
+      <div class="ice-section">
+        <div class="ice-section__header">
+          <span class="ice-section__label" data-i18n="ice_turn_label">TURN servers</span>
+          <button class="btn-ghost ice-section__add" id="ice-turn-add-btn" data-i18n="ice_add_btn">+ Add</button>
+        </div>
+        <ul class="ice-list" id="ice-turn-list" aria-label="TURN server list"></ul>
+        <p class="ice-turn-hint"><small data-i18n="ice_turn_hint">Format: turn:host:port?transport=udp&amp;user=u&amp;pass=p  or  ?secret=s</small></p>
+      </div>
+
+      <button class="btn-ghost ice-reset-btn" id="ice-reset-btn" data-i18n="ice_reset_btn">Reset to defaults</button>
+    </div>
+  </div>
+
   <!-- ── SEND PANEL ──────────────────────────────────────────────────── -->
   <section class="panel active" id="panel-send" role="tabpanel" aria-labelledby="tab-send">
 
