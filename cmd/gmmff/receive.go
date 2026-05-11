@@ -15,9 +15,10 @@ import (
 )
 
 var receiveCfg struct {
-	serverURL  string
+	serverURL   string
 	stunServers []string
-	outDir     string
+	turnServers []string
+	outDir      string
 }
 
 var receiveCmd = &cobra.Command{
