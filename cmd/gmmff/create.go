@@ -280,11 +280,10 @@ func printSessionEvent(ev session.Event) {
 	case session.EventTransferStarted:
 		fmt.Printf("\r\033[KParticipant is sending a file (%.1f MB)...\n> ", float64(ev.Total)/1024/1024)
 	case session.EventTransferDone:
-		if ev.Path != "" {
-			fmt.Printf("\r\033[KFile received: %s\n", ev.Path)
-		}
 		if ev.Message != "" {
-			fmt.Printf("\r\033[KParticipant's message: %s\n", ev.Message)
+			for _, line := range strings.Split(ev.Message, "\n") {
+				fmt.Printf("\r\033[K%s\n", line)
+			}
 		}
 		fmt.Print("> ")
 	case session.EventPeerLeft:
