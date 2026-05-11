@@ -66,5 +66,17 @@
   "chat_disconnected": "විසන්ධිව",
   "chat_session_open": "සැසිය විවෘතයි. පණිවිඩ අන්ත-සිට-අන්ත සංකේතනය කර ඇත.",
   "chat_you_left": "ඔබ සැසිය අවසන් කළා.",
-  "chat_participant": "සහභාගිවන්නා"
+  "chat_participant": "සහභාගිවන්නා",
+  "ice_settings_label": "ICE සේවාදායකයන්",
+  "ice_stun_label": "STUN සේවාදායකයන්",
+  "ice_turn_label": "TURN සේවාදායකයන්",
+  "ice_add_btn": "+ එකතු කරන්න",
+  "ice_remove_btn": "ඉවත් කරන්න",
+  "ice_reset_btn": "පෙරනිමිවලට යළි පිහිටුවන්න",
+  "ice_turn_hint": "ආකෘතිය: turn:host:port?transport=udp&user=u&pass=p  හෝ  ?secret=s",
+  "ice_stun_prompt": "STUN URL ඇතුළත් කරන්න (උදා. stun:host:3478)",
+  "ice_turn_prompt": "TURN URL ඇතුළත් කරන්න (උදා. turn:host:3478?user=u&pass=p)",
+  "ice_stun_invalid": "URL stun: හෝ stuns: සමඟ ආරම්භ විය යුතුය",
+  "ice_turn_invalid": "URL turn: හෝ turns: සමඟ ආරම්භ විය යුතුය",
+  "ice_limit": "වර්ගය අනුව උපරිම සේවාදායකයන් 3කි."
 }

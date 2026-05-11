@@ -516,11 +516,10 @@ gmmff/
 - **Current languages** — English (en, default), Spanish (es), French (fr), German (de), Italian (it), Swedish (sv), Brazilian Portuguese (pt-BR), European Portuguese (pt-PT), Sinhala (si), Tamil (ta)
 - **Multi-file and directory transfers** — transfer multiple files and directories support (CLI and wasm webclient)
 - **Secure chat** — chat back and forth with someone by exchanging messages (CLI and wasm webclient)
-- **STUN Server** — user configurable list of STUN servers; defaults to a Google STUN server
-- **TURN Server** — user configurable list of TURN servers, long-term and ephemeral credentials supported; defaults to null
 
 ### Backlog
 
+- **coturn** STUN/TURN integration and credential rotation
 - **QR Codes** generate easy to share QR codes to scan
 - **Browser extension** use your favorite web browser to send/receive files
 - **Docker images** create a pipeline to package, create, and update docker images
@@ -536,6 +535,8 @@ gmmff/
 - wasm webclient: "Choose a file to send. You will receive a code to share with the receiver." -> "Choose/drop a/some file(s) to send. You will receive a code to share with the receiver."
 - zip file: add ability to password protect zip file. Prompt sender for input, if blank, no password. If set, encrypt zip file with provided input password.
 - wasm webclient: window slider (defaults to 2, 1-16 range)
+- STUN: convert STUN into a list of stun servers with format stun:url:port. Can be called with --stun stun:url1:3748 --stun stun:url2:19302. If none specifiec, use default
+- TURN: add TURN config. List of TURN servers with format turn:url:port. Can use multiple. Each turn server must have appropriate auth configured: standard long-term credential and ephemeral credential (static-auth-secret) must be supported
 
 ---
 

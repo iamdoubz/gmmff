@@ -197,6 +197,10 @@ function hideLoading() {
   overlay.classList.add('hidden');
   setTimeout(() => overlay.remove(), 450);
 
+  // Load and render ICE settings from localStorage.
+  loadIceState();
+  renderIceLists();
+
   // Pre-fill the signaling server fields using the current page URL.
   // Converts http(s):// → ws(s):// and appends /ws.
   const serverURL = location.origin.replace(/^http/, 'ws') + '/ws';
@@ -352,9 +356,9 @@ document.getElementById('send-btn').addEventListener('click', () => {
   if (selectedFiles.length === 0) { errEl.textContent = t('error_no_file');   return; }
   if (!server)                    { errEl.textContent = t('error_no_server'); return; }
 
-  // Hand off to Go/Wasm — selectedFiles is a plain JS Array.
+  // Hand off to Go/Wasm — pass ICE config as third argument.
   if (typeof window.gmmffSend === 'function') {
-    window.gmmffSend(selectedFiles, server);
+    window.gmmffSend(selectedFiles, server, buildIceConfig());
   }
 });
 
@@ -369,7 +373,7 @@ document.getElementById('receive-btn').addEventListener('click', () => {
   if (!server) { errEl.textContent = t('error_no_server'); return; }
 
   if (typeof window.gmmffReceive === 'function') {
-    window.gmmffReceive(code, server);
+    window.gmmffReceive(code, server, buildIceConfig());
   }
 });
 
@@ -553,7 +557,7 @@ document.getElementById('chat-start-btn')?.addEventListener('click', () => {
   const errEl  = document.getElementById('chat-error');
   errEl.textContent = '';
   if (!server) { errEl.textContent = t('error_no_server'); return; }
-  if (typeof window.gmmffChat === 'function') window.gmmffChat(server);
+  if (typeof window.gmmffChat === 'function') window.gmmffChat(server, buildIceConfig());
 });
 
 // Show join form
@@ -607,7 +611,7 @@ document.getElementById('chat-join-btn')?.addEventListener('click', () => {
   errEl.textContent = '';
   if (!code)   { errEl.textContent = t('error_no_code');   return; }
   if (!server) { errEl.textContent = t('error_no_server'); return; }
-  if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server);
+  if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, buildIceConfig());
 });
 
 // ── Send chat message ─────────────────────────────────────────────────────────
@@ -726,6 +730,145 @@ window.uiChatError = function(message) {
   document.getElementById('chat-error').textContent = t('status_error', { message });
   showChatState('form');
 };
+
+// ── ICE settings ─────────────────────────────────────────────────────────────
+
+const ICE_STORAGE_KEY = 'gmmff_ice_config';
+const ICE_TTL_MS      = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+// iceState holds the current user ICE config.
+// stun/turn arrays contain only user-ADDED entries (not the built-in defaults).
+let iceState = { stun: [], turn: [] };
+
+// loadIceState reads from localStorage, evicting if expired.
+function loadIceState() {
+  try {
+    const raw = localStorage.getItem(ICE_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (!saved.expiry || Date.now() > saved.expiry) {
+      localStorage.removeItem(ICE_STORAGE_KEY);
+      return;
+    }
+    iceState = { stun: saved.stun || [], turn: saved.turn || [] };
+  } catch(_) {}
+}
+
+function saveIceState() {
+  try {
+    localStorage.setItem(ICE_STORAGE_KEY, JSON.stringify({
+      stun:   iceState.stun,
+      turn:   iceState.turn,
+      expiry: Date.now() + ICE_TTL_MS,
+    }));
+  } catch(_) {}
+}
+
+// buildIceConfig assembles the full ICE config object to pass to Wasm.
+// STUN: user additions only (Go's configFromJS appends to defaults).
+// TURN: all user-entered entries.
+function buildIceConfig() {
+  return { stun: [...iceState.stun], turn: [...iceState.turn] };
+}
+
+// ── ICE toggle ────────────────────────────────────────────────────────────────
+document.getElementById('ice-toggle')?.addEventListener('click', () => {
+  const btn  = document.getElementById('ice-toggle');
+  const body = document.getElementById('ice-settings-body');
+  const open = btn.getAttribute('aria-expanded') === 'true';
+  btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+  body.classList.toggle('hidden', open);
+});
+
+// ── Render list ───────────────────────────────────────────────────────────────
+function renderIceLists() {
+  renderIceList('ice-stun-list', iceState.stun, 'stun');
+  renderIceList('ice-turn-list', iceState.turn, 'turn');
+}
+
+function renderIceList(listId, items, type) {
+  const ul = document.getElementById(listId);
+  if (!ul) return;
+  ul.innerHTML = '';
+
+  // Show defaults as non-removable (for STUN only)
+  if (type === 'stun') {
+    const defaultStun = ['stun:stun.l.google.com:19302'];
+    defaultStun.forEach(url => {
+      ul.appendChild(makeIceItem(url, null, true));
+    });
+  }
+
+  items.forEach((url, idx) => {
+    ul.appendChild(makeIceItem(url, () => removeIceEntry(type, idx)));
+  });
+
+  if (type === 'stun' && items.length === 0 && ul.children.length === 1) {
+    // Only default showing — add a subtle empty hint
+  }
+}
+
+function makeIceItem(url, onRemove, isDefault = false) {
+  const li  = document.createElement('li');
+  li.className = 'ice-list__item' + (isDefault ? ' ice-list__item--default' : '');
+  const span = document.createElement('span');
+  span.className = 'ice-list__url';
+  span.textContent = url;
+  span.title = url;
+  li.appendChild(span);
+  const btn = document.createElement('button');
+  btn.className = 'ice-list__remove';
+  btn.textContent = '×';
+  btn.setAttribute('aria-label', t('ice_remove_btn') || 'Remove');
+  if (isDefault) {
+    btn.disabled = true;
+  } else {
+    btn.addEventListener('click', onRemove);
+  }
+  li.appendChild(btn);
+  return li;
+}
+
+function removeIceEntry(type, idx) {
+  iceState[type].splice(idx, 1);
+  saveIceState();
+  renderIceLists();
+}
+
+// ── Add entries ───────────────────────────────────────────────────────────────
+function promptIceAdd(type) {
+  const label = type === 'stun'
+    ? (t('ice_stun_prompt') || 'Enter STUN URL (e.g. stun:host:3478)')
+    : (t('ice_turn_prompt') || 'Enter TURN URL (e.g. turn:host:3478?user=u&pass=p)');
+  const val = window.prompt(label);
+  if (!val || !val.trim()) return;
+  const url = val.trim();
+  if (type === 'stun' && !url.startsWith('stun:') && !url.startsWith('stuns:')) {
+    alert(t('ice_stun_invalid') || 'URL must start with stun: or stuns:');
+    return;
+  }
+  if (type === 'turn' && !url.startsWith('turn:') && !url.startsWith('turns:')) {
+    alert(t('ice_turn_invalid') || 'URL must start with turn: or turns:');
+    return;
+  }
+  if (iceState[type].length >= 3) {
+    alert(t('ice_limit') || 'Maximum 3 servers per type.');
+    return;
+  }
+  iceState[type].push(url);
+  saveIceState();
+  renderIceLists();
+}
+
+document.getElementById('ice-stun-add-btn')?.addEventListener('click', () => promptIceAdd('stun'));
+document.getElementById('ice-turn-add-btn')?.addEventListener('click', () => promptIceAdd('turn'));
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+document.getElementById('ice-reset-btn')?.addEventListener('click', () => {
+  iceState = { stun: [], turn: [] };
+  try { localStorage.removeItem(ICE_STORAGE_KEY); } catch(_) {}
+  renderIceLists();
+});
 
 // ── Go ────────────────────────────────────────────────────────────────────────
 boot();

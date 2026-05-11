@@ -103,7 +103,13 @@ func ICEServers(servers []Server) []webrtc.ICEServer {
 // Parsing
 // ─────────────────────────────────────────────────────────────────────────────
 
-// parse converts a single raw TURN string into a Server.
+// ParseOne parses and validates a single raw TURN URL string.
+// The format is described in the package documentation.
+func ParseOne(raw string) (Server, error) {
+	return parse(raw)
+}
+
+// parse is the internal implementation.
 func parse(raw string) (Server, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {

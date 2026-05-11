@@ -66,5 +66,17 @@
   "chat_disconnected": "Frånkopplad",
   "chat_session_open": "Session öppen. Meddelanden är end-to-end-krypterade.",
   "chat_you_left": "Du avslutade sessionen.",
-  "chat_participant": "Deltagare"
+  "chat_participant": "Deltagare",
+  "ice_settings_label": "ICE-servrar",
+  "ice_stun_label": "STUN-servrar",
+  "ice_turn_label": "TURN-servrar",
+  "ice_add_btn": "+ Lägg till",
+  "ice_remove_btn": "Ta bort",
+  "ice_reset_btn": "Återställ standardvärden",
+  "ice_turn_hint": "Format: turn:värd:port?transport=udp&user=u&pass=p  eller  ?secret=s",
+  "ice_stun_prompt": "Ange STUN-URL (t.ex. stun:värd:3478)",
+  "ice_turn_prompt": "Ange TURN-URL (t.ex. turn:värd:3478?user=u&pass=p)",
+  "ice_stun_invalid": "URL måste börja med stun: eller stuns:",
+  "ice_turn_invalid": "URL måste börja med turn: eller turns:",
+  "ice_limit": "Maximalt 3 servrar per typ."
 }
