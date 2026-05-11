@@ -449,7 +449,24 @@ func (s *Session) receiveTransfer(dc *webrtc.DataChannel) {
 		Message: msg,
 		Label:   dc.Label(),
 		Data:    rs.Result(),
-		Path:    savedPath,
+		Path:    rs.FileName(), // always the filename; savedPath used for CLI display
+	})
+
+	// For CLI, if a message was attached, show it and the save path.
+	// For Wasm, savedPath is empty and Path carries the filename for browserDownload.
+	displayMsg := msg
+	if savedPath != "" && msg == "" {
+		displayMsg = "Saved to: " + savedPath
+	} else if savedPath != "" {
+		displayMsg = msg + "\nSaved to: " + savedPath
+	}
+
+	s.emit(Event{
+		Type:    EventTransferDone,
+		Message: displayMsg,
+		Label:   dc.Label(),
+		Data:    rs.Result(),
+		Path:    rs.FileName(), // always the bare filename for browserDownload
 	})
 }
 
