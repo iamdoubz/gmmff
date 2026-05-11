@@ -91,8 +91,11 @@ type Session struct {
 	// broker does not close the slot prematurely on disconnect.
 	Sig interface{ Close() }
 
-	// transferInProgress guards the one-at-a-time transfer rule on the receive side.
+	// recvMu serializes inbound transfers (one at a time).
 	recvMu sync.Mutex
+	// recvWg tracks in-flight receive goroutines so Run() waits for them before
+	// closing Events, preventing a send-on-closed-channel panic.
+	recvWg sync.WaitGroup
 }
 
 // New creates a Session from an established peer connection and control channel.
@@ -179,7 +182,12 @@ func (s *Session) Leave() {
 // Call in a goroutine.
 func (s *Session) Run() {
 	defer s.cancel()
-	defer close(s.Events)
+	// Wait for all in-flight receive goroutines to finish before closing
+	// Events — otherwise we get a send-on-closed-channel panic.
+	defer func() {
+		s.recvWg.Wait()
+		close(s.Events)
+	}()
 	defer func() {
 		if s.Sig != nil {
 			s.Sig.Close()
@@ -421,7 +429,9 @@ func (s *Session) prepareInboundTransfer(dc *webrtc.DataChannel) {
 
 	// Wait for completion in a goroutine.
 	// recvMu serializes inbound transfers so they complete one at a time.
+	s.recvWg.Add(1)
 	go func() {
+		defer s.recvWg.Done()
 		s.recvMu.Lock()
 		defer s.recvMu.Unlock()
 
