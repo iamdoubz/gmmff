@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/iamdoubz/gmmff/internal/peer"
+	"github.com/iamdoubz/gmmff/internal/peerconfig"
 	"github.com/iamdoubz/gmmff/internal/transfer"
 	"github.com/pion/webrtc/v4"
 )
@@ -72,7 +72,7 @@ const (
 type Session struct {
 	pc          *webrtc.PeerConnection
 	controlDC   *webrtc.DataChannel
-	cfg         peer.Config
+	cfg         peerconfig.Config
 	isInitiator bool
 
 	outbound chan *transferRequest
@@ -98,7 +98,7 @@ func New(
 	cancel context.CancelFunc,
 	pc *webrtc.PeerConnection,
 	controlDC *webrtc.DataChannel,
-	cfg peer.Config,
+	cfg peerconfig.Config,
 	isInitiator bool,
 ) *Session {
 	s := &Session{

@@ -25,6 +25,7 @@ import (
 	"filippo.io/cpace"
 	"github.com/iamdoubz/gmmff/internal/chat"
 	"github.com/iamdoubz/gmmff/internal/pake"
+	"github.com/iamdoubz/gmmff/internal/peerconfig"
 	"github.com/iamdoubz/gmmff/internal/signaling"
 	"github.com/iamdoubz/gmmff/internal/session"
 	"github.com/iamdoubz/gmmff/internal/transfer"
@@ -33,51 +34,35 @@ import (
 	"github.com/pion/webrtc/v4"
 )
 
-// DefaultSTUN is the default STUN server URL.
-const DefaultSTUN = "stun:stun.l.google.com:19302"
+// DefaultSTUN and DefaultSTUNServers are re-exported from peerconfig
+// for callers that previously imported them from this package.
+const DefaultSTUN = peerconfig.DefaultSTUN
 
-// DefaultSTUNServers is the slice form of the default, used when STUNServers is empty.
-var DefaultSTUNServers = []string{DefaultSTUN}
+var DefaultSTUNServers = peerconfig.DefaultSTUNServers
 
-// Config holds peer connection settings.
-type Config struct {
-	// STUNServers is the list of STUN/STUNS URLs to use for ICE negotiation.
-	// Each entry must begin with "stun:" or "stuns:".
-	// Defaults to DefaultSTUNServers when empty.
-	STUNServers []string
-
-	// WindowSize is the number of chunks that may be in flight simultaneously.
-	// Defaults to transfer.DefaultWindowSize (2) when zero.
-	WindowSize int
-
-	// ChunkSize is the number of bytes per chunk.
-	// Defaults to transfer.DefaultChunkSize (16 KiB) when zero.
-	ChunkSize int
-
-	// TURNServers is the list of pre-parsed TURN server entries.
-	// Use turn.ParseAll to convert raw flag strings into this slice.
-	TURNServers []turn.Server
-}
+// Config is the peer connection configuration.
+// It lives in peerconfig to avoid import cycles with internal/session.
+type Config = peerconfig.Config
 
 // iceServers returns the full ICEServer slice — STUN entries first, then TURN.
-func (c Config) iceServers() []webrtc.ICEServer {
+func iceServers(c Config) []webrtc.ICEServer {
 	urls := c.STUNServers
 	if len(urls) == 0 {
-		urls = DefaultSTUNServers
+		urls = peerconfig.DefaultSTUNServers
 	}
 	ice := []webrtc.ICEServer{{URLs: urls}}
 	ice = append(ice, turn.ICEServers(c.TURNServers)...)
 	return ice
 }
 
-func (c Config) windowSize() int {
+func windowSize(c Config) int {
 	if c.WindowSize > 0 {
 		return c.WindowSize
 	}
 	return transfer.DefaultWindowSize
 }
 
-func (c Config) chunkSize() int {
+func chunkSize(c Config) int {
 	if c.ChunkSize > 0 {
 		return c.ChunkSize
 	}
@@ -328,7 +313,7 @@ func Send(ctx context.Context, sig *signaling.Client, code, filePath string, cfg
 	}
 	fmt.Println("Direct connection established — sending file")
 
-	sender := transfer.NewSender(ctx, remoteCancelCh, dc, filePath, ackCh, resumeFromCh, cfg.windowSize(), cfg.chunkSize())
+	sender := transfer.NewSender(ctx, remoteCancelCh, dc, filePath, ackCh, resumeFromCh, windowSize(cfg), chunkSize(cfg))
 	if message != "" && !isZip {
 		sender.SetMessage(message)
 	}
@@ -501,7 +486,7 @@ func SendBytes(ctx context.Context, sig *signaling.Client, code, fileName string
 	fmt.Println("Direct connection established — sending file")
 
 	// Use RunFromBytes instead of Run — no filesystem needed.
-	sender := transfer.NewSender(ctx, remoteCancelCh, dc, "", ackCh, resumeFromCh, cfg.windowSize(), cfg.chunkSize())
+	sender := transfer.NewSender(ctx, remoteCancelCh, dc, "", ackCh, resumeFromCh, windowSize(cfg), chunkSize(cfg))
 	if onProgress != nil {
 		sender.SetProgress(onProgress)
 	}
@@ -1331,7 +1316,7 @@ func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string,
 
 func newPeerConnection(cfg Config) (*webrtc.PeerConnection, error) {
 	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{
-		ICEServers: cfg.iceServers(),
+		ICEServers: iceServers(cfg),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("peer: new PeerConnection: %w", err)
