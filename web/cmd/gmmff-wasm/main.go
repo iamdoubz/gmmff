@@ -398,10 +398,14 @@ func jsCreateSession(_ js.Value, args []js.Value) any {
 		if err := json.Unmarshal(createdMsg.Payload, &created); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
 		js.Global().Call("uiFilesShowCode", created.Code)
 		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
-		sess, err := peer.StartSession(ctx, sig, created.Code, configFromJS(iceCfg))
+		// Use a fresh context for the session — the slot-joining goroutine
+		// returns immediately after this, which would cancel ctx and kill the
+		// session. The session manages its own lifetime via sessCtx.
+		sessCtx := context.Background()
+		sess, err := peer.StartSession(sessCtx, sig, created.Code, configFromJS(iceCfg))
 		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
 		activeSession = sess
-		go runWasmSession(ctx, sess)
+		go runWasmSession(sessCtx, sess)
 		js.Global().Call("uiFilesSessionReady", true) // true = isInitiator
 	}()
 	return nil
@@ -425,10 +429,11 @@ func jsJoinSession(_ js.Value, args []js.Value) any {
 		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
 		if err := sig.JoinSlot(code); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
 		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
-		sess, err := peer.JoinSession(ctx, sig, code, configFromJS(iceCfg))
+		sessCtx := context.Background()
+		sess, err := peer.JoinSession(sessCtx, sig, code, configFromJS(iceCfg))
 		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
 		activeSession = sess
-		go runWasmSession(ctx, sess)
+		go runWasmSession(sessCtx, sess)
 		js.Global().Call("uiFilesSessionReady", false) // false = not initiator
 	}()
 	return nil
