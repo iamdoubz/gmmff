@@ -499,13 +499,20 @@ func jsSessionLeave(_ js.Value, _ []js.Value) any {
 	return nil
 }
 
-// runWasmSession drains the session event channel and calls JS callbacks.
-func runWasmSession(ctx context.Context, sess *session.Session) {
+// runWasmSession drains the session event channel concurrently with Run().
+// Events must be dispatched to JS as they arrive — not after Run() returns —
+// otherwise progress bars, downloads, and messages are all delayed until the
+// session ends (because Run() blocks until the session is over).
+func runWasmSession(_ context.Context, sess *session.Session) {
+	// Drain Events in a separate goroutine so it runs alongside Run().
+	go func() {
+		for ev := range sess.Events {
+			dispatchSessionEvent(ev)
+		}
+	}()
+	// Run blocks until the session ends, then closes Events,
+	// which causes the range above to exit.
 	sess.Run()
-	// sess.Run() returns when the session ends; drain any remaining events.
-	for ev := range sess.Events {
-		dispatchSessionEvent(ev)
-	}
 }
 
 func dispatchSessionEvent(ev session.Event) {
