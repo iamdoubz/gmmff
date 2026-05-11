@@ -270,7 +270,7 @@ func (b *Broker) handleSlotCreate(ctx context.Context, c *conn, env protocol.Env
 	}
 
 	slotID := uuid.New().String()
-	sl := slot.New(slotID, code, c.id)
+	sl := slot.New(slotID, code, c.id, payload.SessionType)
 	if err := b.store.Create(ctx, sl); err != nil {
 		logger().Error().Str("error_code", "ERR_STORE_CREATE").Str("slot_id", slotID).Msg("failed to persist slot")
 		c.sendEnvelope(protocol.ErrorEnvelope("ERR_INTERNAL", "server error; please retry"))
@@ -280,9 +280,10 @@ func (b *Broker) handleSlotCreate(ctx context.Context, c *conn, env protocol.Env
 	c.slotID = slotID
 
 	c.sendEnvelope(protocol.MustEnvelope(protocol.MsgSlotCreated, protocol.SlotCreatedPayload{
-		SlotID:     slotID,
-		Code:       code,
-		TTLSeconds: int(slot.DefaultTTL.Seconds()),
+		SlotID:      slotID,
+		Code:        code,
+		TTLSeconds:  int(slot.DefaultTTL.Seconds()),
+		SessionType: payload.SessionType,
 	}))
 
 	logger().Info().Str("slot_id", slotID).Msg("slot created")
@@ -357,9 +358,9 @@ func (b *Broker) handleSlotJoin(ctx context.Context, c *conn, env protocol.Envel
 	}
 
 	initiator.sendEnvelope(protocol.MustEnvelope(protocol.MsgSlotReady,
-		protocol.SlotReadyPayload{Role: "initiator"}))
+		protocol.SlotReadyPayload{Role: "initiator", SessionType: sl.SessionType}))
 	c.sendEnvelope(protocol.MustEnvelope(protocol.MsgSlotReady,
-		protocol.SlotReadyPayload{Role: "responder"}))
+		protocol.SlotReadyPayload{Role: "responder", SessionType: sl.SessionType}))
 
 	logger().Info().Str("slot_id", sl.ID).Msg("slot ready — both peers connected")
 }

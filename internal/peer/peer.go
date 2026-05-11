@@ -26,6 +26,7 @@ import (
 	"github.com/iamdoubz/gmmff/internal/chat"
 	"github.com/iamdoubz/gmmff/internal/pake"
 	"github.com/iamdoubz/gmmff/internal/signaling"
+	"github.com/iamdoubz/gmmff/internal/session"
 	"github.com/iamdoubz/gmmff/internal/transfer"
 	"github.com/iamdoubz/gmmff/internal/turn"
 	"github.com/iamdoubz/gmmff/pkg/protocol"
@@ -1142,6 +1143,186 @@ func ChatWithCallback(
 		})
 		return &ChatSession{dc: dc, cancel: cancel, IsInitiator: role == "Sender"}, nil
 	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StartSession / JoinSession — bidirectional file + message session
+// ─────────────────────────────────────────────────────────────────────────────
+
+// StartSession performs PAKE+WebRTC as the initiator and returns a live Session.
+// The caller must call session.Run() in a goroutine.
+func StartSession(ctx context.Context, sig *signaling.Client, code string, cfg Config) (*session.Session, error) {
+	return doSessionHandshake(ctx, sig, code, cfg, true)
+}
+
+// JoinSession performs PAKE+WebRTC as the responder and returns a live Session.
+// The caller must call session.Run() in a goroutine.
+func JoinSession(ctx context.Context, sig *signaling.Client, code string, cfg Config) (*session.Session, error) {
+	return doSessionHandshake(ctx, sig, code, cfg, false)
+}
+
+// doSessionHandshake does PAKE + WebRTC + control DC for both roles.
+func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string, cfg Config, isInitiator bool) (*session.Session, error) {
+	disp := newDispatcher()
+	go disp.run(ctx, sig.Recv())
+
+	// ── PAKE ──────────────────────────────────────────────────────────────────
+	ci := cpace.NewContextInfo("gmmff-initiator", "gmmff-responder", nil)
+	var sharedKey []byte
+
+	if isInitiator {
+		msgA, state, err := cpace.Start(code, ci)
+		if err != nil {
+			return nil, fmt.Errorf("session: PAKE start: %w", err)
+		}
+		if err := sig.SendOpaque(protocol.MsgPakeA, msgA); err != nil {
+			return nil, fmt.Errorf("session: send pake.a: %w", err)
+		}
+		msg, err := disp.waitFor(ctx, disp.pakeB)
+		if err != nil {
+			return nil, fmt.Errorf("session: wait pake.b: %w", err)
+		}
+		msgB, err := signaling.DecodeOpaque(msg)
+		if err != nil {
+			return nil, fmt.Errorf("session: decode pake.b: %w", err)
+		}
+		sk, err := state.Finish(msgB)
+		if err != nil {
+			return nil, fmt.Errorf("session: PAKE finish: %w — wrong code or tampered connection", err)
+		}
+		sharedKey = sk
+	} else {
+		msgAEnv, err := disp.waitFor(ctx, disp.pakeA)
+		if err != nil {
+			return nil, fmt.Errorf("session: wait pake.a: %w", err)
+		}
+		msgA, err := signaling.DecodeOpaque(msgAEnv)
+		if err != nil {
+			return nil, fmt.Errorf("session: decode pake.a: %w", err)
+		}
+		msgB, sk, err := cpace.Exchange(code, ci, msgA)
+		if err != nil {
+			return nil, fmt.Errorf("session: PAKE exchange: %w", err)
+		}
+		sharedKey = sk
+		if err := sig.SendOpaque(protocol.MsgPakeB, msgB); err != nil {
+			return nil, fmt.Errorf("session: send pake.b: %w", err)
+		}
+	}
+
+	sess, err := pake.NewSession(sharedKey)
+	if err != nil {
+		return nil, fmt.Errorf("session: derive session keys: %w", err)
+	}
+	fmt.Println("Handshake complete — connection authenticated")
+
+	// ── WebRTC ────────────────────────────────────────────────────────────────
+	pc, err := newPeerConnection(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	var controlDC *webrtc.DataChannel
+	dcReady := make(chan *webrtc.DataChannel, 1)
+
+	if isInitiator {
+		ordered := true
+		dc, err := pc.CreateDataChannel("control", &webrtc.DataChannelInit{Ordered: &ordered})
+		if err != nil {
+			return nil, fmt.Errorf("session: create control channel: %w", err)
+		}
+		dc.OnOpen(func() { dcReady <- dc })
+	} else {
+		pc.OnDataChannel(func(dc *webrtc.DataChannel) {
+			if dc.Label() == "control" {
+				dcReady <- dc
+			}
+		})
+	}
+
+	trickleICE(sig, pc)
+	go disp.pumpICE(ctx, pc)
+
+	if isInitiator {
+		offer, err := pc.CreateOffer(nil)
+		if err != nil {
+			return nil, fmt.Errorf("session: create offer: %w", err)
+		}
+		if err := pc.SetLocalDescription(offer); err != nil {
+			return nil, fmt.Errorf("session: set local description: %w", err)
+		}
+		sdpJSON, _ := json.Marshal(offer)
+		offerMAC := sess.SignOffer(sdpJSON)
+		if err := sig.SendSignedSDP(protocol.MsgSDPOffer, sdpJSON, offerMAC); err != nil {
+			return nil, fmt.Errorf("session: send sdp.offer: %w", err)
+		}
+		answerMsg, err := disp.waitFor(ctx, disp.answer)
+		if err != nil {
+			return nil, fmt.Errorf("session: wait sdp.answer: %w", err)
+		}
+		answerJSON, answerMAC, err := signaling.DecodeSignedSDP(answerMsg)
+		if err != nil {
+			return nil, fmt.Errorf("session: decode sdp.answer: %w", err)
+		}
+		if err := sess.VerifyAnswer(answerJSON, answerMAC); err != nil {
+			return nil, fmt.Errorf("session: %w", err)
+		}
+		var answer webrtc.SessionDescription
+		if err := json.Unmarshal(answerJSON, &answer); err != nil {
+			return nil, fmt.Errorf("session: unmarshal answer: %w", err)
+		}
+		if err := pc.SetRemoteDescription(answer); err != nil {
+			return nil, fmt.Errorf("session: set remote description: %w", err)
+		}
+	} else {
+		fmt.Println("Waiting for initiator...")
+		offerMsg, err := disp.waitFor(ctx, disp.offer)
+		if err != nil {
+			return nil, fmt.Errorf("session: wait sdp.offer: %w", err)
+		}
+		offerJSON, offerMAC, err := signaling.DecodeSignedSDP(offerMsg)
+		if err != nil {
+			return nil, fmt.Errorf("session: decode sdp.offer: %w", err)
+		}
+		if err := sess.VerifyOffer(offerJSON, offerMAC); err != nil {
+			return nil, fmt.Errorf("session: %w", err)
+		}
+		var offer webrtc.SessionDescription
+		if err := json.Unmarshal(offerJSON, &offer); err != nil {
+			return nil, fmt.Errorf("session: unmarshal offer: %w", err)
+		}
+		if err := pc.SetRemoteDescription(offer); err != nil {
+			return nil, fmt.Errorf("session: set remote description: %w", err)
+		}
+		answer, err := pc.CreateAnswer(nil)
+		if err != nil {
+			return nil, fmt.Errorf("session: create answer: %w", err)
+		}
+		if err := pc.SetLocalDescription(answer); err != nil {
+			return nil, fmt.Errorf("session: set local description: %w", err)
+		}
+		answerJSON, _ := json.Marshal(answer)
+		answerMAC := sess.SignAnswer(answerJSON)
+		if err := sig.SendSignedSDP(protocol.MsgSDPAnswer, answerJSON, answerMAC); err != nil {
+			return nil, fmt.Errorf("session: send sdp.answer: %w", err)
+		}
+	}
+
+	fmt.Println("Direct connection established.")
+	select {
+	case <-ctx.Done():
+		pc.Close()
+		return nil, ctx.Err()
+	case <-time.After(20 * time.Second):
+		pc.Close()
+		return nil, fmt.Errorf("session: control channel open timeout")
+	case controlDC = <-dcReady:
+	}
+
+	sig.Close()
+
+	sessCtx, sessCancel := context.WithCancel(ctx)
+	return session.New(sessCtx, sessCancel, pc, controlDC, cfg, isInitiator), nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

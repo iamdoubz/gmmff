@@ -74,7 +74,17 @@ const (
 	TagCancelled     byte = 0x08 // sender or receiver intentionally stopped
 	TagMessage       byte = 0x09 // UTF-8 chat message
 	TagChatClose        byte = 0x0A // initiator closes session for everyone
-	TagParticipantLeave byte = 0x0B // one participant leaves; session continues
+	TagParticipantLeave  byte = 0x0B // one participant leaves; session continues
+	TagSessionReady      byte = 0x0C // peer is connected and ready
+	TagTransferAnnounce  byte = 0x0D // sender is about to open a new data channel
+	TagTransferAccepted  byte = 0x0E // receiver is ready for the announced channel
+	TagSessionClose      byte = 0x0F // initiator ends the session for everyone
+)
+
+// SessionType identifies what kind of session a slot holds.
+const (
+	SessionTypeFiles = "files" // bidirectional file + message session
+	SessionTypeChat  = "chat"  // pure text chat session
 )
 
 // ErrCancelled is returned when the remote peer intentionally cancelled the
@@ -669,6 +679,36 @@ func BuildChatCloseFrame() []byte { return []byte{TagChatClose} }
 // BuildParticipantLeaveFrame builds a TagParticipantLeave frame.
 // Any participant can send this to leave quietly without ending the session.
 func BuildParticipantLeaveFrame() []byte { return []byte{TagParticipantLeave} }
+
+// BuildSessionReadyFrame signals the peer is ready for session activity.
+func BuildSessionReadyFrame() []byte { return []byte{TagSessionReady} }
+
+// BuildTransferAnnounceFrame announces an upcoming transfer with a channel label.
+func BuildTransferAnnounceFrame(label string) []byte {
+	frame := make([]byte, 1+len(label))
+	frame[0] = TagTransferAnnounce
+	copy(frame[1:], label)
+	return frame
+}
+
+// ParseTransferAnnounceFrame extracts the channel label.
+func ParseTransferAnnounceFrame(frame []byte) string {
+	if len(frame) < 2 || frame[0] != TagTransferAnnounce {
+		return ""
+	}
+	return string(frame[1:])
+}
+
+// BuildTransferAcceptedFrame acknowledges a transfer announce.
+func BuildTransferAcceptedFrame(label string) []byte {
+	frame := make([]byte, 1+len(label))
+	frame[0] = TagTransferAccepted
+	copy(frame[1:], label)
+	return frame
+}
+
+// BuildSessionCloseFrame ends the session for all participants.
+func BuildSessionCloseFrame() []byte { return []byte{TagSessionClose} }
 
 // BuildCancelledFrame builds a TagCancelled frame.
 func BuildCancelledFrame() []byte {

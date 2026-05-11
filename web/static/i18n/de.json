@@ -78,5 +78,14 @@
   "ice_turn_prompt": "TURN-URL eingeben (z.B. turn:host:3478?user=u&pass=p)",
   "ice_stun_invalid": "URL muss mit stun: oder stuns: beginnen",
   "ice_turn_invalid": "URL muss mit turn: oder turns: beginnen",
-  "ice_limit": "Maximal 3 Server pro Typ."
+  "ice_limit": "Maximal 3 Server pro Typ.",
+  "nav_files": "Dateien",
+  "files_heading": "Sichere Dateiübertragung",
+  "files_instruction": "Starte eine Sitzung, um einen Code zu erhalten, oder gib einen Code ein.",
+  "files_create_btn": "Sitzung starten",
+  "files_code_instruction": "Teile diesen Code mit der anderen Seite, um dich zu verbinden.",
+  "files_send_btn": "Senden",
+  "files_session_open": "Sitzung offen. Dateien sind Ende-zu-Ende verschlüsselt.",
+  "files_transfer_done": "Übertragung abgeschlossen",
+  "files_receiving": "Datei wird empfangen…"
 }

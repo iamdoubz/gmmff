@@ -27,6 +27,7 @@ import (
 
 	"github.com/iamdoubz/gmmff/internal/archive"
 	"github.com/iamdoubz/gmmff/internal/peer"
+	"github.com/iamdoubz/gmmff/internal/session"
 	"github.com/iamdoubz/gmmff/internal/turn"
 	"github.com/iamdoubz/gmmff/internal/signaling"
 	"github.com/iamdoubz/gmmff/internal/transfer"
@@ -37,6 +38,12 @@ func main() {
 	js.Global().Set("gmmffSend", js.FuncOf(jsSend))
 	js.Global().Set("gmmffReceive", js.FuncOf(jsReceive))
 	js.Global().Set("gmmffGetDefaultICE", js.FuncOf(jsGetDefaultICE))
+	js.Global().Set("gmmffCreateSession", js.FuncOf(jsCreateSession))
+	js.Global().Set("gmmffJoinSession", js.FuncOf(jsJoinSession))
+	js.Global().Set("gmmffSessionSendFiles", js.FuncOf(jsSessionSendFiles))
+	js.Global().Set("gmmffSessionSendMessage", js.FuncOf(jsSessionSendMessage))
+	js.Global().Set("gmmffSessionClose", js.FuncOf(jsSessionClose))
+	js.Global().Set("gmmffSessionLeave", js.FuncOf(jsSessionLeave))
 	js.Global().Set("gmmffChat", js.FuncOf(jsChat))
 	js.Global().Set("gmmffChatSend", js.FuncOf(jsChatSend))
 	js.Global().Set("gmmffChatJoin", js.FuncOf(jsChatJoin))
@@ -82,7 +89,7 @@ func jsSend(_ js.Value, args []js.Value) any {
 			return
 		}
 
-		if err := sig.CreateSlot(); err != nil {
+		if err := sig.CreateSlot("files"); err != nil {
 			uiError(err.Error(), "send")
 			return
 		}
@@ -275,7 +282,7 @@ func jsChat(_ js.Value, args []js.Value) any {
 		defer cancelFn.Release()
 		sig, err := signaling.Connect(ctx, serverURL)
 		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
-		if err := sig.CreateSlot(); err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		if err := sig.CreateSlot("chat"); err != nil { js.Global().Call("uiChatError", err.Error()); return }
 		createdMsg, err := sig.WaitFor(ctx, protocol.MsgSlotCreated)
 		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
 		var created protocol.SlotCreatedPayload
@@ -359,6 +366,170 @@ func jsChatSend(_ js.Value, args []js.Value) any {
 	}
 	_ = activeChatSession.Send(args[0].String())
 	return nil
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Files session (bidirectional)
+// ─────────────────────────────────────────────────────────────────────────────
+
+var activeSession *session.Session
+
+// jsCreateSession — initiator: creates a files session slot.
+func jsCreateSession(_ js.Value, args []js.Value) any {
+	if len(args) < 1 {
+		return nil
+	}
+	serverURL := args[0].String()
+	var iceCfg js.Value
+	if len(args) > 1 { iceCfg = args[1] }
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	cancelFn := js.FuncOf(func(_ js.Value, _ []js.Value) any { cancelCtx(); return nil })
+	js.Global().Call("uiRegisterCancel", cancelFn)
+	go func() {
+		defer cancelCtx()
+		defer cancelFn.Release()
+		sig, err := signaling.Connect(ctx, serverURL)
+		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+		if err := sig.CreateSlot("files"); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+		createdMsg, err := sig.WaitFor(ctx, protocol.MsgSlotCreated)
+		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+		var created protocol.SlotCreatedPayload
+		if err := json.Unmarshal(createdMsg.Payload, &created); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+		js.Global().Call("uiFilesShowCode", created.Code)
+		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+		sess, err := peer.StartSession(ctx, sig, created.Code, configFromJS(iceCfg))
+		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+		activeSession = sess
+		go runWasmSession(ctx, sess)
+		js.Global().Call("uiFilesSessionReady", true) // true = isInitiator
+	}()
+	return nil
+}
+
+// jsJoinSession — responder: joins a files session.
+func jsJoinSession(_ js.Value, args []js.Value) any {
+	if len(args) < 2 {
+		return nil
+	}
+	code, serverURL := args[0].String(), args[1].String()
+	var iceCfg js.Value
+	if len(args) > 2 { iceCfg = args[2] }
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	cancelFn := js.FuncOf(func(_ js.Value, _ []js.Value) any { cancelCtx(); return nil })
+	js.Global().Call("uiRegisterCancel", cancelFn)
+	go func() {
+		defer cancelCtx()
+		defer cancelFn.Release()
+		sig, err := signaling.Connect(ctx, serverURL)
+		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+		if err := sig.JoinSlot(code); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+		sess, err := peer.JoinSession(ctx, sig, code, configFromJS(iceCfg))
+		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+		activeSession = sess
+		go runWasmSession(ctx, sess)
+		js.Global().Call("uiFilesSessionReady", false) // false = not initiator
+	}()
+	return nil
+}
+
+// jsSessionSendFiles sends files over the active session.
+func jsSessionSendFiles(_ js.Value, args []js.Value) any {
+	if len(args) < 1 || activeSession == nil {
+		return nil
+	}
+	jsFiles := args[0]
+	go func() {
+		namedFiles, err := jsFilesToNamedFiles(jsFiles)
+		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+		fileData, fileName, err := archive.ZipFilesFromMemory(namedFiles)
+		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+
+		label := fmt.Sprintf("tx-%d", time.Now().UnixNano())
+		total := int64(len(fileData))
+		progress := makeSessionProgressFn(label, total)
+		done := activeSession.SendBytes(fileName, fileData, "", progress)
+		if err := <-done; err != nil {
+			js.Global().Call("uiFilesTransferError", label, err.Error())
+		} else {
+			js.Global().Call("uiFilesTransferDone", label, fileName)
+		}
+	}()
+	return nil
+}
+
+func makeSessionProgressFn(label string, total int64) func(done, total int64) {
+	return func(done, tot int64) {
+		if tot <= 0 { return }
+		pct := int(float64(done) / float64(tot) * 100)
+		js.Global().Call("uiFilesProgress", label, pct, done, tot)
+	}
+}
+
+// jsSessionSendMessage sends a text message over the active session.
+func jsSessionSendMessage(_ js.Value, args []js.Value) any {
+	if len(args) < 1 || activeSession == nil {
+		return nil
+	}
+	_ = activeSession.SendMessage(args[0].String())
+	return nil
+}
+
+// jsSessionClose ends the session for everyone (initiator only).
+func jsSessionClose(_ js.Value, _ []js.Value) any {
+	if activeSession != nil {
+		activeSession.Close()
+		activeSession = nil
+	}
+	return nil
+}
+
+// jsSessionLeave leaves the session quietly.
+func jsSessionLeave(_ js.Value, _ []js.Value) any {
+	if activeSession != nil {
+		activeSession.Leave()
+		activeSession = nil
+	}
+	return nil
+}
+
+// runWasmSession drains the session event channel and calls JS callbacks.
+func runWasmSession(ctx context.Context, sess *session.Session) {
+	sess.Run()
+	// sess.Run() returns when the session ends; drain any remaining events.
+	for ev := range sess.Events {
+		dispatchSessionEvent(ev)
+	}
+}
+
+func dispatchSessionEvent(ev session.Event) {
+	switch ev.Type {
+	case session.EventMessage:
+		js.Global().Call("uiFilesMessage", "Participant", ev.Message)
+	case session.EventTransferStarted:
+		js.Global().Call("uiFilesInboundStarted", ev.Label, ev.Total)
+	case session.EventTransferProgress:
+		if ev.Total > 0 {
+			pct := int(float64(ev.Done) / float64(ev.Total) * 100)
+			js.Global().Call("uiFilesProgress", ev.Label, pct, ev.Done, ev.Total)
+		}
+	case session.EventTransferDone:
+		js.Global().Call("uiFilesTransferDone", ev.Label, ev.Path)
+		if ev.Message != "" {
+			js.Global().Call("uiFilesMessage", "Participant", ev.Message)
+		}
+		if len(ev.Data) > 0 {
+			browserDownload(ev.Path, ev.Data)
+		}
+	case session.EventPeerLeft:
+		js.Global().Call("uiFilesParticipantLeft", ev.Message)
+	case session.EventSessionClosed:
+		js.Global().Call("uiFilesSessionClosed", ev.Message)
+		activeSession = nil
+	case session.EventError:
+		js.Global().Call("uiFilesError", ev.Message)
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -85,6 +85,8 @@ const (
 type SlotCreatePayload struct {
 	// ProtocolVersion lets the server reject incompatible clients early.
 	ProtocolVersion string `json:"protocol_version"`
+	// SessionType identifies what kind of session this is ("files" or "chat").
+	SessionType string `json:"session_type,omitempty"`
 }
 
 // SlotCreatedPayload is the server's response to a successful SlotCreate.
@@ -98,6 +100,8 @@ type SlotCreatedPayload struct {
 
 	// TTLSeconds is how long the slot will be held open before expiry.
 	TTLSeconds int `json:"ttl_seconds"`
+	// SessionType is echoed back from the create request.
+	SessionType string `json:"session_type,omitempty"`
 }
 
 // SlotJoinPayload is sent by the responding peer to join a slot.
@@ -114,6 +118,10 @@ type SlotReadyPayload struct {
 	// Role tells each peer whether it is the "initiator" or "responder".
 	// The initiator sends the WebRTC offer; the responder sends the answer.
 	Role string `json:"role"` // "initiator" | "responder"
+
+	// SessionType echoes the type from slot.create so the joiner knows
+	// what kind of session they are entering ("files" or "chat").
+	SessionType string `json:"session_type,omitempty"`
 }
 
 // OpaquePayload wraps a raw base64-encoded byte slice.  Used for PAKE

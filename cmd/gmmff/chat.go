@@ -11,32 +11,28 @@ import (
 
 	"github.com/iamdoubz/gmmff/internal/peer"
 	"github.com/iamdoubz/gmmff/internal/signaling"
+	"github.com/iamdoubz/gmmff/internal/transfer"
 	"github.com/iamdoubz/gmmff/pkg/protocol"
 	"github.com/spf13/cobra"
 )
 
 var chatCfg struct {
-	serverURL  string
-	stunServers  []string
-	turnServers  []string
+	serverURL   string
+	stunServers []string
+	turnServers []string
 }
 
-// ── chat (initiator) ──────────────────────────────────────────────────────────
+// ── chat (pure chat initiator) ────────────────────────────────────────────────
 
 var chatCmd = &cobra.Command{
 	Use:   "chat",
-	Short: "Start a symmetric chat session — prints a code for the other party",
-	Long: `Open a secure peer-to-peer chat session.
+	Short: "Start a pure text chat session — prints a code for the other party",
+	Long: `Open a secure peer-to-peer text chat session.
+
+For a full session that supports both files and chat, use 'gmmff create'.
 
 The session stays open until either party types \q, the connection is lost,
-or no message is sent or received for 10 minutes.
-
-Examples:
-  # Machine A — starts the session
-  gmmff chat
-
-  # Machine B — joins with the code
-  gmmff join <code>`,
+or no message is sent or received for 10 minutes.`,
 	Args: cobra.NoArgs,
 	RunE: runChat,
 }
@@ -48,9 +44,9 @@ func init() {
 	f.StringVar(&chatCfg.serverURL, "server", envOr("GMMFF_SERVER", "ws://localhost:8080/ws"),
 		"Signaling server WebSocket URL (GMMFF_SERVER)")
 	f.StringArrayVar(&chatCfg.turnServers, "turn", turnServersDefault(),
-		`TURN server (repeatable); env GMMFF_TURN accepts comma-separated list`)
+		"TURN server, repeatable (GMMFF_TURN)")
 	f.StringArrayVar(&chatCfg.stunServers, "stun", stunServersDefault(),
-		"STUN/STUNS server URL (repeatable); env GMMFF_STUN accepts comma-separated list")
+		"STUN/STUNS server URL, repeatable (GMMFF_STUN)")
 }
 
 func runChat(_ *cobra.Command, _ []string) error {
@@ -63,7 +59,7 @@ func runChat(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("chat: connect: %w", err)
 	}
 
-	if err := sig.CreateSlot(); err != nil {
+	if err := sig.CreateSlot("chat"); err != nil {
 		return fmt.Errorf("chat: create slot: %w", err)
 	}
 	createdMsg, err := sig.WaitFor(ctx, protocol.MsgSlotCreated)
@@ -106,11 +102,11 @@ func runChat(_ *cobra.Command, _ []string) error {
 	return nil
 }
 
-// ── join (responder) ──────────────────────────────────────────────────────────
+// ── join (universal responder — routes based on session type) ─────────────────
 
 var joinCmd = &cobra.Command{
 	Use:   "join <code>",
-	Short: "Join a chat session using the code printed by the other party",
+	Short: "Join a session (file+message or chat) using the code from the other party",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runJoin,
 }
@@ -122,9 +118,9 @@ func init() {
 	f.StringVar(&chatCfg.serverURL, "server", envOr("GMMFF_SERVER", "ws://localhost:8080/ws"),
 		"Signaling server WebSocket URL (GMMFF_SERVER)")
 	f.StringArrayVar(&chatCfg.turnServers, "turn", turnServersDefault(),
-		`TURN server (repeatable); env GMMFF_TURN accepts comma-separated list`)
+		"TURN server, repeatable (GMMFF_TURN)")
 	f.StringArrayVar(&chatCfg.stunServers, "stun", stunServersDefault(),
-		"STUN/STUNS server URL (repeatable); env GMMFF_STUN accepts comma-separated list")
+		"STUN/STUNS server URL, repeatable (GMMFF_STUN)")
 }
 
 func runJoin(_ *cobra.Command, args []string) error {
@@ -142,9 +138,15 @@ func runJoin(_ *cobra.Command, args []string) error {
 	if err := sig.JoinSlot(code); err != nil {
 		return fmt.Errorf("join: join slot: %w", err)
 	}
-	_, err = sig.WaitFor(ctx, protocol.MsgSlotReady)
+
+	// slot.ready tells us the session type so we know which REPL to enter.
+	readyMsg, err := sig.WaitFor(ctx, protocol.MsgSlotReady)
 	if err != nil {
 		return fmt.Errorf("join: wait slot.ready: %w", err)
+	}
+	var ready protocol.SlotReadyPayload
+	if err := json.Unmarshal(readyMsg.Payload, &ready); err != nil {
+		return fmt.Errorf("join: decode slot.ready: %w", err)
 	}
 
 	turnSrvs, err := parseTURNServers(chatCfg.turnServers)
@@ -152,11 +154,34 @@ func runJoin(_ *cobra.Command, args []string) error {
 		return err
 	}
 	cfg := peer.Config{STUNServers: chatCfg.stunServers, TURNServers: turnSrvs}
-	if err := peer.Chat(ctx, sig, code, "Sender", cfg); err != nil {
-		if errors.Is(err, context.Canceled) {
-			return nil
+
+	switch ready.SessionType {
+	case transfer.SessionTypeFiles, "":
+		// Files session (empty = legacy clients, treat as files)
+		fmt.Println("Joining file session...")
+		sess, err := peer.JoinSession(ctx, sig, code, cfg)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return nil
+			}
+			return err
 		}
-		return err
+		sess.OutDir = "."
+		go sess.Run()
+		return runSessionREPL(ctx, sess, stop)
+
+	case transfer.SessionTypeChat:
+		// Pure chat session
+		fmt.Println("Joining chat session...")
+		if err := peer.Chat(ctx, sig, code, "Sender", cfg); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return nil
+			}
+			return err
+		}
+		return nil
+
+	default:
+		return fmt.Errorf("join: unknown session type %q", ready.SessionType)
 	}
-	return nil
 }

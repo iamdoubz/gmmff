@@ -78,5 +78,14 @@
   "ice_turn_prompt": "TURN URL ඇතුළත් කරන්න (උදා. turn:host:3478?user=u&pass=p)",
   "ice_stun_invalid": "URL stun: හෝ stuns: සමඟ ආරම්භ විය යුතුය",
   "ice_turn_invalid": "URL turn: හෝ turns: සමඟ ආරම්භ විය යුතුය",
-  "ice_limit": "වර්ගය අනුව උපරිම සේවාදායකයන් 3කි."
+  "ice_limit": "වර්ගය අනුව උපරිම සේවාදායකයන් 3කි.",
+  "nav_files": "ගොනු",
+  "files_heading": "සුරක්ෂිත ගොනු හුවමාරුව",
+  "files_instruction": "කේතයක් ලබාගැනීමට සැසියක් ආරම්භ කරන්න හෝ සම්බන්ධ වීමට කේතයක් ඇතුළත් කරන්න.",
+  "files_create_btn": "සැසිය ආරම්භ කරන්න",
+  "files_code_instruction": "සම්බන්ධ වීමට අනෙක් පාර්ශ්වය සමඟ මෙම කේතය බෙදාගන්න.",
+  "files_send_btn": "එවන්න",
+  "files_session_open": "සැසිය විවෘතයි. ගොනු අන්ත-සිට-අන්ත සංකේතනය කර ඇත.",
+  "files_transfer_done": "හුවමාරුව සම්පූර්ණ",
+  "files_receiving": "ගොනුව ලැබෙමින්…"
 }

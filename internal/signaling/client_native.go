@@ -105,9 +105,9 @@ func (c *Client) closeOnce() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // CreateSlot sends a slot.create request.
-func (c *Client) CreateSlot() error {
+func (c *Client) CreateSlot(sessionType string) error {
 	return c.Send(protocol.MustEnvelope(protocol.MsgSlotCreate,
-		protocol.SlotCreatePayload{ProtocolVersion: protocol.Version}))
+		protocol.SlotCreatePayload{ProtocolVersion: protocol.Version, SessionType: sessionType}))
 }
 
 // JoinSlot sends a slot.join request with the given code.

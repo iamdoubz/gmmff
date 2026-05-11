@@ -145,9 +145,9 @@ func (c *Client) closeOnce() {
 	})
 }
 
-func (c *Client) CreateSlot() error {
+func (c *Client) CreateSlot(sessionType string) error {
 	return c.Send(protocol.MustEnvelope(protocol.MsgSlotCreate,
-		protocol.SlotCreatePayload{ProtocolVersion: protocol.Version}))
+		protocol.SlotCreatePayload{ProtocolVersion: protocol.Version, SessionType: sessionType}))
 }
 
 func (c *Client) JoinSlot(code string) error {
