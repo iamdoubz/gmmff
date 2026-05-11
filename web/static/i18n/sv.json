@@ -78,5 +78,14 @@
   "ice_turn_prompt": "Ange TURN-URL (t.ex. turn:värd:3478?user=u&pass=p)",
   "ice_stun_invalid": "URL måste börja med stun: eller stuns:",
   "ice_turn_invalid": "URL måste börja med turn: eller turns:",
-  "ice_limit": "Maximalt 3 servrar per typ."
+  "ice_limit": "Maximalt 3 servrar per typ.",
+  "nav_files": "Filer",
+  "files_heading": "Säker filöverföring",
+  "files_instruction": "Starta en session för att få en kod, eller ange en kod för att gå med.",
+  "files_create_btn": "Starta session",
+  "files_code_instruction": "Dela den här koden med den andra parten för att ansluta.",
+  "files_send_btn": "Skicka",
+  "files_session_open": "Session öppen. Filer är end-to-end-krypterade.",
+  "files_transfer_done": "Överföringen slutförd",
+  "files_receiving": "Tar emot fil…"
 }

@@ -90,10 +90,8 @@
 
   <!-- Tab bar -->
   <nav class="tabs" role="tablist">
-    <button class="tab" role="tab" id="tab-send" aria-selected="true" aria-controls="panel-send"
-            data-i18n="nav_send">Send</button>
-    <button class="tab" role="tab" id="tab-receive" aria-selected="false" aria-controls="panel-receive"
-            data-i18n="nav_receive">Receive</button>
+    <button class="tab" role="tab" id="tab-files" aria-selected="true" aria-controls="panel-files"
+            data-i18n="nav_files">Files</button>
     <button class="tab" role="tab" id="tab-chat" aria-selected="false" aria-controls="panel-chat"
             data-i18n="nav_chat">Chat</button>
   </nav>
@@ -133,127 +131,93 @@
     </div>
   </div>
 
-  <!-- ── SEND PANEL ──────────────────────────────────────────────────── -->
-  <section class="panel active" id="panel-send" role="tabpanel" aria-labelledby="tab-send">
+  <!-- ── FILES PANEL ─────────────────────────────────────────────────── -->
+  <section class="panel active" id="panel-files" role="tabpanel" aria-labelledby="tab-files">
 
-    <!-- Idle: choose file + server -->
-    <div class="card" id="send-form">
+    <!-- Idle: create or join -->
+    <div class="card" id="files-form">
       <div>
-        <h2 data-i18n="send_heading">Send a file</h2>
-        <p><small data-i18n="send_instruction">Choose a file to send. You will receive a code to share with the receiver.</small></p>
+        <h2 data-i18n="files_heading">Secure File Transfer</h2>
+        <p><small data-i18n="files_instruction">Start a session to get a code, or enter a code to join one.</small></p>
       </div>
 
       <div class="field">
-        <label data-i18n="send_choose_file">File</label>
-        <div class="file-picker" id="file-picker-area">
-          <button class="file-picker__btn" id="send-pick-btn" data-i18n="send_choose_file">
-            Choose files
-          </button>
-          <button class="file-picker__btn" id="send-pick-folder-btn" data-i18n="send_choose_folder">
-            Choose folder
-          </button>
-          <input type="file" id="send-file-input" tabindex="-1" multiple>
-          <input type="file" id="send-folder-input" tabindex="-1" webkitdirectory>
-          <span class="file-picker__name" id="send-file-name" data-i18n="send_no_file">No file chosen</span>
-        </div>
-      </div>
-
-      <div class="field">
-        <label for="send-server" data-i18n="send_server_label">Signaling server</label>
-        <input type="url" id="send-server" autocomplete="off" autocorrect="off" autocapitalize="none"
+        <label for="files-server" data-i18n="chat_server_label">Signaling server</label>
+        <input type="url" id="files-server" autocomplete="off" autocorrect="off" autocapitalize="none"
                spellcheck="false" data-i18n-placeholder="send_server_placeholder">
       </div>
 
-      <p class="status" id="send-error" role="alert"></p>
-
-      <button class="btn-primary" id="send-btn" data-i18n="send_btn">Send</button>
+      <p class="status" id="files-error" role="alert"></p>
+      <button class="btn-primary" id="files-create-btn" data-i18n="files_create_btn">Start session</button>
     </div>
 
-    <!-- Active: code display + waiting -->
-    <div class="card hidden" id="send-code">
+    <!-- Waiting for other side: show code -->
+    <div class="card hidden" id="files-code">
       <div>
         <h2 data-i18n="code_heading">Share this code</h2>
-        <p><small data-i18n="code_instruction">Give this code to the person receiving the file. It expires in 10 minutes.</small></p>
+        <p><small data-i18n="files_code_instruction">Share this code with the other party to connect.</small></p>
       </div>
-
       <div class="code-display">
-        <span class="code-display__word" id="send-code-value" aria-live="polite"></span>
+        <span class="code-display__word" id="files-code-value" aria-live="polite"></span>
         <div class="code-display__actions">
-          <button class="btn-ghost" id="send-copy-btn" data-i18n="code_copy">Copy</button>
-          <button class="btn-ghost" id="send-cancel-btn" data-i18n="cancel_btn">Cancel</button>
+          <button class="btn-ghost" id="files-copy-btn" data-i18n="code_copy">Copy</button>
+          <button class="btn-ghost" id="files-cancel-code-btn" data-i18n="cancel_btn">Cancel</button>
         </div>
       </div>
-
-      <p class="status" id="send-wait-status" data-i18n="code_waiting">Waiting for receiver to connect…</p>
+      <p class="status" id="files-wait-status" data-i18n="chat_waiting">Waiting for the other party…</p>
     </div>
 
-    <!-- Active: progress -->
-    <div class="card hidden" id="send-progress">
-      <h2 id="send-progress-label" data-i18n="status_sending">Sending</h2>
+    <!-- Join: enter code -->
+    <div class="card hidden" id="files-join">
+      <div>
+        <h2 data-i18n="chat_join_heading">Join a session</h2>
+      </div>
+      <div class="field">
+        <label for="files-join-code" data-i18n="receive_code_label">Code</label>
+        <input type="text" id="files-join-code" autocomplete="off" autocorrect="off" autocapitalize="none"
+               spellcheck="false" inputmode="text" data-i18n-placeholder="receive_code_placeholder">
+      </div>
+      <p class="status" id="files-join-error" role="alert"></p>
+      <button class="btn-primary" id="files-join-btn" data-i18n="chat_join_btn">Join</button>
+      <button class="btn-ghost" id="files-back-btn" data-i18n="chat_back_btn">Back</button>
+    </div>
 
-      <div class="progress">
-        <div class="progress__bar-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"
-             aria-labelledby="send-progress-label">
-          <div class="progress__bar-fill" id="send-bar"></div>
-        </div>
-        <div class="progress__meta">
-          <span id="send-progress-bytes"></span>
-          <span id="send-progress-speed"></span>
-        </div>
+    <!-- Active session -->
+    <div class="card hidden" id="files-active">
+      <div class="chat-header">
+        <h2 data-i18n="files_heading">Secure File Transfer</h2>
+        <span class="chat-status" id="files-active-status" data-i18n="chat_connected">Connected</span>
       </div>
 
-      <p class="status" id="send-status"></p>
-      <button class="btn-ghost" id="send-cancel-progress-btn" data-i18n="cancel_btn">Cancel</button>
+      <!-- File picker -->
+      <div class="file-picker" id="files-picker-area">
+        <button class="file-picker__btn" id="files-pick-btn" data-i18n="send_choose_file">Choose files</button>
+        <button class="file-picker__btn" id="files-pick-folder-btn" data-i18n="send_choose_folder">Choose folder</button>
+        <input type="file" id="files-file-input" tabindex="-1" multiple>
+        <input type="file" id="files-folder-input" tabindex="-1" webkitdirectory>
+        <span class="file-picker__name" id="files-file-name" data-i18n="send_no_file">No file chosen</span>
+      </div>
+      <button class="btn-primary" id="files-send-btn" data-i18n="files_send_btn">Send</button>
+
+      <!-- Transfer progress bars (dynamically added) -->
+      <div id="files-transfers"></div>
+
+      <!-- Messages from peer -->
+      <div class="chat-messages" id="files-messages" aria-live="polite" aria-label="Messages"></div>
+
+      <!-- Message input -->
+      <div class="chat-input-row">
+        <input type="text" id="files-msg-input" class="chat-input" autocomplete="off"
+               data-i18n-placeholder="chat_placeholder">
+        <button class="btn-primary chat-send-btn" id="files-msg-btn" data-i18n="chat_send_btn">Send</button>
+      </div>
+
+      <button class="btn-ghost" id="files-close-btn" data-i18n="chat_close_btn">End session</button>
     </div>
 
   </section>
 
-  <!-- ── RECEIVE PANEL ───────────────────────────────────────────────── -->
-  <section class="panel" id="panel-receive" role="tabpanel" aria-labelledby="tab-receive">
-
-    <!-- Idle: enter code + server -->
-    <div class="card" id="receive-form">
-      <div>
-        <h2 data-i18n="receive_heading">Receive a file</h2>
-        <p><small data-i18n="receive_instruction">Enter the code shared by the sender.</small></p>
-      </div>
-
-      <div class="field">
-        <label for="receive-code" data-i18n="receive_code_label">Code</label>
-        <input type="text" id="receive-code" autocomplete="off" autocorrect="off" autocapitalize="none"
-               spellcheck="false" inputmode="text" data-i18n-placeholder="receive_code_placeholder">
-      </div>
-
-      <div class="field">
-        <label for="receive-server" data-i18n="receive_server_label">Signaling server</label>
-        <input type="url" id="receive-server" autocomplete="off" autocorrect="off" autocapitalize="none"
-               spellcheck="false" data-i18n-placeholder="receive_server_placeholder">
-      </div>
-
-      <p class="status" id="receive-error" role="alert"></p>
-
-      <button class="btn-primary" id="receive-btn" data-i18n="receive_btn">Receive</button>
-    </div>
-
-    <!-- Active: progress -->
-    <div class="card hidden" id="receive-progress">
-      <h2 id="receive-progress-label" data-i18n="status_receiving">Receiving</h2>
-
-      <div class="progress">
-        <div class="progress__bar-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"
-             aria-labelledby="receive-progress-label">
-          <div class="progress__bar-fill" id="receive-bar"></div>
-        </div>
-        <div class="progress__meta">
-          <span id="receive-progress-bytes"></span>
-          <span id="receive-progress-speed"></span>
-        </div>
-      </div>
-
-      <p class="status" id="receive-status"></p>
-      <button class="btn-ghost" id="receive-cancel-btn" data-i18n="cancel_btn">Cancel</button>
-    </div>
-
+  <!-- ── CHAT PANEL
   </section>
 
   <!-- ── CHAT PANEL ────────────────────────────────────────────────── -->

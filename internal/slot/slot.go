@@ -64,16 +64,21 @@ type Slot struct {
 
 	// ExpiresAt is when the slot will be reaped if still in Waiting state.
 	ExpiresAt time.Time `json:"expires_at"`
+
+	// SessionType identifies what kind of session this slot holds.
+	// Echoed from the slot.create payload so the joiner knows what to expect.
+	SessionType string `json:"session_type,omitempty"`
 }
 
 // New constructs a new Slot in the Waiting state.
-func New(id, code, initiatorID string) *Slot {
+func New(id, code, initiatorID, sessionType string) *Slot {
 	now := time.Now().UTC()
 	return &Slot{
 		ID:          id,
 		Code:        code,
 		State:       StateWaiting,
 		InitiatorID: initiatorID,
+		SessionType: sessionType,
 		CreatedAt:   now,
 		ExpiresAt:   now.Add(DefaultTTL),
 	}
