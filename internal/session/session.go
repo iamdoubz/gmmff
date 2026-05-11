@@ -87,6 +87,10 @@ type Session struct {
 	// OutDir is the directory to save received files (CLI). Empty = in-memory only (Wasm).
 	OutDir string
 
+	// Sig is the signaling client — kept open until the session ends so the
+	// broker does not close the slot prematurely on disconnect.
+	Sig interface{ Close() }
+
 	// transferInProgress guards the one-at-a-time transfer rule on the receive side.
 	recvMu sync.Mutex
 }
@@ -176,6 +180,11 @@ func (s *Session) Leave() {
 func (s *Session) Run() {
 	defer s.cancel()
 	defer close(s.Events)
+	defer func() {
+		if s.Sig != nil {
+			s.Sig.Close()
+		}
+	}()
 
 	// Wire control channel message handler.
 	s.controlDC.OnMessage(func(m webrtc.DataChannelMessage) {

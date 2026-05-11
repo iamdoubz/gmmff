@@ -1305,10 +1305,14 @@ func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string,
 	case controlDC = <-dcReady:
 	}
 
-	sig.Close()
+	// Do NOT close the signaling connection here — the broker will close the
+	// slot if we disconnect, killing the other peer's session too.
+	// sig is passed to the session so it can close cleanly when done.
 
 	sessCtx, sessCancel := context.WithCancel(ctx)
-	return session.New(sessCtx, sessCancel, pc, controlDC, cfg, isInitiator), nil
+	s := session.New(sessCtx, sessCancel, pc, controlDC, cfg, isInitiator)
+	s.Sig = sig
+	return s, nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
