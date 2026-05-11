@@ -5,7 +5,7 @@
 # gmmff — peer-to-peer file transfer
 
 > **gmmff** (pronounced *gimph*) is a brutally simple, cryptographically sound
-> peer-to-peer file transfer system.
+> peer-to-peer file and message transfer system.
 
 gmmff consists of two parts: a **signaling server** that brokers the initial
 connection, and a **CLI client** that handles the actual transfer.  The server
@@ -16,15 +16,17 @@ directly between them over an encrypted WebRTC data channel.
 
 ## Quick start
 
-### Sending a file
+### Starting a file session
+
+Machine A creates the session and gets a code:
 
 ```bash
-gmmff send myfile.zip --server wss://your-server/ws
+gmmff create --server wss://your-server/ws
 ```
 
 ```
   ╔══════════════════════════════════════╗
-  ║  Share this code with the receiver:  ║
+  ║  Share this code with the other side ║
   ║                                      ║
   ║    acid-lake-drum                    ║
   ║                                      ║
@@ -32,68 +34,59 @@ gmmff send myfile.zip --server wss://your-server/ws
   ╚══════════════════════════════════════╝
 
   Run on the other machine:
-    gmmff receive acid-lake-drum
+    gmmff join acid-lake-drum
 ```
 
-### Receiving a file
+Machine B joins the session:
 
 ```bash
-gmmff receive acid-lake-drum --server wss://your-server/ws
+gmmff join acid-lake-drum --server wss://your-server/ws
 ```
 
-### Cancelling a transfer
+Once connected, both sides drop into the session REPL:
 
-Press `Ctrl+C` on either side at any time. Both peers receive a clean
-cancellation message. The partial file is preserved on the receiver so
-the transfer can be resumed in a future session.
+```
+Session ready. Commands:
+  send <file|dir> [file|dir ...]   send file(s) to peer
+  message <text>                   send a text message
+  chat                             open interactive chat sub-session
+  \q                               end session for everyone (initiator only)
+```
 
-### Resuming a transfer
-
-Just run the same `send` and `receive` commands again with the same file.
-The receiver detects the partial file automatically and the transfer picks
-up from where it left off — on both progress bars.
-
-### Attaching a message to a file transfer
-
-Use `-m` / `--message` to include a note alongside any file send. With a single
-file the message is printed on the receiver's terminal before the file saves.
-With multiple files the message is injected as `message.txt` inside the zip.
+### Sending files in a session
 
 ```bash
-gmmff send report.pdf -m "Here is the Q3 report, let me know if you have questions"
+> send report.pdf
+> send notes.txt data.csv
+> send ./project-folder
 ```
 
-### Starting a chat session (CLI)
+A single file is sent as-is. Multiple files or a directory are zipped on the
+fly — the receiver gets one `.zip` archive.
 
-Machine A starts the session and receives a code:
+### Sending a message in a session
 
 ```bash
-gmmff chat --server wss://your-server/ws
+> message "Here is the Q3 report, let me know if you have questions"
 ```
 
-```
-  ╔══════════════════════════════════════╗
-  ║   Share this code to start chatting: ║
-  ║                                      ║
-  ║    river-stone-fog                   ║
-  ║                                      ║
-  ║  Expires in 10 minutes               ║
-  ╚══════════════════════════════════════╝
+Messages appear instantly on the other terminal. Optionally, with a single
+file transfer the message is printed before the file saves; with multiple
+files it is injected as `message.txt` inside the zip.
 
-  Run on the other machine:
-    gmmff join river-stone-fog
-```
-
-Machine B joins with the code:
+### Opening a chat sub-session
 
 ```bash
-gmmff join river-stone-fog --server wss://your-server/ws
+> chat
+chat> Hello! Ready to transfer?
+chat> \q
+Returning to session.
+>
 ```
 
-Once connected both sides can type freely. The session closes automatically
-after 10 minutes of inactivity.
+Type `\q` inside `chat` to return to the session REPL without ending the session.
 
-**Session control:**
+### Session control
 
 | Who | Action | Effect |
 |-----|--------|--------|
@@ -101,54 +94,191 @@ after 10 minutes of inactivity.
 | Initiator | `Ctrl+C` | Leaves quietly; session stays open |
 | Responder | `\q` or `Ctrl+C` | Leaves quietly; session stays open |
 
-### Chat tab (browser UI)
-
-Open the **Chat** tab, click **Start session** to get a code, or click
-**Join with a code** to enter one. The session works the same as the CLI:
-type `\q` in the message box to end the session (initiator) or leave quietly
-(responder). The **End session** button always leaves quietly.
+The session closes automatically after 10 minutes of inactivity. Any file
+transfer or message resets the timer.
 
 ---
 
-## Send flags
+### Starting a pure chat session (CLI)
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--server` | `ws://localhost:8080/ws` | Signaling server WebSocket URL (`GMMFF_SERVER`) |
-| `--stun` | Google STUN | STUN/STUNS server URL, repeatable (`GMMFF_STUN` accepts comma-separated list) |
-| `--window` | `2` | Sliding window size — chunks in flight simultaneously |
-| `--chunk-size` | `65526` | Chunk size in bytes (SCTP maximum; tune for your network) |
+For a text-only session without file transfer, use `gmmff chat`:
 
-## Receive flags
+```bash
+# Machine A
+gmmff chat --server wss://your-server/ws
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--server` | `ws://localhost:8080/ws` | Signaling server WebSocket URL (`GMMFF_SERVER`) |
-| `--stun` | Google STUN | STUN/STUNS server URL, repeatable (`GMMFF_STUN` accepts comma-separated list) |
-| `--out` / `-o` | `.` | Directory to save the received file |
+# Machine B — gmmff join detects the session type and routes to the chat REPL
+gmmff join river-stone-fog --server wss://your-server/ws
+```
 
-## Chat flags (`gmmff chat` / `gmmff join`)
+---
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--server` | `ws://localhost:8080/ws` | Signaling server WebSocket URL (`GMMFF_SERVER`) |
-| `--stun` | Google STUN | STUN/STUNS server URL, repeatable (`GMMFF_STUN` accepts comma-separated list) |
+### Files tab (browser UI)
 
-Set `GMMFF_SERVER` in your environment to avoid passing `--server` every time:
+Open the **Files** tab, click **Start session** to get a code, or click
+**Join with a code** to enter one. Once connected:
+
+- Drag and drop files anywhere on the page, or use **Choose files** / **Choose folder**
+- Click **Send** to transfer — the other side auto-downloads once verified
+- Type in the message box to send a text message
+- **End session** leaves quietly; typing `\q` ends for everyone (initiator) or leaves quietly (responder)
+
+A progress bar appears per transfer. Queued transfers each get their own bar.
+
+### Chat tab (browser UI)
+
+Open the **Chat** tab, click **Start session** to get a code, or click
+**Join with a code** to enter one. Type `\q` in the message box to end the
+session (initiator) or leave quietly (responder). The **End session** button
+always leaves quietly.
+
+---
+
+## Commands
+
+### `gmmff create` — start a file + message session
+
+```
+Usage: gmmff create [flags]
+```
+
+| Flag | Env var | Default | Description |
+|------|---------|---------|-------------|
+| `--server` | `GMMFF_SERVER` | `ws://localhost:8080/ws` | Signaling server WebSocket URL |
+| `--stun` | `GMMFF_STUN` | Google STUN | STUN/STUNS URL, repeatable |
+| `--turn` | `GMMFF_TURN` | — | TURN server, repeatable (see TURN section) |
+| `--out` / `-o` | — | `.` | Directory to save received files |
+
+### `gmmff join <code>` — join any session
+
+```
+Usage: gmmff join <code> [flags]
+```
+
+Detects the session type from the server automatically — routes to the file
+session REPL for `files` sessions, or the chat REPL for `chat` sessions.
+
+| Flag | Env var | Default | Description |
+|------|---------|---------|-------------|
+| `--server` | `GMMFF_SERVER` | `ws://localhost:8080/ws` | Signaling server WebSocket URL |
+| `--stun` | `GMMFF_STUN` | Google STUN | STUN/STUNS URL, repeatable |
+| `--turn` | `GMMFF_TURN` | — | TURN server, repeatable |
+
+### `gmmff chat` — start a pure text chat session
+
+```
+Usage: gmmff chat [flags]
+```
+
+| Flag | Env var | Default | Description |
+|------|---------|---------|-------------|
+| `--server` | `GMMFF_SERVER` | `ws://localhost:8080/ws` | Signaling server WebSocket URL |
+| `--stun` | `GMMFF_STUN` | Google STUN | STUN/STUNS URL, repeatable |
+| `--turn` | `GMMFF_TURN` | — | TURN server, repeatable |
+
+---
+
+## Environment variables
+
+Set these to avoid passing flags on every command:
 
 ```bash
 export GMMFF_SERVER=wss://your-server/ws
-gmmff send myfile.zip
+gmmff create
 ```
 
-Use multiple STUN servers by repeating the flag, or via a comma-separated env var:
+| Variable | Used by | Description |
+|----------|---------|-------------|
+| `GMMFF_SERVER` | all client commands | Signaling server WebSocket URL |
+| `GMMFF_STUN` | all client commands | Comma-separated STUN/STUNS URLs |
+| `GMMFF_TURN` | all client commands | Comma-separated TURN URLs (Option A format) |
+
+---
+
+## STUN configuration
+
+`--stun` is repeatable. User-supplied servers **append** to the default Google
+STUN server — the default is always present as a baseline.
 
 ```bash
-# Flag — repeat for each server
-gmmff send myfile.zip --stun stun:stun1.example.com:3478 --stun stuns:stun2.example.com:5349
+# Add one more STUN server alongside the default
+gmmff create --stun stun:mystun.example.com:3478
 
-# Environment variable — comma-separated
+# Add two more
+gmmff create \
+  --stun stun:stun1.example.com:3478 \
+  --stun stuns:stun2.example.com:5349
+
+# Via environment variable (comma-separated)
 export GMMFF_STUN=stun:stun1.example.com:3478,stuns:stun2.example.com:5349
+```
+
+---
+
+## TURN configuration
+
+TURN servers are specified in a single string with auth embedded as query
+parameters. Maximum 3 TURN servers. Mixing auth types across servers is
+fully supported.
+
+### URL format
+
+```
+turn:host:port[?transport=udp|tcp][&user=u&pass=p]
+turn:host:port[?transport=udp|tcp][&secret=s]
+turns:host:port[?transport=tcp][&user=u&pass=p]
+turns:host:port[?transport=tcp][&secret=s]
+```
+
+### Long-term credentials (username + password)
+
+```bash
+gmmff create --turn "turn:turn.example.com:3478?user=alice&pass=s3cr3t"
+
+# With transport hint and TLS
+gmmff create --turn "turns:turn.example.com:5349?transport=tcp&user=alice&pass=s3cr3t"
+```
+
+### Ephemeral credentials (coturn static-auth-secret)
+
+Credentials are derived via RFC 8489 §9.2 (HMAC-SHA1) and expire after 24 hours.
+
+```bash
+gmmff create --turn "turn:turn.example.com:3478?transport=udp&secret=mystaticsecret"
+```
+
+### Mixed auth types across servers
+
+```bash
+# Local ephemeral (UDP) + remote long-term (TCP/TLS)
+gmmff create \
+  --turn "turn:local.host:3478?transport=udp&secret=abc" \
+  --turn "turns:paid.host:5349?transport=tcp&user=alice&pass=xyz"
+```
+
+### Via environment variable
+
+```bash
+export GMMFF_TURN="turn:local.host:3478?transport=udp&secret=abc,turns:paid.host:5349?user=alice&pass=xyz"
+```
+
+### Transport parameter
+
+| Value | When to use |
+|-------|-------------|
+| `transport=udp` | Prefer UDP — lower latency, works in most networks |
+| `transport=tcp` | Prefer TCP — better through strict firewalls |
+| *(omitted)* | coturn tries both automatically |
+| `turns:` scheme | Always TLS/TCP — `transport=tcp` implied |
+
+### TURN validation errors
+
+```
+turn: too many servers — maximum is 3, got 4
+turn: "turn:host:port" has no credentials — provide user+pass or secret
+turn: "turn:host:port" has user or pass but not both
+turn: turns: scheme requires TCP/TLS — transport=udp is not valid
+turn: URL must begin with turn: or turns:
 ```
 
 ---
@@ -167,12 +297,13 @@ Peer A ──┐                          ┌── Peer B
   <img src="imgs/architecture.png" alt="A diagram explaining the high level design of gmmff">
 </p>
 
-1. The sender runs `gmmff send <file>` and receives a one-time 3-word code
-2. The sender shares that code out-of-band with the receiver
-3. The receiver runs `gmmff receive <code>` on any machine, anywhere
+1. Peer A runs `gmmff create` and receives a one-time 3-word code
+2. Peer A shares that code out-of-band with Peer B
+3. Peer B runs `gmmff join <code>` on any machine, anywhere
 4. CPace PAKE authenticates both sides — the signaling server stays blind
 5. The SDP offer/answer is HMAC-signed with the PAKE shared key, preventing man-in-the-middle substitution
-6. A direct WebRTC/DTLS data channel opens and the file transfers peer-to-peer
+6. A direct WebRTC/DTLS control channel opens; the signaling server's job is done
+7. Both peers enter the session REPL and can freely exchange files and messages
 
 | Phase | What the server does |
 |-------|----------------------|
@@ -292,14 +423,26 @@ and gzip/brotli compression enabled for fast first-load.
 ### Theming
 
 Copy `web/static/themes/default.json`, edit the values, and point the `THEME_URL`
-constant at the top of `index.html` at your new file. Every CSS custom property
+constant at the top of `app.js` at your new file. Every CSS custom property
 is overridable — colors, spacing, radii, fonts, max-width — with no build step required.
 
 ### Translations
 
-Copy `web/static/i18n/en.json`, translate the values, and point `I18N_URL` in
-`index.html` at your new file. All visible strings are in the i18n file — the
-HTML contains only `data-i18n` keys, never literal text.
+The UI ships with 10 languages: English, Spanish, French, German, Italian,
+Swedish, Brazilian Portuguese, European Portuguese, Tamil, and Sinhala. The
+language picker in the footer auto-detects your browser preference and
+persists your choice for 7 days.
+
+To add a language: copy `web/static/i18n/en.json`, translate the values, save
+as `web/static/i18n/<code>.json`, and add an entry to `web/static/i18n/languages.json`.
+No build step required.
+
+### ICE settings
+
+A collapsible **ICE servers** panel sits below the tab bar, shared across all
+tabs. STUN servers you add are appended to the default. TURN servers use the
+same Option A format as the CLI (`turn:host:port?transport=udp&secret=s`).
+Settings persist in `localStorage` for 7 days.
 
 ---
 
@@ -355,16 +498,20 @@ All signaling messages are JSON `{ "type": "...", "payload": { ... } }`.
 ### Slot creation
 
 ```
-Client → Server:   { "type": "slot.create", "payload": { "protocol_version": "1" } }
-Server → Client:   { "type": "slot.created", "payload": { "slot_id": "...", "code": "word-word-word", "ttl_seconds": 600 } }
+Client → Server:   { "type": "slot.create", "payload": { "protocol_version": "1", "session_type": "files|chat" } }
+Server → Client:   { "type": "slot.created", "payload": { "slot_id": "...", "code": "word-word-word", "ttl_seconds": 600, "session_type": "files|chat" } }
 ```
 
 ### Slot join
 
 ```
 Client → Server:   { "type": "slot.join", "payload": { "code": "word-word-word", "protocol_version": "1" } }
-Server → both:     { "type": "slot.ready", "payload": { "role": "initiator|responder" } }
+Server → both:     { "type": "slot.ready", "payload": { "role": "initiator|responder", "session_type": "files|chat" } }
 ```
+
+The `session_type` in `slot.ready` lets `gmmff join` route automatically to
+the correct REPL without the user needing to know what kind of session they
+are joining.
 
 ### PAKE relay (opaque)
 
@@ -386,24 +533,30 @@ Server → peer:     { "type": "sdp.offer", "payload": { "sdp": "<base64>", "mac
 base64-encoded HMAC-SHA256 over the raw SDP bytes, computed with the
 appropriate HKDF subkey.  The same structure applies to `sdp.answer`.
 
-### Data channel transfer tags
+### Data channel binary tags
 
-Once the WebRTC data channel opens, all transfer frames are binary with a
-one-byte tag prefix:
+Once a WebRTC data channel opens, all frames are binary with a one-byte tag
+prefix. Sessions use two kinds of channels: a persistent **control channel**
+and ephemeral **transfer channels** (one opened per file, named
+`transfer-<timestamp>`).
 
-| Tag | Direction | Meaning |
-|-----|-----------|---------|
-| `0x01` | sender → receiver | File header (JSON: name, size, SHA-256, chunk count) |
-| `0x02` | sender → receiver | Chunk (8-byte seq + payload) |
-| `0x03` | receiver → sender | Chunk ack (8-byte seq) |
-| `0x04` | sender → receiver | Transfer done |
-| `0x05` | receiver → sender | Transfer OK (hash verified) |
-| `0x06` | either direction | Transfer error |
-| `0x07` | receiver → sender | Resume from chunk N (8-byte seq) |
-| `0x08` | either direction | Cancelled |
-| `0x09` | either direction | Chat message (UTF-8 text) |
-| `0x0A` | initiator → all | Chat close — ends session for everyone |
-| `0x0B` | any participant | Participant leave — quiet exit; session continues |
+| Tag | Direction | Channel | Meaning |
+|-----|-----------|---------|---------|
+| `0x01` | sender → receiver | transfer | File header (JSON: name, size, SHA-256, chunk count, optional message) |
+| `0x02` | sender → receiver | transfer | Chunk (8-byte seq + payload) |
+| `0x03` | receiver → sender | transfer | Chunk ack (8-byte seq) |
+| `0x04` | sender → receiver | transfer | Transfer done |
+| `0x05` | receiver → sender | transfer | Transfer OK (hash verified) |
+| `0x06` | either direction | transfer | Transfer error |
+| `0x07` | receiver → sender | transfer | Resume from chunk N (8-byte seq) |
+| `0x08` | either direction | either | Cancelled |
+| `0x09` | either direction | control | Chat / session message (UTF-8 text) |
+| `0x0A` | initiator → all | control | Chat close — ends chat session for everyone |
+| `0x0B` | any participant | control | Participant leave — quiet exit; session continues |
+| `0x0C` | either direction | control | Session ready |
+| `0x0D` | sender → receiver | control | Transfer announce (channel label) |
+| `0x0E` | receiver → sender | control | Transfer accepted (channel label) |
+| `0x0F` | initiator → all | control | Session close — ends file session for everyone |
 
 ### Error frames
 
@@ -436,10 +589,9 @@ slot codes, or any data that could identify a transfer or a user.
 ```
 gmmff/
 ├── cmd/gmmff/              # Binary entrypoint (Cobra CLI)
-│   ├── main.go             # Root command + serve subcommand
-│   ├── send.go             # gmmff send <file> [-m message]
-│   ├── receive.go          # gmmff receive <code>
-│   └── chat.go             # gmmff chat / gmmff join <code>
+│   ├── main.go             # Root command + serve subcommand + shared helpers
+│   ├── create.go           # gmmff create — starts file+message session, session REPL
+│   └── chat.go             # gmmff chat — pure chat; gmmff join — joins any session
 ├── internal/
 │   ├── broker/             # WebSocket hub, message router, HTTP server
 │   │   ├── broker.go
@@ -454,25 +606,31 @@ gmmff/
 │   │   └── log.go
 │   ├── archive/            # On-the-fly zip for multi-file transfers
 │   │   └── archive.go
-│   ├── chat/               # Symmetric chat session (CLI REPL + idle timer)
+│   ├── chat/               # Pure text chat session (CLI REPL + idle timer)
 │   │   └── session.go
 │   ├── pake/               # HKDF subkey derivation + SDP MAC signing
 │   │   └── session.go
-│   ├── peer/               # WebRTC + PAKE orchestration
+│   ├── peer/               # WebRTC + PAKE orchestration; StartSession/JoinSession
 │   │   └── peer.go
+│   ├── peerconfig/         # Shared Config type (avoids peer↔session import cycle)
+│   │   └── peerconfig.go
+│   ├── session/            # Bidirectional session coordinator (Option B architecture)
+│   │   └── session.go
 │   ├── signaling/          # WebSocket signaling client
 │   │   ├── client_native.go  # gorilla/websocket (CLI)
 │   │   ├── client_js.go      # browser native WebSocket (Wasm)
 │   │   └── b64.go
-│   └── transfer/           # Binary chunk protocol (send + receive state)
-│       └── transfer.go
+│   ├── transfer/           # Binary chunk protocol (send + receive state machines)
+│   │   └── transfer.go
+│   └── turn/               # TURN URL parsing and ephemeral credential derivation
+│       └── turn.go
 ├── pkg/protocol/           # Wire message types (shared server/client)
 │   └── protocol.go
 ├── web/                    # browser UI (Wasm)
 │   ├── cmd/gmmff-wasm/     # Go→Wasm entry point (syscall/js bridge)
 │   │   └── main.go
 │   ├── static/             # served files
-│   │   ├── index.html      # mobile-first single-page UI
+│   │   ├── index.html      # mobile-first single-page UI (Files + Chat tabs)
 │   │   ├── css/
 │   │   │   └── app.css     # all styles (no inline CSS)
 │   │   ├── js/
@@ -480,7 +638,9 @@ gmmff/
 │   │   ├── themes/
 │   │   │   └── default.json
 │   │   └── i18n/
-│   │       └── en.json
+│   │       ├── languages.json
+│   │       ├── en.json
+│   │       └── ...         # es, fr, de, it, sv, pt-BR, pt-PT, ta, si
 │   └── server.go           # dev-only static file server
 ├── configs/
 │   ├── .env.example        # environment variable reference
@@ -502,41 +662,41 @@ gmmff/
 
 ### Current
 
+- **Bidirectional sessions** — `gmmff create` / `gmmff join` open a persistent session; either peer can send files or messages
 - **Signaling server** — Go, Redis-backed, privacy-safe structured logs, Docker-ready
-- **CLI client** — `gmmff send <file>` / `gmmff receive <code>`
 - **CPace PAKE** — zero-knowledge authentication; server stays blind to the shared secret
 - **SDP MAC binding** — HMAC-signed SDP with HKDF-derived subkeys; prevents MITM via signaling relay
 - **DTLS 1.3** — all data channel traffic encrypted end-to-end via Pion WebRTC
+- **Multi-file and directory transfers** — multiple files and directories zipped on the fly
+- **Transfer queue** — multiple transfers serialized automatically; each gets its own progress bar
+- **Resumable transfers** — partial + meta sidecar files; progress bars pick up at the correct offset
+- **Clean cancellation** — `Ctrl+C` or `\q` delivers clean messages to all peers; partial file preserved
+- **SHA-256 integrity** — full-file hash verified before `TransferOK` is sent
+- **Secure chat** — pure text chat (`gmmff chat`) or inline messaging within a file session
 - **Sliding window** — configurable in-flight chunks (`--window`); default 2
-- **Configurable chunk size** — up to SCTP maximum 65526 bytes (`--chunk-size`); default 65526
-- **Resumable transfers** — partial + meta sidecar files; both progress bars pick up at the correct offset
-- **Clean cancellation** — Ctrl+C on either side delivers a clear message to both peers; partial file preserved for resume
-- **SHA-256 integrity** — full-file hash verified before `TransferOK` is sent; corrupt or incomplete files are rejected
-- **Browser UI (Wasm)** — same Go source compiled to WebAssembly; mobile-first HTML/CSS/JS UI with theme and i18n support
-- **Current languages** — English (en, default), Spanish (es), French (fr), German (de), Italian (it), Swedish (sv), Brazilian Portuguese (pt-BR), European Portuguese (pt-PT), Sinhala (si), Tamil (ta)
-- **Multi-file and directory transfers** — transfer multiple files and directories support (CLI and wasm webclient)
-- **Secure chat** — chat back and forth with someone by exchanging messages (CLI and wasm webclient)
+- **Configurable chunk size** — up to SCTP maximum 65526 bytes (`--chunk-size`)
+- **STUN multi-server** — append additional STUN servers via `--stun` (repeatable) or `GMMFF_STUN`
+- **TURN support** — long-term and ephemeral credentials, mixed auth types, transport hints, max 3 servers
+- **Browser UI (Wasm)** — same Go source compiled to WebAssembly; Files tab + Chat tab
+- **Drag and drop** — drop files anywhere on the browser UI to queue them for sending
+- **10 languages** — English, Spanish, French, German, Italian, Swedish, Brazilian Portuguese, European Portuguese, Tamil, Sinhala; language picker with 7-day persistence
+- **ICE settings panel** — configurable STUN/TURN in the browser UI, persisted 7 days
 
 ### Backlog
 
-- **coturn** STUN/TURN integration and credential rotation
-- **QR Codes** generate easy to share QR codes to scan
-- **Browser extension** use your favorite web browser to send/receive files
-- **Docker images** create a pipeline to package, create, and update docker images
-- **Languages** continue to add more languages
-- **Multiple recipients** share a *link* with multiple people and enable Multiple P2P transfers between all
-- **Transfer files in chat** add files directly into chat session (sender and receiver)
-- **Quantum safe encryption** use quantum safe first algorithyms, falling back to elyptic if unavailable
+- **QR Codes** — generate easy-to-share QR codes to scan
+- **Browser extension** — use your favourite browser to send/receive files
+- **Docker images** — pipeline to package, build, and publish Docker images
+- **More languages** — contributions welcome
+- **Multiple participants** — multi-peer sessions with N-way file distribution
+- **Password-protected zips** — optional encryption on the zip archive
+- **Quantum-safe encryption** — post-quantum algorithms with elliptic-curve fallback
 
 ---
 
 ### In queue
 
-- wasm webclient: "Choose a file to send. You will receive a code to share with the receiver." -> "Choose/drop a/some file(s) to send. You will receive a code to share with the receiver."
-- zip file: add ability to password protect zip file. Prompt sender for input, if blank, no password. If set, encrypt zip file with provided input password.
-- wasm webclient: window slider (defaults to 2, 1-16 range)
-- STUN: convert STUN into a list of stun servers with format stun:url:port. Can be called with --stun stun:url1:3748 --stun stun:url2:19302. If none specifiec, use default
-- TURN: add TURN config. List of TURN servers with format turn:url:port. Can use multiple. Each turn server must have appropriate auth configured: standard long-term credential and ephemeral credential (static-auth-secret) must be supported
+- wasm webclient: window slider (defaults to 2, 1–16 range)
 
 ---
 
@@ -546,7 +706,7 @@ gmmff/
 
 <p align="center">
   <img src="https://imgs.xkcd.com/comics/file_transfer.png" alt="xkcd comic explaining the difficulties of sending large files between two people">
-</p> 
+</p>
 
 - [X] [webwormhole](https://github.com/saljam/webwormhole) by [@saljam](https://github.com/saljam)
 - [X] [FilePizza](https://github.com/kern/filepizza) by [@kern](https://github.com/kern) and [@neerajbaid](https://github.com/neerajbaid)
