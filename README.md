@@ -697,29 +697,26 @@ gmmff/
 - **Secure chat** — pure text chat (`gmmff chat`) or inline messaging within a file session
 - **Sliding window** — configurable in-flight chunks (`--window`); default 2
 - **Configurable chunk size** — up to SCTP maximum 65526 bytes (`--chunk-size`)
-- **STUN multi-server** — append additional STUN servers via `--stun` (repeatable) or `GMMFF_STUN`
-- **TURN support** — long-term and ephemeral credentials, mixed auth types, transport hints, max 3 servers
+- **STUN multi-server** — append additional STUN servers via `--stun` (repeatable) or `GMMFF_STUN` comma-separated
+- **TURN multi-server** — append additional TURN servers via `--turn` (repeatable) or `GMMFF_TURN` comma-separated
 - **Browser UI (Wasm)** — same Go source compiled to WebAssembly; Files tab + Chat tab
+- **QR Codes** — generate easy-to-share QR codes to scan
+- **Browser Links** — generate a URL to copy and share to join a session
 - **Drag and drop** — drop files anywhere on the browser UI to queue them for sending
 - **10 languages** — English, Spanish, French, German, Italian, Swedish, Brazilian Portuguese, European Portuguese, Tamil, Sinhala; language picker with 7-day persistence
 - **ICE settings panel** — configurable STUN/TURN in the browser UI, persisted 7 days
-- **QR Codes** — generate easy-to-share QR codes to scan
+- **Multiple participants** — multi-peer sessions from 2-10 peers
 
 ### Backlog
 
 - **Browser extension** — use your favourite browser to send/receive files
 - **Docker images** — pipeline to package, build, and publish Docker images
-- **More languages** — contributions welcome!
-- **More themes** — contributions welcome!
-- **Wasm webclient settings** — window slider, number of peers, etc.
-- **Quantum-safe encryption** — post-quantum algorithms with elliptic-curve fallback (blocked by Pion WebRTC)
-
-### In queue
-
-- **Multiple participants** — multi-peer sessions with N-way file distribution
+- **More languages** — contributions welcome
+- **Quantum-safe encryption** — post-quantum algorithms with elliptic-curve fallback (blocked)
 
 ### Probably won't do
 
+- wasm webclient: window slider (defaults to 2, 1–16 range)
 - **Password-protected zips** — optional encryption on the zip archive
 
 ---
@@ -729,7 +726,7 @@ gmmff/
 [https://xkcd.com/949](https://xkcd.com/949)
 
 <p align="center">
-  <a href="https://xkcd.com/949" target="_blank"><img src="https://imgs.xkcd.com/comics/file_transfer.png" alt="xkcd comic explaining the difficulties of sending large files between two people"></a>
+  <img src="https://imgs.xkcd.com/comics/file_transfer.png" alt="xkcd comic explaining the difficulties of sending large files between two people">
 </p>
 
 - [X] [webwormhole](https://github.com/saljam/webwormhole) by [@saljam](https://github.com/saljam)
