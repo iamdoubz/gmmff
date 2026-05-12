@@ -284,14 +284,22 @@ document.getElementById('files-pick-folder-btn')?.addEventListener('click', () =
 filesFileInput?.addEventListener('change', () => { if (filesFileInput.files.length) setFilesSelectedFiles(filesFileInput.files); });
 filesFolderInput?.addEventListener('change', () => { if (filesFolderInput.files.length) setFilesSelectedFiles(filesFolderInput.files); });
 
+// Max peers slider
+const maxPeersSlider = document.getElementById('files-max-peers');
+const maxPeersValue  = document.getElementById('files-max-peers-value');
+maxPeersSlider?.addEventListener('input', () => {
+  if (maxPeersValue) maxPeersValue.textContent = maxPeersSlider.value;
+});
+
 // Create button
 document.getElementById('files-create-btn')?.addEventListener('click', () => {
   const server = normaliseServerURL(document.getElementById('files-server').value.trim());
   const errEl  = document.getElementById('files-error');
   errEl.textContent = '';
   if (!server) { errEl.textContent = t('error_no_server'); return; }
+  const maxPeers = parseInt(document.getElementById('files-max-peers')?.value || '2', 10);
   if (typeof window.gmmffCreateSession === 'function') {
-    window.gmmffCreateSession(server, buildIceConfig());
+    window.gmmffCreateSession(server, maxPeers, buildIceConfig());
   }
 });
 
@@ -414,8 +422,11 @@ window.uiFilesShowCode = function(code) {
   showFilesState('code');
 };
 
-window.uiFilesSessionReady = function(isInitiator) {
+window.uiFilesSessionReady = function(isInitiator, peerCount, maxPeers) {
   filesIsInitiator = isInitiator;
+  if (peerCount && maxPeers) {
+    window.uiFilesPeerCount(peerCount, maxPeers);
+  }
   document.getElementById('files-messages').innerHTML = '';
   document.getElementById('files-transfers').innerHTML = '';
   const statusEl = document.getElementById('files-active-status');
@@ -467,6 +478,13 @@ window.uiFilesInboundStarted = function(label, total) {
 
 window.uiFilesMessage = function(from, text) {
   appendFilesMessage('them', t('chat_participant') || 'Participant', text);
+};
+
+window.uiFilesPeerCount = function(peerCount, maxPeers) {
+  const el = document.getElementById('files-peer-count');
+  if (!el) return;
+  el.textContent = peerCount + '/' + maxPeers;
+  el.classList.toggle('hidden', peerCount <= 0 || maxPeers <= 0);
 };
 
 window.uiFilesParticipantLeft = function(msg) {

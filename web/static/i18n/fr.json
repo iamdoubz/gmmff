@@ -91,5 +91,7 @@
   "share_copy_url": "Copier le lien",
   "share_show_qr": "Afficher le QR code",
   "share_hide_qr": "Masquer le QR code",
-  "share_qr_hint": "Scanner pour rejoindre"
+  "share_qr_hint": "Scanner pour rejoindre",
+  "files_max_peers_label": "Participants max :",
+  "files_max_peers_hint": "2 = bidirectionnel. 3–10 = l'initiateur envoie à tous."
 }

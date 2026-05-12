@@ -509,6 +509,27 @@
       color: var(--color-text-muted);
     }
 
+    /* ── Range input ────────────────────────────────────────────────────── */
+    .range-input {
+      width: 100%;
+      accent-color: var(--color-accent);
+      cursor: pointer;
+    }
+    .field-hint { color: var(--color-text-muted); margin-top: 2px; }
+
+    /* ── Peer count display ─────────────────────────────────────────────── */
+    .files-status-group {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    .files-peer-count {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .files-peer-count.hidden { display: none; }
+
     /* ── Share link ─────────────────────────────────────────────────────── */
     .share-link {
       display: flex;
