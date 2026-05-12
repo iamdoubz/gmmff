@@ -1251,8 +1251,7 @@ func initiatorHandshakeWithPeer(
 	if err != nil {
 		return nil, nil, fmt.Errorf("session: derive session keys: %w", err)
 	}
-	fmt.Printf("Authenticated with Participant %s
-", peerID[:8])
+	fmt.Printf("Authenticated with Participant %s", peerID[:8])
 
 	// WebRTC
 	pc, err := newPeerConnection(cfg)
@@ -1349,14 +1348,12 @@ func initiatorAcceptMorePeers(
 				continue
 			}
 			go func(peerID string, peerCount, maxPeers int) {
-				fmt.Printf("New peer connecting (%d/%d)...
-", peerCount, maxPeers)
+				fmt.Printf("New peer connecting (%d/%d)...", peerCount, maxPeers)
 				td := &targetedDispatcher{peerID: peerID, parent: disp}
 				ci := cpace.NewContextInfo("gmmff-initiator", "gmmff-responder", nil)
 				msgA, state, err := cpace.Start(code, ci)
 				if err != nil {
-					fmt.Printf("PAKE start failed for peer %s: %v
-", peerID[:8], err)
+					fmt.Printf("PAKE start failed for peer %s: %v", peerID[:8], err)
 					return
 				}
 				if err := sig.SendTargeted(peerID, "", protocol.MustEnvelope(protocol.MsgPakeA,
@@ -1411,8 +1408,7 @@ func initiatorAcceptMorePeers(
 				}
 
 				sess.AddPeer(peerID, pc, dc, peerCount, maxPeers)
-				fmt.Printf("Participant connected (%d/%d)
-", peerCount, maxPeers)
+				fmt.Printf("Participant connected (%d/%d)", peerCount, maxPeers)
 			}(pj.PeerID, pj.PeerCount, pj.MaxPeers)
 		}
 	}
