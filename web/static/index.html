@@ -164,6 +164,17 @@
           <button class="btn-ghost" id="files-cancel-code-btn" data-i18n="cancel_btn">Cancel</button>
         </div>
       </div>
+      <div class="share-link" id="files-share-link">
+        <span class="share-link__url" id="files-share-url"></span>
+        <button class="btn-ghost share-link__copy" id="files-copy-url-btn" data-i18n="share_copy_url">Copy link</button>
+      </div>
+      <div class="qr-section">
+        <button class="btn-ghost qr-toggle" id="files-qr-toggle" data-i18n="share_show_qr">Show QR code</button>
+        <div class="qr-container hidden" id="files-qr-container">
+          <div class="qr-code" id="files-qr-code"></div>
+          <p class="qr-hint"><small data-i18n="share_qr_hint">Scan to join</small></p>
+        </div>
+      </div>
       <p class="status" id="files-wait-status" data-i18n="chat_waiting">Waiting for the other party…</p>
     </div>
 
@@ -254,6 +265,17 @@
           <button class="btn-ghost" id="chat-cancel-code-btn" data-i18n="cancel_btn">Cancel</button>
         </div>
       </div>
+      <div class="share-link" id="chat-share-link">
+        <span class="share-link__url" id="chat-share-url"></span>
+        <button class="btn-ghost share-link__copy" id="chat-copy-url-btn" data-i18n="share_copy_url">Copy link</button>
+      </div>
+      <div class="qr-section">
+        <button class="btn-ghost qr-toggle" id="chat-qr-toggle" data-i18n="share_show_qr">Show QR code</button>
+        <div class="qr-container hidden" id="chat-qr-container">
+          <div class="qr-code" id="chat-qr-code"></div>
+          <p class="qr-hint"><small data-i18n="share_qr_hint">Scan to join</small></p>
+        </div>
+      </div>
       <p class="status" id="chat-wait-status" data-i18n="chat_waiting">Waiting for the other party…</p>
     </div>
 
@@ -304,6 +326,7 @@
 
 </div><!-- /.app -->
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="wasm_exec.js"></script>
 <script src="js/app.js"></script>
 

@@ -87,5 +87,9 @@
   "files_send_btn": "එවන්න",
   "files_session_open": "සැසිය විවෘතයි. ගොනු අන්ත-සිට-අන්ත සංකේතනය කර ඇත.",
   "files_transfer_done": "හුවමාරුව සම්පූර්ණ",
-  "files_receiving": "ගොනුව ලැබෙමින්…"
+  "files_receiving": "ගොනුව ලැබෙමින්…",
+  "share_copy_url": "සබැඳිය පිටපත් කරන්න",
+  "share_show_qr": "QR කේතය පෙන්වන්න",
+  "share_hide_qr": "QR කේතය සඟවන්න",
+  "share_qr_hint": "සම්බන්ධ වීමට ස්කෑන් කරන්න"
 }

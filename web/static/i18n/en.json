@@ -87,5 +87,9 @@
   "files_send_btn": "Send",
   "files_session_open": "Session open. Files are end-to-end encrypted.",
   "files_transfer_done": "Transfer complete",
-  "files_receiving": "Receiving file…"
+  "files_receiving": "Receiving file…",
+  "share_copy_url": "Copy link",
+  "share_show_qr": "Show QR code",
+  "share_hide_qr": "Hide QR code",
+  "share_qr_hint": "Scan to join"
 }

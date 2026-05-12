@@ -87,5 +87,9 @@
   "files_send_btn": "Enviar",
   "files_session_open": "Sesión abierta. Los archivos están cifrados de extremo a extremo.",
   "files_transfer_done": "Transferencia completa",
-  "files_receiving": "Recibiendo archivo…"
+  "files_receiving": "Recibiendo archivo…",
+  "share_copy_url": "Copiar enlace",
+  "share_show_qr": "Mostrar código QR",
+  "share_hide_qr": "Ocultar código QR",
+  "share_qr_hint": "Escanea para unirte"
 }
