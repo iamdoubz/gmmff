@@ -93,5 +93,6 @@
   "share_hide_qr": "Ocultar código QR",
   "share_qr_hint": "Escanea para unirte",
   "files_max_peers_label": "Máx. participantes:",
-  "files_max_peers_hint": "2 = bidireccional. 3–10 = el iniciador envía a todos."
+  "files_max_peers_hint": "2 = bidireccional. 3–10 = el iniciador envía a todos.",
+  "session_ended": "Sesión terminada"
 }

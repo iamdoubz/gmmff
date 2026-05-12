@@ -492,8 +492,17 @@ window.uiFilesParticipantLeft = function(msg) {
 };
 
 window.uiFilesSessionClosed = function(msg) {
-  appendFilesSystem(msg);
+  appendFilesSystem(msg || 'Session ended.');
   filesDisableInput();
+  // Scroll the message into view so the user sees it.
+  const list = document.getElementById('files-messages');
+  if (list) list.scrollTop = list.scrollHeight;
+  // Update status prominently.
+  const statusEl = document.getElementById('files-active-status');
+  if (statusEl) {
+    statusEl.textContent = t('session_ended') || 'Session ended';
+    statusEl.style.color = 'var(--color-error, #e53e3e)';
+  }
 };
 
 window.uiFilesError = function(msg) {

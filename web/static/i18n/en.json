@@ -93,5 +93,6 @@
   "share_hide_qr": "Hide QR code",
   "share_qr_hint": "Scan to join",
   "files_max_peers_label": "Max participants:",
-  "files_max_peers_hint": "2 = bidirectional. 3–10 = initiator sends to all."
+  "files_max_peers_hint": "2 = bidirectional. 3–10 = initiator sends to all.",
+  "session_ended": "Session ended"
 }
