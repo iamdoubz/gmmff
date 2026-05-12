@@ -280,8 +280,19 @@ func printSessionEvent(ev session.Event) {
 	case session.EventMessage:
 		fmt.Printf("\r\033[KParticipant: %s\n> ", ev.Message)
 	case session.EventTransferStarted:
-		fmt.Printf("\r\033[KParticipant is sending a file (%.1f MB)...\n> ", float64(ev.Total)/1024/1024)
+		fmt.Printf("\r\033[KParticipant is sending a file (%.1f MB)...\n", float64(ev.Total)/1024/1024)
+	case session.EventTransferProgress:
+		if ev.Total > 0 {
+			pct := int(float64(ev.Done) / float64(ev.Total) * 100)
+			bar := strings.Repeat("█", pct/5) + strings.Repeat("░", 20-pct/5)
+			fmt.Printf("\r  %s %d%%  %s / %s",
+				bar, pct,
+				formatBytes(ev.Done),
+				formatBytes(ev.Total))
+		}
 	case session.EventTransferDone:
+		// Clear the progress bar line first, then print the result.
+		fmt.Print("\r\033[K")
 		if ev.Message != "" {
 			for _, line := range strings.Split(ev.Message, "\n") {
 				fmt.Printf("\r\033[K%s\n", line)
