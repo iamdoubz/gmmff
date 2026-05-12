@@ -1,4 +1,4 @@
-.PHONY: build run-server send receive dev test test-cover lint tidy docker up down clean wasm wasm-serve help
+.PHONY: build run-server create join chat dev test test-cover lint tidy docker up down clean wasm wasm-serve help
 
 BINARY    := gmmff
 CMD       := ./cmd/gmmff
@@ -10,6 +10,16 @@ LDFLAGS   := -s -w \
              -X main.commit=$(COMMIT) \
              -X main.date=$(DATE)
 
+# Detect Go version and set the correct wasm_exec.js path.
+# Go 1.24+ moved the file from misc/wasm/ to lib/wasm/.
+GO_VERSION_MINOR := $(shell go version | sed 's/.*go1\.\([0-9]*\).*/\1/')
+WASM_EXEC_SRC    := $(shell \
+	if [ "$(GO_VERSION_MINOR)" -ge 24 ] 2>/dev/null; then \
+		echo "$$(go env GOROOT)/lib/wasm/wasm_exec.js"; \
+	else \
+		echo "$$(go env GOROOT)/misc/wasm/wasm_exec.js"; \
+	fi)
+
 ## build: compile a local binary
 build:
 	go build -ldflags="$(LDFLAGS)" -o bin/$(BINARY) $(CMD)
@@ -18,15 +28,19 @@ build:
 run-server: build
 	./bin/$(BINARY) serve --memory --log-pretty --log-level debug
 
-## send: quick test — send a file (usage: make send FILE=path/to/file)
-send: build
-	./bin/$(BINARY) send $(FILE)
+## create: quick test — create a file+message session
+create: build
+	./bin/$(BINARY) create $(ARGS)
 
-## receive: quick test — receive a file (usage: make receive CODE=word-word-word)
-receive: build
-	./bin/$(BINARY) receive $(CODE)
+## join: quick test — join a session (usage: make join CODE=word-word-word)
+join: build
+	./bin/$(BINARY) join $(CODE) $(ARGS)
 
-## dev: run with live-reload via air (go install github.com/air-verse/air@latest)
+## chat: quick test — start a pure chat session
+chat: build
+	./bin/$(BINARY) chat $(ARGS)
+
+## dev: run signaling server with live-reload (go install github.com/air-verse/air@latest)
 dev:
 	air
 
@@ -44,7 +58,7 @@ test-cover:
 lint:
 	golangci-lint run ./...
 
-## tidy: tidy and vendor modules
+## tidy: tidy Go modules
 tidy:
 	go mod tidy
 
@@ -68,11 +82,12 @@ down:
 ## wasm: build the browser Wasm binary and copy wasm_exec.js
 wasm:
 	GOOS=js GOARCH=wasm go build -ldflags="$(LDFLAGS)" -o web/static/gmmff.wasm ./web/cmd/gmmff-wasm
-	cp "$$(go env GOROOT)/misc/wasm/wasm_exec.js" web/static/wasm_exec.js
+	cp "$(WASM_EXEC_SRC)" web/static/wasm_exec.js
 	@echo "Built: web/static/gmmff.wasm"
 	@echo "  Size: $$(du -sh web/static/gmmff.wasm | cut -f1)"
+	@echo "  wasm_exec.js from: $(WASM_EXEC_SRC)"
 
-## wasm-serve: build Wasm and start the dev web server
+## wasm-serve: build Wasm and start the dev web server on :9000
 wasm-serve: wasm
 	go run ./web --addr :9000
 
