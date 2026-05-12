@@ -51,8 +51,10 @@ type Event struct {
 	Path    string          // EventTransferDone: saved path (CLI only)
 	Total   int64           // EventTransferStarted: file size
 	Label   string          // EventTransferStarted/Progress: channel label
-	Done    int64           // EventTransferProgress: bytes received so far
-	Speed   float64         // EventTransferProgress: bytes/sec
+	Done      int64           // EventTransferProgress: bytes received so far
+	Speed     float64         // EventTransferProgress: bytes/sec
+	PeerCount int             // EventPeerJoined/Left: new count
+	MaxPeers  int             // EventPeerJoined: session max
 }
 
 type EventType int
@@ -64,16 +66,32 @@ const (
 	EventTransferDone                     // file fully received and verified
 	EventTransferQueued                   // local outbound transfer was queued
 	EventPeerLeft                         // remote peer left quietly
+	EventPeerJoined                       // new peer joined the session
 	EventSessionClosed                    // session ended for everyone
 	EventError                            // non-fatal error
 )
 
+// peerConn holds one peer's WebRTC connection and control channel.
+type peerConn struct {
+	peerID    string
+	pc        *webrtc.PeerConnection
+	controlDC *webrtc.DataChannel
+}
+
 // Session is a live bidirectional file + message session.
 type Session struct {
-	pc          *webrtc.PeerConnection
-	controlDC   *webrtc.DataChannel
 	cfg         peerconfig.Config
 	isInitiator bool
+
+	// peers holds all connected peer connections (star topology — initiator only).
+	// Non-initiators have exactly one entry.
+	peers   []*peerConn
+	peersMu sync.RWMutex
+
+	// MaxPeers is the session maximum from the slot.
+	MaxPeers int
+	// peerCount is the current connected count (including self).
+	peerCount int
 
 	outbound chan *transferRequest
 	Events   chan Event
@@ -87,19 +105,18 @@ type Session struct {
 	// OutDir is the directory to save received files (CLI). Empty = in-memory only (Wasm).
 	OutDir string
 
-	// Sig is the signaling client — kept open until the session ends so the
-	// broker does not close the slot prematurely on disconnect.
+	// Sig is the signaling client — kept open until the session ends.
 	Sig interface{ Close() }
 
 	// recvMu serializes inbound transfers (one at a time).
 	recvMu sync.Mutex
-	// recvWg tracks in-flight receive goroutines so Run() waits for them before
-	// closing Events, preventing a send-on-closed-channel panic.
+	// recvWg tracks in-flight receive goroutines.
 	recvWg sync.WaitGroup
 }
 
-// New creates a Session from an established peer connection and control channel.
-// Call Run() in a goroutine to start the coordinator.
+// New creates a Session with the first peer's connection.
+// Additional peers are added via AddPeer().
+// Call Run() in a goroutine after setup.
 func New(
 	ctx context.Context,
 	cancel context.CancelFunc,
@@ -109,17 +126,69 @@ func New(
 	isInitiator bool,
 ) *Session {
 	s := &Session{
-		pc:          pc,
-		controlDC:   controlDC,
 		cfg:         cfg,
 		isInitiator: isInitiator,
 		outbound:    make(chan *transferRequest, 16),
 		Events:      make(chan Event, 64),
 		cancel:      cancel,
 		ctx:         ctx,
+		peers:       []*peerConn{{peerID: "peer-0", pc: pc, controlDC: controlDC}},
+		MaxPeers:    2,
+		peerCount:   2,
 	}
 	s.idleTimer = time.NewTimer(IdleTimeout)
 	return s
+}
+
+// SetContext replaces the session context (used by multi-peer initiator).
+func (s *Session) SetContext(ctx context.Context, cancel context.CancelFunc) {
+	s.ctx    = ctx
+	s.cancel = cancel
+}
+
+// AddPeerInfo sets the peer count info after creation (first peer, initiator).
+func (s *Session) AddPeerInfo(peerID string, peerCount, maxPeers int) {
+	s.peers[0].peerID = peerID
+	s.peerCount = peerCount
+	s.MaxPeers  = maxPeers
+	s.emit(Event{Type: EventPeerJoined, PeerCount: peerCount, MaxPeers: maxPeers})
+}
+
+// AddPeer adds a new peer connection to the session (multi-peer, initiator only).
+func (s *Session) AddPeer(peerID string, pc *webrtc.PeerConnection, controlDC *webrtc.DataChannel, peerCount, maxPeers int) {
+	pc2 := &peerConn{peerID: peerID, pc: pc, controlDC: controlDC}
+	s.peersMu.Lock()
+	s.peers = append(s.peers, pc2)
+	s.peerCount = peerCount
+	s.MaxPeers  = maxPeers
+	s.peersMu.Unlock()
+	// Wire the new peer's data channel into the session.
+	s.wirePeer(pc2)
+	s.emit(Event{Type: EventPeerJoined, PeerCount: peerCount, MaxPeers: maxPeers})
+}
+
+// PeerCount returns the current connected peer count.
+func (s *Session) PeerCount() int { return s.peerCount }
+
+// controlChannels returns all control data channels (one per peer).
+func (s *Session) controlChannels() []*webrtc.DataChannel {
+	s.peersMu.RLock()
+	defer s.peersMu.RUnlock()
+	out := make([]*webrtc.DataChannel, 0, len(s.peers))
+	for _, p := range s.peers {
+		out = append(out, p.controlDC)
+	}
+	return out
+}
+
+// firstPeer returns the first peer connection (used for 2-peer sessions).
+func (s *Session) firstPeer() *peerConn {
+	s.peersMu.RLock()
+	defer s.peersMu.RUnlock()
+	if len(s.peers) == 0 {
+		return nil
+	}
+	return s.peers[0]
 }
 
 // IsInitiator reports whether this peer started the session.
@@ -156,21 +225,31 @@ func (s *Session) SendBytes(fileName string, data []byte, message string, onProg
 	return req.done
 }
 
-// SendMessage sends a text message to the remote peer.
+// SendMessage broadcasts a text message to all connected peers.
 func (s *Session) SendMessage(text string) error {
 	s.resetIdle()
-	return s.controlDC.Send(transfer.BuildMessageFrame(text))
+	var lastErr error
+	for _, dc := range s.controlChannels() {
+		if err := dc.Send(transfer.BuildMessageFrame(text)); err != nil {
+			lastErr = err
+		}
+	}
+	return lastErr
 }
 
 // Close ends the session for everyone (initiator only).
 func (s *Session) Close() {
-	_ = s.controlDC.Send(transfer.BuildSessionCloseFrame())
+	for _, dc := range s.controlChannels() {
+		_ = dc.Send(transfer.BuildSessionCloseFrame())
+	}
 	s.cancel()
 }
 
-// Leave sends a quiet leave frame and disconnects locally.
+// Leave sends a quiet leave frame to all peers and disconnects locally.
 func (s *Session) Leave() {
-	_ = s.controlDC.Send(transfer.BuildParticipantLeaveFrame())
+	for _, dc := range s.controlChannels() {
+		_ = dc.Send(transfer.BuildParticipantLeaveFrame())
+	}
 	s.cancel()
 }
 
@@ -194,30 +273,11 @@ func (s *Session) Run() {
 		}
 	}()
 
-	// Wire control channel message handler.
-	s.controlDC.OnMessage(func(m webrtc.DataChannelMessage) {
-		if len(m.Data) == 0 {
-			return
-		}
-		s.resetIdle()
-		s.handleControlFrame(m.Data)
-	})
-	s.controlDC.OnClose(func() {
-		s.emit(Event{Type: EventSessionClosed, Message: "Connection closed."})
-		s.cancel()
-	})
+	// Wire all existing peers.
+	for _, p := range s.peers {
+		s.wirePeer(p)
+	}
 
-	// Wire inbound transfer channels — remote opens a new DC for each transfer.
-	// OnDataChannel fires synchronously when Pion delivers a new data channel.
-	// We register dc.OnMessage here — before returning — so no frames can
-	// arrive before the handler is in place. The blocking completion wait
-	// happens in a goroutine launched from inside prepareInboundTransfer.
-	s.pc.OnDataChannel(func(dc *webrtc.DataChannel) {
-		if dc.Label() == "control" {
-			return
-		}
-		s.prepareInboundTransfer(dc)
-	})
 
 	// Outbound sender loop.
 	go s.senderLoop()
@@ -234,6 +294,41 @@ func (s *Session) Run() {
 		s.emit(Event{Type: EventSessionClosed,
 			Message: fmt.Sprintf("Session closed — no activity for %s.", IdleTimeout)})
 	}
+}
+
+// wirePeer sets up message handlers for one peer connection.
+// Safe to call from AddPeer() after Run() has started.
+func (s *Session) wirePeer(p *peerConn) {
+	p.controlDC.OnMessage(func(m webrtc.DataChannelMessage) {
+		if len(m.Data) == 0 { return }
+		s.resetIdle()
+		s.handleControlFrame(m.Data)
+	})
+	p.controlDC.OnClose(func() {
+		s.peersMu.Lock()
+		newPeers := s.peers[:0]
+		for _, pp := range s.peers {
+			if pp.peerID != p.peerID { newPeers = append(newPeers, pp) }
+		}
+		s.peers = newPeers
+		s.peerCount = max(1, s.peerCount-1)
+		s.peersMu.Unlock()
+		if len(s.peers) == 0 {
+			s.emit(Event{Type: EventSessionClosed, Message: "All peers disconnected."})
+			s.cancel()
+		} else {
+			s.emit(Event{Type: EventPeerLeft, Message: "A participant left.", PeerCount: s.peerCount, MaxPeers: s.MaxPeers})
+		}
+	})
+	p.pc.OnDataChannel(func(dc *webrtc.DataChannel) {
+		if dc.Label() == "control" { return }
+		s.prepareInboundTransfer(dc)
+	})
+}
+
+func max(a, b int) int {
+	if a > b { return a }
+	return b
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -286,14 +381,21 @@ func (s *Session) execTransfer(req *transferRequest) error {
 	// Generate a unique label for this transfer's data channel.
 	label := fmt.Sprintf("transfer-%d", time.Now().UnixNano())
 
-	// Announce the transfer on the control channel.
-	if err := s.controlDC.Send(transfer.BuildTransferAnnounceFrame(label)); err != nil {
-		return fmt.Errorf("session: announce transfer: %w", err)
+	// Announce the transfer on all peer control channels.
+	for _, dc := range s.controlChannels() {
+		if err := dc.Send(transfer.BuildTransferAnnounceFrame(label)); err != nil {
+			return fmt.Errorf("session: announce transfer: %w", err)
+		}
 	}
 
-	// Create the transfer data channel.
+	// Create the transfer data channel on the first peer.
+	// For multi-peer: each peer gets their own DC in parallel.
+	p := s.firstPeer()
+	if p == nil {
+		return fmt.Errorf("session: no connected peers")
+	}
 	ordered := true
-	dc, err := s.pc.CreateDataChannel(label, &webrtc.DataChannelInit{Ordered: &ordered})
+	dc, err := p.pc.CreateDataChannel(label, &webrtc.DataChannelInit{Ordered: &ordered})
 	if err != nil {
 		return fmt.Errorf("session: create transfer channel: %w", err)
 	}
@@ -363,6 +465,14 @@ func (s *Session) execTransfer(req *transferRequest) error {
 	}
 	if runErr != nil {
 		return runErr
+	}
+
+	// For multi-peer: queue the same transfer to remaining peers.
+	s.peersMu.RLock()
+	extraPeers := s.peers[1:]
+	s.peersMu.RUnlock()
+	if len(extraPeers) > 0 && req.fileData != nil {
+		s.broadcastToExtraPeers(req, label, extraPeers)
 	}
 
 	// Wait for TransferOK from receiver.
@@ -505,6 +615,52 @@ func (s *Session) resetIdle() {
 		}
 	}
 	s.idleTimer.Reset(IdleTimeout)
+}
+
+// broadcastToExtraPeers sends the same in-memory file to peers beyond the first.
+// Each gets its own labeled data channel. Runs in the background.
+func (s *Session) broadcastToExtraPeers(req *transferRequest, baseLabel string, peers []*peerConn) {
+	for i, p := range peers {
+		pLabel := fmt.Sprintf("%s-p%d", baseLabel, i+1)
+		go func(pc *peerConn, label string) {
+			ordered := true
+			dc, err := pc.pc.CreateDataChannel(label, &webrtc.DataChannelInit{Ordered: &ordered})
+			if err != nil { return }
+			dcOpen := make(chan struct{}, 1)
+			dc.OnOpen(func() { dcOpen <- struct{}{} })
+			select {
+			case <-s.ctx.Done(): return
+			case <-time.After(15 * time.Second): return
+			case <-dcOpen:
+			}
+			ackCh := make(chan uint64, 32)
+			okCh := make(chan struct{}, 1)
+			cancelCh := make(chan struct{})
+			var cancelOnce sync.Once
+			dc.OnMessage(func(m webrtc.DataChannelMessage) {
+				if len(m.Data) == 0 { return }
+				switch m.Data[0] {
+				case transfer.TagChunkAck:
+					if seq, err := transfer.ParseAckFrame(m.Data); err == nil { ackCh <- seq }
+				case transfer.TagTransferOK:
+					select { case okCh <- struct{}{}: default: }
+				case transfer.TagCancelled:
+					cancelOnce.Do(func() { close(cancelCh) })
+				}
+			})
+			sender := transfer.NewSender(s.ctx, cancelCh, dc, "",
+				ackCh, make(chan uint64, 1), s.cfg.WindowSize, s.cfg.ChunkSize)
+			if req.onProgress != nil { sender.SetProgress(req.onProgress) }
+			if req.message != "" { sender.SetMessage(req.message) }
+			if err := sender.RunFromBytes(req.fileName, req.fileData); err != nil { return }
+			select {
+			case <-s.ctx.Done():
+			case <-cancelCh:
+			case <-okCh:
+				s.resetIdle()
+			}
+		}(p, pLabel)
+	}
 }
 
 // saveReceivedFile writes data to outDir/name, avoiding collisions.
