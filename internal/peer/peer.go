@@ -1511,6 +1511,7 @@ func trickleICETargeted(sig *signaling.Client, pc *webrtc.PeerConnection, peerID
 // Accepts both targeted (MsgTargeted wrapping MsgICECandidate) and plain
 // MsgICECandidate messages — the responder sends plain ICE candidates which
 // the broker routes to the initiator and land in disp.ice.
+// If peerID is empty, targeted ICE from any peer is accepted.
 func pumpICETargeted(ctx context.Context, pc *webrtc.PeerConnection, disp *dispatcher, peerID string) {
 	processCandidate := func(cp protocol.ICECandidatePayload) {
 		mlineIdx := cp.SDPMLineIndex
@@ -1538,6 +1539,11 @@ func pumpICETargeted(ctx context.Context, pc *webrtc.PeerConnection, disp *dispa
 		case msg := <-disp.targeted:
 			var tp protocol.TargetedPayload
 			if err := json.Unmarshal(msg.Payload, &tp); err != nil {
+				continue
+			}
+			// Accept from any peer if peerID is empty, otherwise filter.
+			if peerID != "" && tp.FromPeerID != peerID {
+				go func(m signaling.Message) { disp.targeted <- m }(msg)
 				continue
 			}
 			var inner signaling.Message
@@ -1644,7 +1650,10 @@ func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string,
 	})
 
 	trickleICE(sig, pc)
-	go disp.pumpICE(ctx, pc)
+	// Use pumpICETargeted (with empty peerID) so we handle both plain ICE
+	// from the broker relay AND targeted ICE wrapped in MsgTargeted by the
+	// initiator. The empty peerID means we accept ICE from any peer.
+	go pumpICETargeted(ctx, pc, disp, "")
 
 	// Receive the SDP offer — may arrive as targeted or direct.
 	var offerMsg signaling.Message
