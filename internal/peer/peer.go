@@ -75,22 +75,26 @@ func chunkSize(c Config) int {
 // ─────────────────────────────────────────────────────────────────────────────
 
 type dispatcher struct {
-	pakeA   chan signaling.Message
-	pakeB   chan signaling.Message
-	offer   chan signaling.Message
-	answer  chan signaling.Message
-	ice     chan signaling.Message
-	control chan signaling.Message
+	pakeA      chan signaling.Message
+	pakeB      chan signaling.Message
+	offer      chan signaling.Message
+	answer     chan signaling.Message
+	ice        chan signaling.Message
+	control    chan signaling.Message
+	peerJoined chan signaling.Message // peer.joined notifications
+	targeted   chan signaling.Message // targeted peer-to-peer messages
 }
 
 func newDispatcher() *dispatcher {
 	return &dispatcher{
-		pakeA:   make(chan signaling.Message, 4),
-		pakeB:   make(chan signaling.Message, 4),
-		offer:   make(chan signaling.Message, 4),
-		answer:  make(chan signaling.Message, 4),
-		ice:     make(chan signaling.Message, 64),
-		control: make(chan signaling.Message, 8),
+		pakeA:      make(chan signaling.Message, 4),
+		pakeB:      make(chan signaling.Message, 4),
+		offer:      make(chan signaling.Message, 4),
+		answer:     make(chan signaling.Message, 4),
+		ice:        make(chan signaling.Message, 64),
+		control:    make(chan signaling.Message, 8),
+		peerJoined: make(chan signaling.Message, 16),
+		targeted:   make(chan signaling.Message, 16),
 	}
 }
 
@@ -114,6 +118,10 @@ func (d *dispatcher) run(ctx context.Context, recv <-chan signaling.Message) {
 				d.answer <- msg
 			case protocol.MsgICECandidate:
 				d.ice <- msg
+			case protocol.MsgPeerJoined:
+				d.peerJoined <- msg
+			case protocol.MsgTargeted:
+				d.targeted <- msg
 			default:
 				d.control <- msg
 			}
@@ -1136,165 +1144,510 @@ func ChatWithCallback(
 // ─────────────────────────────────────────────────────────────────────────────
 
 // StartSession performs PAKE+WebRTC as the initiator and returns a live Session.
+// For multi-peer sessions, it continues to accept new peers as they join.
 // The caller must call session.Run() in a goroutine.
-func StartSession(ctx context.Context, sig *signaling.Client, code string, cfg Config) (*session.Session, error) {
-	return doSessionHandshake(ctx, sig, code, cfg, true)
+func StartSession(ctx context.Context, sig *signaling.Client, code string, cfg Config, maxPeers int) (*session.Session, error) {
+	disp := newDispatcher()
+	go disp.run(ctx, sig.Recv())
+
+	fmt.Println("Waiting for first peer to connect...")
+
+	// Wait for slot.ready — indicates first peer joined and session is live.
+	readyMsg, err := disp.waitFor(ctx, disp.control)
+	if err != nil {
+		return nil, fmt.Errorf("session: wait slot.ready: %w", err)
+	}
+	if readyMsg.Type != protocol.MsgSlotReady {
+		return nil, fmt.Errorf("session: expected slot.ready, got %s", readyMsg.Type)
+	}
+	var ready protocol.SlotReadyPayload
+	if err := json.Unmarshal(readyMsg.Payload, &ready); err != nil {
+		return nil, fmt.Errorf("session: decode slot.ready: %w", err)
+	}
+
+	// Also consume the peer.joined that arrives at the same time.
+	// The first peer.joined arrives alongside slot.ready for the initiator.
+	var firstJoinMsg signaling.Message
+	select {
+	case firstJoinMsg = <-disp.peerJoined:
+	case <-time.After(2 * time.Second):
+		return nil, fmt.Errorf("session: timeout waiting for first peer.joined")
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	var firstJoin protocol.PeerJoinedPayload
+	if err := json.Unmarshal(firstJoinMsg.Payload, &firstJoin); err != nil {
+		return nil, fmt.Errorf("session: decode peer.joined: %w", err)
+	}
+
+	// Run PAKE+WebRTC handshake with the first peer using targeted signaling.
+	fmt.Printf("Peer connected (%d/%d) — authenticating...\n", firstJoin.PeerCount, firstJoin.MaxPeers)
+	pc, sess, err := initiatorHandshakeWithPeer(ctx, sig, disp, code, cfg, firstJoin.PeerID, ready, maxPeers)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = pc // pc is stored in sess already
+
+	// Spawn a goroutine to handle subsequent peer joins.
+	if maxPeers > 2 {
+		go initiatorAcceptMorePeers(ctx, sig, disp, code, cfg, sess)
+	}
+
+	sessCtx, sessCancel := context.WithCancel(ctx)
+	sess.SetContext(sessCtx, sessCancel)
+	sess.Sig = sig
+	return sess, nil
 }
 
 // JoinSession performs PAKE+WebRTC as the responder and returns a live Session.
 // The caller must call session.Run() in a goroutine.
 func JoinSession(ctx context.Context, sig *signaling.Client, code string, cfg Config) (*session.Session, error) {
-	return doSessionHandshake(ctx, sig, code, cfg, false)
+	return doSessionHandshake(ctx, sig, code, cfg, false, "", nil)
 }
 
-// doSessionHandshake does PAKE + WebRTC + control DC for both roles.
-func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string, cfg Config, isInitiator bool) (*session.Session, error) {
+// initiatorHandshakeWithPeer runs PAKE+WebRTC between the initiator and one
+// specific peer identified by peerID, using targeted signaling messages.
+// Returns the new PeerConnection (already added to sess) and the session.
+func initiatorHandshakeWithPeer(
+	ctx context.Context,
+	sig *signaling.Client,
+	disp *dispatcher,
+	code string,
+	cfg Config,
+	peerID string,
+	ready protocol.SlotReadyPayload,
+	maxPeers int,
+) (*webrtc.PeerConnection, *session.Session, error) {
+	// Create a targeted sub-dispatcher that filters messages from this peerID.
+	td := &targetedDispatcher{peerID: peerID, parent: disp}
+
+	// PAKE
+	ci := cpace.NewContextInfo("gmmff-initiator", "gmmff-responder", nil)
+	msgA, state, err := cpace.Start(code, ci)
+	if err != nil {
+		return nil, nil, fmt.Errorf("session: PAKE start: %w", err)
+	}
+	// Send pake.a targeted to this specific peer.
+	if err := sig.SendTargeted(peerID, "", protocol.MustEnvelope(protocol.MsgPakeA,
+		protocol.OpaquePayload{Data: encodeB64(msgA)})); err != nil {
+		return nil, nil, fmt.Errorf("session: send targeted pake.a: %w", err)
+	}
+
+	msgBMsg, err := td.waitFor(ctx, protocol.MsgPakeB)
+	if err != nil {
+		return nil, nil, fmt.Errorf("session: wait pake.b from %s: %w", peerID, err)
+	}
+	msgBBytes, err := signaling.DecodeOpaque(msgBMsg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("session: decode pake.b: %w", err)
+	}
+	sharedKey, err := state.Finish(msgBBytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("session: PAKE finish: %w", err)
+	}
+	pakeSession, err := pake.NewSession(sharedKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("session: derive session keys: %w", err)
+	}
+	fmt.Printf("Authenticated with Participant %s
+", peerID[:8])
+
+	// WebRTC
+	pc, err := newPeerConnection(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ordered := true
+	controlDC, err := pc.CreateDataChannel("control", &webrtc.DataChannelInit{Ordered: &ordered})
+	if err != nil {
+		return nil, nil, fmt.Errorf("session: create control channel: %w", err)
+	}
+	dcReady := make(chan struct{}, 1)
+	controlDC.OnOpen(func() { dcReady <- struct{}{} })
+
+	trickleICETargeted(sig, pc, peerID)
+	go pumpICETargeted(ctx, pc, disp, peerID)
+
+	offer, err := pc.CreateOffer(nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("session: create offer: %w", err)
+	}
+	if err := pc.SetLocalDescription(offer); err != nil {
+		return nil, nil, fmt.Errorf("session: set local desc: %w", err)
+	}
+	sdpJSON, _ := json.Marshal(offer)
+	offerMAC := pakeSession.SignOffer(sdpJSON)
+	inner := protocol.MustEnvelope(protocol.MsgSDPOffer,
+		struct {
+			SDP string `json:"sdp"`
+			MAC string `json:"mac"`
+		}{SDP: encodeB64(sdpJSON), MAC: offerMAC})
+	if err := sig.SendTargeted(peerID, "", inner); err != nil {
+		return nil, nil, fmt.Errorf("session: send targeted sdp.offer: %w", err)
+	}
+
+	answerMsg, err := td.waitFor(ctx, protocol.MsgSDPAnswer)
+	if err != nil {
+		return nil, nil, fmt.Errorf("session: wait sdp.answer: %w", err)
+	}
+	answerJSON, answerMAC, err := signaling.DecodeSignedSDP(answerMsg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("session: decode sdp.answer: %w", err)
+	}
+	if err := pakeSession.VerifyAnswer(answerJSON, answerMAC); err != nil {
+		return nil, nil, fmt.Errorf("session: %w", err)
+	}
+	var answer webrtc.SessionDescription
+	if err := json.Unmarshal(answerJSON, &answer); err != nil {
+		return nil, nil, fmt.Errorf("session: unmarshal answer: %w", err)
+	}
+	if err := pc.SetRemoteDescription(answer); err != nil {
+		return nil, nil, fmt.Errorf("session: set remote desc: %w", err)
+	}
+
+	select {
+	case <-ctx.Done():
+		pc.Close()
+		return nil, nil, ctx.Err()
+	case <-time.After(20 * time.Second):
+		pc.Close()
+		return nil, nil, fmt.Errorf("session: control channel open timeout for peer %s", peerID[:8])
+	case <-dcReady:
+	}
+
+	// First peer — create the session object.
+	// Subsequent peers will be added via sess.AddPeer().
+	sessCtx, sessCancel := context.WithCancel(context.Background())
+	sess := session.New(sessCtx, sessCancel, pc, controlDC, cfg, true)
+	sess.MaxPeers = maxPeers
+	sess.AddPeerInfo(peerID, ready.PeerCount, ready.MaxPeers)
+	return pc, sess, nil
+}
+
+// initiatorAcceptMorePeers runs in a goroutine and handles subsequent joins.
+func initiatorAcceptMorePeers(
+	ctx context.Context,
+	sig *signaling.Client,
+	disp *dispatcher,
+	code string,
+	cfg Config,
+	sess *session.Session,
+) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg, ok := <-disp.peerJoined:
+			if !ok {
+				return
+			}
+			var pj protocol.PeerJoinedPayload
+			if err := json.Unmarshal(msg.Payload, &pj); err != nil {
+				continue
+			}
+			go func(peerID string, peerCount, maxPeers int) {
+				fmt.Printf("New peer connecting (%d/%d)...
+", peerCount, maxPeers)
+				td := &targetedDispatcher{peerID: peerID, parent: disp}
+				ci := cpace.NewContextInfo("gmmff-initiator", "gmmff-responder", nil)
+				msgA, state, err := cpace.Start(code, ci)
+				if err != nil {
+					fmt.Printf("PAKE start failed for peer %s: %v
+", peerID[:8], err)
+					return
+				}
+				if err := sig.SendTargeted(peerID, "", protocol.MustEnvelope(protocol.MsgPakeA,
+					protocol.OpaquePayload{Data: encodeB64(msgA)})); err != nil {
+					return
+				}
+				msgBMsg, err := td.waitFor(ctx, protocol.MsgPakeB)
+				if err != nil { return }
+				msgBBytes, err := signaling.DecodeOpaque(msgBMsg)
+				if err != nil { return }
+				sharedKey, err := state.Finish(msgBBytes)
+				if err != nil { return }
+				pakeSession, err := pake.NewSession(sharedKey)
+				if err != nil { return }
+
+				pc, err := newPeerConnection(cfg)
+				if err != nil { return }
+
+				ordered := true
+				dc, err := pc.CreateDataChannel("control", &webrtc.DataChannelInit{Ordered: &ordered})
+				if err != nil { pc.Close(); return }
+				dcReady := make(chan struct{}, 1)
+				dc.OnOpen(func() { dcReady <- struct{}{} })
+
+				trickleICETargeted(sig, pc, peerID)
+				go pumpICETargeted(ctx, pc, disp, peerID)
+
+				offer, err := pc.CreateOffer(nil)
+				if err != nil { pc.Close(); return }
+				if err := pc.SetLocalDescription(offer); err != nil { pc.Close(); return }
+				sdpJSON, _ := json.Marshal(offer)
+				offerMAC := pakeSession.SignOffer(sdpJSON)
+				inner := protocol.MustEnvelope(protocol.MsgSDPOffer,
+					struct{ SDP string `json:"sdp"`; MAC string `json:"mac"` }{
+						SDP: encodeB64(sdpJSON), MAC: offerMAC,
+					})
+				if err := sig.SendTargeted(peerID, "", inner); err != nil { pc.Close(); return }
+
+				answerMsg, err := td.waitFor(ctx, protocol.MsgSDPAnswer)
+				if err != nil { pc.Close(); return }
+				answerJSON, answerMAC, err := signaling.DecodeSignedSDP(answerMsg)
+				if err != nil { pc.Close(); return }
+				if err := pakeSession.VerifyAnswer(answerJSON, answerMAC); err != nil { pc.Close(); return }
+				var answer webrtc.SessionDescription
+				if err := json.Unmarshal(answerJSON, &answer); err != nil { pc.Close(); return }
+				if err := pc.SetRemoteDescription(answer); err != nil { pc.Close(); return }
+
+				select {
+				case <-ctx.Done(): pc.Close(); return
+				case <-time.After(20 * time.Second): pc.Close(); return
+				case <-dcReady:
+				}
+
+				sess.AddPeer(peerID, pc, dc, peerCount, maxPeers)
+				fmt.Printf("Participant connected (%d/%d)
+", peerCount, maxPeers)
+			}(pj.PeerID, pj.PeerCount, pj.MaxPeers)
+		}
+	}
+}
+
+// targetedDispatcher filters targeted messages from a specific peer.
+type targetedDispatcher struct {
+	peerID string
+	parent *dispatcher
+}
+
+func (td *targetedDispatcher) waitFor(ctx context.Context, msgType string) (signaling.Message, error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return signaling.Message{}, ctx.Err()
+		case msg := <-td.parent.targeted:
+			var tp protocol.TargetedPayload
+			if err := json.Unmarshal(msg.Payload, &tp); err != nil {
+				continue
+			}
+			if tp.FromPeerID != td.peerID {
+				// Not for us — put it back and try again via a temporary buffer.
+				// In practice each peer has its own goroutine so collisions are rare.
+				go func(m signaling.Message) {
+					td.parent.targeted <- m
+				}(msg)
+				// Small sleep to avoid hot-spinning.
+				time.Sleep(5 * time.Millisecond)
+				continue
+			}
+			// Unwrap the inner envelope.
+			var inner signaling.Message
+			if err := json.Unmarshal(tp.Inner, &inner); err != nil {
+				continue
+			}
+			if inner.Type == msgType {
+				return inner, nil
+			}
+		}
+	}
+}
+
+// trickleICETargeted sends ICE candidates targeted to a specific peer.
+func trickleICETargeted(sig *signaling.Client, pc *webrtc.PeerConnection, peerID string) {
+	pc.OnICECandidate(func(c *webrtc.ICECandidate) {
+		if c == nil {
+			return
+		}
+		ci := c.ToJSON()
+		inner := protocol.MustEnvelope(protocol.MsgICECandidate, protocol.ICECandidatePayload{
+			Candidate:     ci.Candidate,
+			SDPMid:        *ci.SDPMid,
+			SDPMLineIndex: *ci.SDPMLineIndex,
+		})
+		_ = sig.SendTargeted(peerID, "", inner)
+	})
+}
+
+// pumpICETargeted processes incoming targeted ICE candidates for a specific peer.
+func pumpICETargeted(ctx context.Context, pc *webrtc.PeerConnection, disp *dispatcher, peerID string) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg := <-disp.targeted:
+			var tp protocol.TargetedPayload
+			if err := json.Unmarshal(msg.Payload, &tp); err != nil {
+				continue
+			}
+			if tp.FromPeerID != peerID {
+				go func(m signaling.Message) { disp.targeted <- m }(msg)
+				time.Sleep(5 * time.Millisecond)
+				continue
+			}
+			var inner signaling.Message
+			if err := json.Unmarshal(tp.Inner, &inner); err != nil {
+				continue
+			}
+			if inner.Type != protocol.MsgICECandidate {
+				go func(m signaling.Message) { disp.targeted <- m }(msg)
+				continue
+			}
+			var cp protocol.ICECandidatePayload
+			if err := json.Unmarshal(inner.Payload, &cp); err != nil {
+				continue
+			}
+			mlineIdx := cp.SDPMLineIndex
+			mid := cp.SDPMid
+			_ = pc.AddICECandidate(webrtc.ICECandidateInit{
+				Candidate:     cp.Candidate,
+				SDPMid:        &mid,
+				SDPMLineIndex: &mlineIdx,
+			})
+		}
+	}
+}
+
+// encodeB64 encodes bytes to standard base64. Declared here to avoid import cycle.
+func encodeB64(b []byte) string {
+	return signaling.EncodeB64(b)
+}
+
+// doSessionHandshake does PAKE + WebRTC + control DC for the responder (joiner).
+// The initiator uses StartSession + initiatorHandshakeWithPeer instead.
+func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string, cfg Config, isInitiator bool, _ string, _ interface{}) (*session.Session, error) {
 	disp := newDispatcher()
 	go disp.run(ctx, sig.Recv())
 
-	// ── PAKE ──────────────────────────────────────────────────────────────────
-	ci := cpace.NewContextInfo("gmmff-initiator", "gmmff-responder", nil)
-	var sharedKey []byte
-
-	if isInitiator {
-		msgA, state, err := cpace.Start(code, ci)
-		if err != nil {
-			return nil, fmt.Errorf("session: PAKE start: %w", err)
-		}
-		if err := sig.SendOpaque(protocol.MsgPakeA, msgA); err != nil {
-			return nil, fmt.Errorf("session: send pake.a: %w", err)
-		}
-		msg, err := disp.waitFor(ctx, disp.pakeB)
-		if err != nil {
-			return nil, fmt.Errorf("session: wait pake.b: %w", err)
-		}
-		msgB, err := signaling.DecodeOpaque(msg)
-		if err != nil {
-			return nil, fmt.Errorf("session: decode pake.b: %w", err)
-		}
-		sk, err := state.Finish(msgB)
-		if err != nil {
-			return nil, fmt.Errorf("session: PAKE finish: %w — wrong code or tampered connection", err)
-		}
-		sharedKey = sk
-	} else {
-		msgAEnv, err := disp.waitFor(ctx, disp.pakeA)
-		if err != nil {
-			return nil, fmt.Errorf("session: wait pake.a: %w", err)
-		}
-		msgA, err := signaling.DecodeOpaque(msgAEnv)
-		if err != nil {
-			return nil, fmt.Errorf("session: decode pake.a: %w", err)
-		}
-		msgB, sk, err := cpace.Exchange(code, ci, msgA)
-		if err != nil {
-			return nil, fmt.Errorf("session: PAKE exchange: %w", err)
-		}
-		sharedKey = sk
-		if err := sig.SendOpaque(protocol.MsgPakeB, msgB); err != nil {
-			return nil, fmt.Errorf("session: send pake.b: %w", err)
-		}
+	// Wait for slot.ready — carries MaxPeers/PeerCount for the joiner.
+	readyMsg, err := disp.waitFor(ctx, disp.control)
+	if err != nil {
+		return nil, fmt.Errorf("session: wait slot.ready: %w", err)
+	}
+	var ready protocol.SlotReadyPayload
+	if readyMsg.Type == protocol.MsgSlotReady {
+		_ = json.Unmarshal(readyMsg.Payload, &ready)
 	}
 
-	sess, err := pake.NewSession(sharedKey)
+	// Responder receives targeted pake.a from initiator.
+	// The initiator sends via MsgTargeted so we read from disp.targeted.
+	// For 2-peer sessions the broker also relays un-targeted pake.a.
+	// We accept from either channel.
+	var pakeAMsg signaling.Message
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case pakeAMsg = <-disp.pakeA:
+		// Un-targeted (2-peer legacy path)
+	case raw := <-disp.targeted:
+		var tp protocol.TargetedPayload
+		if err := json.Unmarshal(raw.Payload, &tp); err != nil {
+			return nil, fmt.Errorf("session: decode targeted pake.a: %w", err)
+		}
+		var inner signaling.Message
+		if err := json.Unmarshal(tp.Inner, &inner); err != nil {
+			return nil, fmt.Errorf("session: decode inner pake.a: %w", err)
+		}
+		pakeAMsg = inner
+	}
+
+	ci := cpace.NewContextInfo("gmmff-initiator", "gmmff-responder", nil)
+	msgABytes, err := signaling.DecodeOpaque(pakeAMsg)
+	if err != nil {
+		return nil, fmt.Errorf("session: decode pake.a: %w", err)
+	}
+	msgB, sharedKey, err := cpace.Exchange(code, ci, msgABytes)
+	if err != nil {
+		return nil, fmt.Errorf("session: PAKE exchange: %w", err)
+	}
+	// Send pake.b targeted back to initiator.
+	if err := sig.SendOpaque(protocol.MsgPakeB, msgB); err != nil {
+		return nil, fmt.Errorf("session: send pake.b: %w", err)
+	}
+
+	pakeSession, err := pake.NewSession(sharedKey)
 	if err != nil {
 		return nil, fmt.Errorf("session: derive session keys: %w", err)
 	}
 	fmt.Println("Handshake complete — connection authenticated")
 
-	// ── WebRTC ────────────────────────────────────────────────────────────────
+	// WebRTC — responder waits for the SDP offer from initiator.
 	pc, err := newPeerConnection(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	var controlDC *webrtc.DataChannel
 	dcReady := make(chan *webrtc.DataChannel, 1)
-
-	if isInitiator {
-		ordered := true
-		dc, err := pc.CreateDataChannel("control", &webrtc.DataChannelInit{Ordered: &ordered})
-		if err != nil {
-			return nil, fmt.Errorf("session: create control channel: %w", err)
+	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
+		if dc.Label() == "control" {
+			dcReady <- dc
 		}
-		dc.OnOpen(func() { dcReady <- dc })
-	} else {
-		pc.OnDataChannel(func(dc *webrtc.DataChannel) {
-			if dc.Label() == "control" {
-				dcReady <- dc
-			}
-		})
-	}
+	})
 
 	trickleICE(sig, pc)
 	go disp.pumpICE(ctx, pc)
 
-	if isInitiator {
-		offer, err := pc.CreateOffer(nil)
-		if err != nil {
-			return nil, fmt.Errorf("session: create offer: %w", err)
+	// Receive the SDP offer — may arrive as targeted or direct.
+	var offerMsg signaling.Message
+	select {
+	case <-ctx.Done():
+		pc.Close()
+		return nil, ctx.Err()
+	case offerMsg = <-disp.offer:
+		// Direct (2-peer)
+	case raw := <-disp.targeted:
+		var tp protocol.TargetedPayload
+		if err := json.Unmarshal(raw.Payload, &tp); err != nil {
+			pc.Close()
+			return nil, fmt.Errorf("session: decode targeted offer: %w", err)
 		}
-		if err := pc.SetLocalDescription(offer); err != nil {
-			return nil, fmt.Errorf("session: set local description: %w", err)
+		var inner signaling.Message
+		if err := json.Unmarshal(tp.Inner, &inner); err != nil {
+			pc.Close()
+			return nil, fmt.Errorf("session: decode inner offer: %w", err)
 		}
-		sdpJSON, _ := json.Marshal(offer)
-		offerMAC := sess.SignOffer(sdpJSON)
-		if err := sig.SendSignedSDP(protocol.MsgSDPOffer, sdpJSON, offerMAC); err != nil {
-			return nil, fmt.Errorf("session: send sdp.offer: %w", err)
-		}
-		answerMsg, err := disp.waitFor(ctx, disp.answer)
-		if err != nil {
-			return nil, fmt.Errorf("session: wait sdp.answer: %w", err)
-		}
-		answerJSON, answerMAC, err := signaling.DecodeSignedSDP(answerMsg)
-		if err != nil {
-			return nil, fmt.Errorf("session: decode sdp.answer: %w", err)
-		}
-		if err := sess.VerifyAnswer(answerJSON, answerMAC); err != nil {
-			return nil, fmt.Errorf("session: %w", err)
-		}
-		var answer webrtc.SessionDescription
-		if err := json.Unmarshal(answerJSON, &answer); err != nil {
-			return nil, fmt.Errorf("session: unmarshal answer: %w", err)
-		}
-		if err := pc.SetRemoteDescription(answer); err != nil {
-			return nil, fmt.Errorf("session: set remote description: %w", err)
-		}
-	} else {
-		fmt.Println("Waiting for initiator...")
-		offerMsg, err := disp.waitFor(ctx, disp.offer)
-		if err != nil {
-			return nil, fmt.Errorf("session: wait sdp.offer: %w", err)
-		}
-		offerJSON, offerMAC, err := signaling.DecodeSignedSDP(offerMsg)
-		if err != nil {
-			return nil, fmt.Errorf("session: decode sdp.offer: %w", err)
-		}
-		if err := sess.VerifyOffer(offerJSON, offerMAC); err != nil {
-			return nil, fmt.Errorf("session: %w", err)
-		}
-		var offer webrtc.SessionDescription
-		if err := json.Unmarshal(offerJSON, &offer); err != nil {
-			return nil, fmt.Errorf("session: unmarshal offer: %w", err)
-		}
-		if err := pc.SetRemoteDescription(offer); err != nil {
-			return nil, fmt.Errorf("session: set remote description: %w", err)
-		}
-		answer, err := pc.CreateAnswer(nil)
-		if err != nil {
-			return nil, fmt.Errorf("session: create answer: %w", err)
-		}
-		if err := pc.SetLocalDescription(answer); err != nil {
-			return nil, fmt.Errorf("session: set local description: %w", err)
-		}
-		answerJSON, _ := json.Marshal(answer)
-		answerMAC := sess.SignAnswer(answerJSON)
-		if err := sig.SendSignedSDP(protocol.MsgSDPAnswer, answerJSON, answerMAC); err != nil {
-			return nil, fmt.Errorf("session: send sdp.answer: %w", err)
-		}
+		offerMsg = inner
+	}
+
+	offerJSON, offerMAC, err := signaling.DecodeSignedSDP(offerMsg)
+	if err != nil {
+		pc.Close()
+		return nil, fmt.Errorf("session: decode sdp.offer: %w", err)
+	}
+	if err := pakeSession.VerifyOffer(offerJSON, offerMAC); err != nil {
+		pc.Close()
+		return nil, fmt.Errorf("session: verify offer: %w", err)
+	}
+	var offer webrtc.SessionDescription
+	if err := json.Unmarshal(offerJSON, &offer); err != nil {
+		pc.Close()
+		return nil, fmt.Errorf("session: unmarshal offer: %w", err)
+	}
+	if err := pc.SetRemoteDescription(offer); err != nil {
+		pc.Close()
+		return nil, fmt.Errorf("session: set remote description: %w", err)
+	}
+	answer, err := pc.CreateAnswer(nil)
+	if err != nil {
+		pc.Close()
+		return nil, fmt.Errorf("session: create answer: %w", err)
+	}
+	if err := pc.SetLocalDescription(answer); err != nil {
+		pc.Close()
+		return nil, fmt.Errorf("session: set local description: %w", err)
+	}
+	answerJSON, _ := json.Marshal(answer)
+	answerMAC := pakeSession.SignAnswer(answerJSON)
+	if err := sig.SendSignedSDP(protocol.MsgSDPAnswer, answerJSON, answerMAC); err != nil {
+		pc.Close()
+		return nil, fmt.Errorf("session: send sdp.answer: %w", err)
 	}
 
 	fmt.Println("Direct connection established.")
+	var controlDC *webrtc.DataChannel
 	select {
 	case <-ctx.Done():
 		pc.Close()
@@ -1305,13 +1658,14 @@ func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string,
 	case controlDC = <-dcReady:
 	}
 
-	// Do NOT close the signaling connection here — the broker will close the
-	// slot if we disconnect, killing the other peer's session too.
-	// sig is passed to the session so it can close cleanly when done.
-
 	sessCtx, sessCancel := context.WithCancel(ctx)
-	s := session.New(sessCtx, sessCancel, pc, controlDC, cfg, isInitiator)
+	s := session.New(sessCtx, sessCancel, pc, controlDC, cfg, false)
 	s.Sig = sig
+	// Apply peer count info from slot.ready.
+	s.MaxPeers = ready.MaxPeers
+	if ready.PeerCount > 0 {
+		s.AddPeerInfo("initiator", ready.PeerCount, ready.MaxPeers)
+	}
 	return s, nil
 }
 
