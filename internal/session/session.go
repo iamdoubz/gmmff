@@ -304,7 +304,7 @@ func (s *Session) wirePeer(p *peerConn) {
 	p.controlDC.OnMessage(func(m webrtc.DataChannelMessage) {
 		if len(m.Data) == 0 { return }
 		s.resetIdle()
-		s.handleControlFrame(m.Data)
+		s.handleControlFrame(m.Data, p)
 	})
 	p.controlDC.OnClose(func() {
 		s.peersMu.Lock()
@@ -337,13 +337,27 @@ func max(a, b int) int {
 // Control frame handler
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (s *Session) handleControlFrame(data []byte) {
+func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 	switch data[0] {
 	case transfer.TagMessage:
 		s.emit(Event{
 			Type:    EventMessage,
 			Message: transfer.ParseMessageFrame(data),
 		})
+		// Star topology: if we are the initiator (hub), relay to all other peers.
+		if s.isInitiator {
+			s.peersMu.RLock()
+			others := make([]*peerConn, 0, len(s.peers))
+			for _, p := range s.peers {
+				if p != src {
+					others = append(others, p)
+				}
+			}
+			s.peersMu.RUnlock()
+			for _, p := range others {
+				_ = p.controlDC.Send(data)
+			}
+		}
 
 	case transfer.TagSessionClose, transfer.TagCancelled:
 		s.emit(Event{Type: EventSessionClosed, Message: "Session ended by Participant."})
