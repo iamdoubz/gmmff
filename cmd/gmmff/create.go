@@ -24,6 +24,7 @@ var createCfg struct {
 	stunServers []string
 	turnServers []string
 	outDir      string
+	maxPeers    int
 }
 
 var createCmd = &cobra.Command{
@@ -52,6 +53,7 @@ func init() {
 	f.StringArrayVar(&createCfg.turnServers, "turn", turnServersDefault(),
 		"TURN server, repeatable — format: turn:host:port?[transport=...&][user=u&pass=p|secret=s] (GMMFF_TURN)")
 	f.StringVarP(&createCfg.outDir, "out", "o", ".", "Directory to save received files")
+	f.IntVar(&createCfg.maxPeers, "max-peers", 2, "Maximum number of participants (2-10, including yourself)")
 }
 
 func runCreate(_ *cobra.Command, _ []string) error {
@@ -64,7 +66,7 @@ func runCreate(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("create: connect: %w", err)
 	}
 
-	if err := sig.CreateSlot("files"); err != nil {
+	if err := sig.CreateSlot("files", createCfg.maxPeers); err != nil {
 		return fmt.Errorf("create: create slot: %w", err)
 	}
 	createdMsg, err := sig.WaitFor(ctx, protocol.MsgSlotCreated)
@@ -99,7 +101,7 @@ func runCreate(_ *cobra.Command, _ []string) error {
 	}
 	cfg := peer.Config{STUNServers: createCfg.stunServers, TURNServers: turnSrvs}
 
-	sess, err := peer.StartSession(ctx, sig, created.Code, cfg)
+	sess, err := peer.StartSession(ctx, sig, created.Code, cfg, createCfg.maxPeers)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil
@@ -134,6 +136,11 @@ func runSessionREPL(ctx context.Context, sess *session.Session, stop context.Can
 		fmt.Println("  \\q                               end session for everyone")
 	} else {
 		fmt.Println("  \\q or Ctrl+C                     leave session")
+	}
+	if sess.MaxPeers == 2 {
+		fmt.Println("  (Bidirectional — either side can send files)")
+	} else {
+		fmt.Printf("  (Multi-peer session — max %d participants; only initiator can send files)\n", sess.MaxPeers)
 	}
 	fmt.Println()
 
@@ -286,8 +293,10 @@ func printSessionEvent(ev session.Event) {
 			}
 		}
 		fmt.Print("> ")
+	case session.EventPeerJoined:
+		fmt.Printf("\r\033[KParticipant joined (%d/%d)\n> ", ev.PeerCount, ev.MaxPeers)
 	case session.EventPeerLeft:
-		fmt.Printf("\r\033[K%s\n> ", ev.Message)
+		fmt.Printf("\r\033[K%s (%d/%d)\n> ", ev.Message, ev.PeerCount, ev.MaxPeers)
 	case session.EventSessionClosed:
 		fmt.Printf("\r\033[K%s\n", ev.Message)
 	case session.EventError:
