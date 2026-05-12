@@ -614,6 +614,14 @@ func (s *Session) prepareInboundTransfer(dc *webrtc.DataChannel) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (s *Session) emit(e Event) {
+	// Guard against sending on a closed channel — can happen when a Pion
+	// callback fires (e.g. OnClose) after Run() has already exited and
+	// called close(s.Events).
+	select {
+	case <-s.ctx.Done():
+		return
+	default:
+	}
 	select {
 	case s.Events <- e:
 	default:
