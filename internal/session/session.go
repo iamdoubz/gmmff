@@ -286,10 +286,12 @@ func (s *Session) Run() {
 	select {
 	case <-s.ctx.Done():
 	case <-s.idleTimer.C:
-		if s.isInitiator {
-			_ = s.controlDC.Send(transfer.BuildSessionCloseFrame())
-		} else {
-			_ = s.controlDC.Send(transfer.BuildParticipantLeaveFrame())
+		for _, dc := range s.controlChannels() {
+			if s.isInitiator {
+				_ = dc.Send(transfer.BuildSessionCloseFrame())
+			} else {
+				_ = dc.Send(transfer.BuildParticipantLeaveFrame())
+			}
 		}
 		s.emit(Event{Type: EventSessionClosed,
 			Message: fmt.Sprintf("Session closed — no activity for %s.", IdleTimeout)})
@@ -580,7 +582,8 @@ func (s *Session) prepareInboundTransfer(dc *webrtc.DataChannel) {
 		if savedPath != "" && msg == "" {
 			displayMsg = "Saved to: " + savedPath
 		} else if savedPath != "" && msg != "" {
-			displayMsg = msg + "Saved to: " + savedPath
+			displayMsg = msg + "
+Saved to: " + savedPath
 		}
 
 		s.emit(Event{
