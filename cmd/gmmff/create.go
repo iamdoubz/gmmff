@@ -114,10 +114,28 @@ func runCreate(_ *cobra.Command, _ []string) error {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func runSessionREPL(ctx context.Context, sess *session.Session, stop context.CancelFunc) error {
-	// Print incoming events in a goroutine.
+	// sessionClosed is closed when a remote EventSessionClosed arrives,
+	// signalling the REPL loop to exit even if blocked on stdin.
+	sessionClosed := make(chan struct{})
+
+	// Print incoming events; detect session close to unblock the REPL.
 	go func() {
 		for ev := range sess.Events {
 			printSessionEvent(ev)
+			if ev.Type == session.EventSessionClosed {
+				stop()
+				select {
+				case <-sessionClosed:
+				default:
+					close(sessionClosed)
+				}
+			}
+		}
+		// sess.Events closed means Run() exited — ensure we unblock.
+		select {
+		case <-sessionClosed:
+		default:
+			close(sessionClosed)
 		}
 	}()
 
@@ -139,33 +157,42 @@ func runSessionREPL(ctx context.Context, sess *session.Session, stop context.Can
 	}
 	fmt.Println()
 
-	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Print("> ")
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			fmt.Print("> ")
-			continue
+	lineCh := make(chan string, 4)
+	go func() {
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			lineCh <- scanner.Text()
 		}
+		close(lineCh)
+	}()
 
-		// Check context before processing
+	fmt.Print("> ")
+	for {
 		select {
+		case <-sessionClosed:
+			return nil
 		case <-ctx.Done():
 			return nil
-		default:
-		}
-
-		if err := handleSessionCommand(ctx, sess, line, isInitiator, stop); err != nil {
-			if errors.Is(err, errSessionEnded) {
+		case line, ok := <-lineCh:
+			if !ok {
+				// stdin EOF — leave quietly
+				sess.Leave()
 				return nil
 			}
-			fmt.Printf("Error: %v\n", err)
+			line = strings.TrimSpace(line)
+			if line == "" {
+				fmt.Print("> ")
+				continue
+			}
+			if err := handleSessionCommand(ctx, sess, line, isInitiator, stop); err != nil {
+				if errors.Is(err, errSessionEnded) {
+					return nil
+				}
+				fmt.Printf("Error: %v\n", err)
+			}
+			fmt.Print("> ")
 		}
-		fmt.Print("> ")
 	}
-	// EOF on stdin — leave quietly
-	sess.Leave()
-	return nil
 }
 
 var errSessionEnded = errors.New("session ended")
