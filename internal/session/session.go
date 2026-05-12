@@ -580,8 +580,7 @@ func (s *Session) prepareInboundTransfer(dc *webrtc.DataChannel) {
 		if savedPath != "" && msg == "" {
 			displayMsg = "Saved to: " + savedPath
 		} else if savedPath != "" && msg != "" {
-			displayMsg = msg + "
-Saved to: " + savedPath
+			displayMsg = msg + "Saved to: " + savedPath
 		}
 
 		s.emit(Event{
