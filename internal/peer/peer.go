@@ -1272,8 +1272,7 @@ func initiatorHandshakeWithPeer(
 	if err != nil {
 		return nil, nil, fmt.Errorf("session: derive session keys: %w", err)
 	}
-	fmt.Printf("Authenticated with Participant %s
-", peerID[:8])
+	fmt.Printf("Authenticated with Participant %s", peerID[:8])
 
 	// WebRTC
 	pc, err := newPeerConnection(cfg)
@@ -1370,14 +1369,12 @@ func initiatorAcceptMorePeers(
 				continue
 			}
 			go func(peerID string, peerCount, maxPeers int) {
-				fmt.Printf("New peer connecting (%d/%d)...
-", peerCount, maxPeers)
+				fmt.Printf("New peer connecting (%d/%d)...", peerCount, maxPeers)
 				td := &targetedDispatcher{peerID: peerID, parent: disp}
 				ci := cpace.NewContextInfo("gmmff-initiator", "gmmff-responder", nil)
 				msgA, state, err := cpace.Start(code, ci)
 				if err != nil {
-					fmt.Printf("PAKE start failed for peer %s: %v
-", peerID[:8], err)
+					fmt.Printf("PAKE start failed for peer %s: %v", peerID[:8], err)
 					return
 				}
 				if err := sig.SendTargeted(peerID, "", protocol.MustEnvelope(protocol.MsgPakeA,
@@ -1432,8 +1429,7 @@ func initiatorAcceptMorePeers(
 				}
 
 				sess.AddPeer(peerID, pc, dc, peerCount, maxPeers)
-				fmt.Printf("Participant connected (%d/%d)
-", peerCount, maxPeers)
+				fmt.Printf("Participant connected (%d/%d)", peerCount, maxPeers)
 			}(pj.PeerID, pj.PeerCount, pj.MaxPeers)
 		}
 	}
@@ -1446,26 +1442,39 @@ type targetedDispatcher struct {
 }
 
 func (td *targetedDispatcher) waitFor(ctx context.Context, msgType string) (signaling.Message, error) {
+	// plainCh is the direct (un-targeted) channel for this message type.
+	// The responder sends pake.b and sdp.answer as plain messages which the
+	// broker routes to the initiator; those land in disp.pakeB / disp.answer,
+	// not disp.targeted. We accept from both paths.
+	var plainCh <-chan signaling.Message
+	switch msgType {
+	case protocol.MsgPakeB:
+		plainCh = td.parent.pakeB
+	case protocol.MsgPakeA:
+		plainCh = td.parent.pakeA
+	case protocol.MsgSDPAnswer:
+		plainCh = td.parent.answer
+	case protocol.MsgSDPOffer:
+		plainCh = td.parent.offer
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			return signaling.Message{}, ctx.Err()
+
+		case msg, ok := <-plainCh:
+			if !ok {
+				return signaling.Message{}, fmt.Errorf("channel closed")
+			}
+			return msg, nil
+
 		case msg := <-td.parent.targeted:
 			var tp protocol.TargetedPayload
 			if err := json.Unmarshal(msg.Payload, &tp); err != nil {
 				continue
 			}
-			if tp.FromPeerID != td.peerID {
-				// Not for us — put it back and try again via a temporary buffer.
-				// In practice each peer has its own goroutine so collisions are rare.
-				go func(m signaling.Message) {
-					td.parent.targeted <- m
-				}(msg)
-				// Small sleep to avoid hot-spinning.
-				time.Sleep(5 * time.Millisecond)
-				continue
-			}
-			// Unwrap the inner envelope.
+			// Unwrap and check the inner message type.
 			var inner signaling.Message
 			if err := json.Unmarshal(tp.Inner, &inner); err != nil {
 				continue
@@ -1473,6 +1482,11 @@ func (td *targetedDispatcher) waitFor(ctx context.Context, msgType string) (sign
 			if inner.Type == msgType {
 				return inner, nil
 			}
+			// Different type — put it back for another goroutine.
+			go func(m signaling.Message) {
+				td.parent.targeted <- m
+			}(msg)
+			time.Sleep(2 * time.Millisecond)
 		}
 	}
 }
@@ -1493,20 +1507,37 @@ func trickleICETargeted(sig *signaling.Client, pc *webrtc.PeerConnection, peerID
 	})
 }
 
-// pumpICETargeted processes incoming targeted ICE candidates for a specific peer.
+// pumpICETargeted processes incoming ICE candidates for a specific peer.
+// Accepts both targeted (MsgTargeted wrapping MsgICECandidate) and plain
+// MsgICECandidate messages — the responder sends plain ICE candidates which
+// the broker routes to the initiator and land in disp.ice.
 func pumpICETargeted(ctx context.Context, pc *webrtc.PeerConnection, disp *dispatcher, peerID string) {
+	processCandidate := func(cp protocol.ICECandidatePayload) {
+		mlineIdx := cp.SDPMLineIndex
+		mid := cp.SDPMid
+		_ = pc.AddICECandidate(webrtc.ICECandidateInit{
+			Candidate:     cp.Candidate,
+			SDPMid:        &mid,
+			SDPMLineIndex: &mlineIdx,
+		})
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
+
+		case msg := <-disp.ice:
+			// Plain ICE candidate (from responder via broker relay).
+			var cp protocol.ICECandidatePayload
+			if err := json.Unmarshal(msg.Payload, &cp); err != nil {
+				continue
+			}
+			processCandidate(cp)
+
 		case msg := <-disp.targeted:
 			var tp protocol.TargetedPayload
 			if err := json.Unmarshal(msg.Payload, &tp); err != nil {
-				continue
-			}
-			if tp.FromPeerID != peerID {
-				go func(m signaling.Message) { disp.targeted <- m }(msg)
-				time.Sleep(5 * time.Millisecond)
 				continue
 			}
 			var inner signaling.Message
@@ -1521,13 +1552,7 @@ func pumpICETargeted(ctx context.Context, pc *webrtc.PeerConnection, disp *dispa
 			if err := json.Unmarshal(inner.Payload, &cp); err != nil {
 				continue
 			}
-			mlineIdx := cp.SDPMLineIndex
-			mid := cp.SDPMid
-			_ = pc.AddICECandidate(webrtc.ICECandidateInit{
-				Candidate:     cp.Candidate,
-				SDPMid:        &mid,
-				SDPMLineIndex: &mlineIdx,
-			})
+			processCandidate(cp)
 		}
 	}
 }
