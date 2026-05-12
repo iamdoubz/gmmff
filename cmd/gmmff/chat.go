@@ -59,7 +59,7 @@ func runChat(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("chat: connect: %w", err)
 	}
 
-	if err := sig.CreateSlot("chat"); err != nil {
+	if err := sig.CreateSlot("chat", 2); err != nil {
 		return fmt.Errorf("chat: create slot: %w", err)
 	}
 	createdMsg, err := sig.WaitFor(ctx, protocol.MsgSlotCreated)

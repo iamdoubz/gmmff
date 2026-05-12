@@ -145,9 +145,9 @@ func (c *Client) closeOnce() {
 	})
 }
 
-func (c *Client) CreateSlot(sessionType string) error {
+func (c *Client) CreateSlot(sessionType string, maxPeers int) error {
 	return c.Send(protocol.MustEnvelope(protocol.MsgSlotCreate,
-		protocol.SlotCreatePayload{ProtocolVersion: protocol.Version, SessionType: sessionType}))
+		protocol.SlotCreatePayload{ProtocolVersion: protocol.Version, SessionType: sessionType, MaxPeers: maxPeers}))
 }
 
 func (c *Client) JoinSlot(code string) error {
@@ -178,6 +178,16 @@ func (c *Client) SendICE(candidate, sdpMid string, sdpMLineIndex uint16) error {
 			SDPMid:        sdpMid,
 			SDPMLineIndex: sdpMLineIndex,
 		}))
+}
+
+// SendTargeted sends a message routed to a specific peer by ID.
+func (c *Client) SendTargeted(targetPeerID, fromPeerID string, inner protocol.Envelope) error {
+	inner_raw, _ := json.Marshal(inner)
+	return c.Send(protocol.MustEnvelope(protocol.MsgTargeted, protocol.TargetedPayload{
+		TargetPeerID: targetPeerID,
+		FromPeerID:   fromPeerID,
+		Inner:        inner_raw,
+	}))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
