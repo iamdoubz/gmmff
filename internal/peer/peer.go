@@ -140,8 +140,30 @@ func (d *dispatcher) waitFor(ctx context.Context, ch <-chan signaling.Message) (
 				_ = json.Unmarshal(msg.Payload, &e)
 				return signaling.Message{}, fmt.Errorf("server error [%s]: %s", e.Code, e.Message)
 			}
+			// Non-error control message while waiting for something else — discard.
 		case msg := <-ch:
 			return msg, nil
+		}
+	}
+}
+
+// waitForControl waits for a specific message type on the control channel.
+// Unlike waitFor, this reads from d.control directly and returns on type match.
+func (d *dispatcher) waitForControl(ctx context.Context, msgType string) (signaling.Message, error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return signaling.Message{}, ctx.Err()
+		case msg := <-d.control:
+			if msg.Type == protocol.MsgError {
+				var e protocol.ErrorPayload
+				_ = json.Unmarshal(msg.Payload, &e)
+				return signaling.Message{}, fmt.Errorf("server error [%s]: %s", e.Code, e.Message)
+			}
+			if msg.Type == msgType {
+				return msg, nil
+			}
+			// Other control messages (e.g. bye) — discard and keep waiting.
 		}
 	}
 }
@@ -1153,12 +1175,9 @@ func StartSession(ctx context.Context, sig *signaling.Client, code string, cfg C
 	fmt.Println("Waiting for first peer to connect...")
 
 	// Wait for slot.ready — indicates first peer joined and session is live.
-	readyMsg, err := disp.waitFor(ctx, disp.control)
+	readyMsg, err := disp.waitForControl(ctx, protocol.MsgSlotReady)
 	if err != nil {
 		return nil, fmt.Errorf("session: wait slot.ready: %w", err)
-	}
-	if readyMsg.Type != protocol.MsgSlotReady {
-		return nil, fmt.Errorf("session: expected slot.ready, got %s", readyMsg.Type)
 	}
 	var ready protocol.SlotReadyPayload
 	if err := json.Unmarshal(readyMsg.Payload, &ready); err != nil {
@@ -1203,8 +1222,10 @@ func StartSession(ctx context.Context, sig *signaling.Client, code string, cfg C
 
 // JoinSession performs PAKE+WebRTC as the responder and returns a live Session.
 // The caller must call session.Run() in a goroutine.
-func JoinSession(ctx context.Context, sig *signaling.Client, code string, cfg Config) (*session.Session, error) {
-	return doSessionHandshake(ctx, sig, code, cfg, false, "", nil)
+// ready is the pre-decoded SlotReadyPayload from the caller — pass nil if
+// the caller has not yet consumed slot.ready (JoinSession will read it).
+func JoinSession(ctx context.Context, sig *signaling.Client, code string, cfg Config, ready *protocol.SlotReadyPayload) (*session.Session, error) {
+	return doSessionHandshake(ctx, sig, code, cfg, false, "", ready)
 }
 
 // initiatorHandshakeWithPeer runs PAKE+WebRTC between the initiator and one
@@ -1251,7 +1272,8 @@ func initiatorHandshakeWithPeer(
 	if err != nil {
 		return nil, nil, fmt.Errorf("session: derive session keys: %w", err)
 	}
-	fmt.Printf("Authenticated with Participant %s", peerID[:8])
+	fmt.Printf("Authenticated with Participant %s
+", peerID[:8])
 
 	// WebRTC
 	pc, err := newPeerConnection(cfg)
@@ -1348,12 +1370,14 @@ func initiatorAcceptMorePeers(
 				continue
 			}
 			go func(peerID string, peerCount, maxPeers int) {
-				fmt.Printf("New peer connecting (%d/%d)...", peerCount, maxPeers)
+				fmt.Printf("New peer connecting (%d/%d)...
+", peerCount, maxPeers)
 				td := &targetedDispatcher{peerID: peerID, parent: disp}
 				ci := cpace.NewContextInfo("gmmff-initiator", "gmmff-responder", nil)
 				msgA, state, err := cpace.Start(code, ci)
 				if err != nil {
-					fmt.Printf("PAKE start failed for peer %s: %v", peerID[:8], err)
+					fmt.Printf("PAKE start failed for peer %s: %v
+", peerID[:8], err)
 					return
 				}
 				if err := sig.SendTargeted(peerID, "", protocol.MustEnvelope(protocol.MsgPakeA,
@@ -1408,7 +1432,8 @@ func initiatorAcceptMorePeers(
 				}
 
 				sess.AddPeer(peerID, pc, dc, peerCount, maxPeers)
-				fmt.Printf("Participant connected (%d/%d)", peerCount, maxPeers)
+				fmt.Printf("Participant connected (%d/%d)
+", peerCount, maxPeers)
 			}(pj.PeerID, pj.PeerCount, pj.MaxPeers)
 		}
 	}
@@ -1513,20 +1538,30 @@ func encodeB64(b []byte) string {
 }
 
 // doSessionHandshake does PAKE + WebRTC + control DC for the responder (joiner).
+// ready must be the already-decoded SlotReadyPayload from the caller's WaitFor.
 // The initiator uses StartSession + initiatorHandshakeWithPeer instead.
-func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string, cfg Config, isInitiator bool, _ string, _ interface{}) (*session.Session, error) {
+func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string, cfg Config, isInitiator bool, _ string, ready *protocol.SlotReadyPayload) (*session.Session, error) {
 	disp := newDispatcher()
 	go disp.run(ctx, sig.Recv())
 
-	// Wait for slot.ready — carries MaxPeers/PeerCount for the joiner.
-	readyMsg, err := disp.waitFor(ctx, disp.control)
-	if err != nil {
-		return nil, fmt.Errorf("session: wait slot.ready: %w", err)
+	// If the caller hasn't pre-read slot.ready, consume it now.
+	if ready == nil {
+		readyMsg, err := disp.waitForControl(ctx, protocol.MsgSlotReady)
+		if err != nil {
+			return nil, fmt.Errorf("session: wait slot.ready: %w", err)
+		}
+		var r protocol.SlotReadyPayload
+		_ = json.Unmarshal(readyMsg.Payload, &r)
+		ready = &r
 	}
-	var ready protocol.SlotReadyPayload
-	if readyMsg.Type == protocol.MsgSlotReady {
-		_ = json.Unmarshal(readyMsg.Payload, &ready)
-	}
+
+	// Drain any peer.joined notifications — responder doesn't need them for
+	// the handshake but they may arrive before pake.a.
+	go func() {
+		for range disp.peerJoined {
+			// discard
+		}
+	}()
 
 	// Responder receives targeted pake.a from initiator.
 	// The initiator sends via MsgTargeted so we read from disp.targeted.
@@ -1657,10 +1692,12 @@ func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string,
 	sessCtx, sessCancel := context.WithCancel(ctx)
 	s := session.New(sessCtx, sessCancel, pc, controlDC, cfg, false)
 	s.Sig = sig
-	// Apply peer count info from slot.ready.
-	s.MaxPeers = ready.MaxPeers
-	if ready.PeerCount > 0 {
-		s.AddPeerInfo("initiator", ready.PeerCount, ready.MaxPeers)
+	// Apply peer count info from slot.ready if provided.
+	if ready != nil {
+		s.MaxPeers = ready.MaxPeers
+		if ready.PeerCount > 0 {
+			s.AddPeerInfo("initiator", ready.PeerCount, ready.MaxPeers)
+		}
 	}
 	return s, nil
 }

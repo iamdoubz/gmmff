@@ -89,12 +89,7 @@ func runCreate(_ *cobra.Command, _ []string) error {
 	fmt.Printf("\n  Run on the other machine:\n")
 	fmt.Printf("    gmmff join %s\n\n", created.Code)
 
-	fmt.Println("Waiting for the other party to connect...")
-	_, err = sig.WaitFor(ctx, protocol.MsgSlotReady)
-	if err != nil {
-		return fmt.Errorf("create: wait slot.ready: %w", err)
-	}
-
+	// StartSession waits for slot.ready internally — do not consume it here.
 	turnSrvs, err := parseTURNServers(createCfg.turnServers)
 	if err != nil {
 		return err

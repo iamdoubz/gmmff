@@ -159,7 +159,7 @@ func runJoin(_ *cobra.Command, args []string) error {
 	case transfer.SessionTypeFiles, "":
 		// Files session (empty = legacy clients, treat as files)
 		fmt.Println("Joining file session...")
-		sess, err := peer.JoinSession(ctx, sig, code, cfg)
+		sess, err := peer.JoinSession(ctx, sig, code, cfg, &ready)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				return nil
