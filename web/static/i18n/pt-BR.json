@@ -87,5 +87,9 @@
   "files_send_btn": "Enviar",
   "files_session_open": "Sessão aberta. Os arquivos são criptografados de ponta a ponta.",
   "files_transfer_done": "Transferência concluída",
-  "files_receiving": "Recebendo arquivo…"
+  "files_receiving": "Recebendo arquivo…",
+  "share_copy_url": "Copiar link",
+  "share_show_qr": "Mostrar QR code",
+  "share_hide_qr": "Ocultar QR code",
+  "share_qr_hint": "Escaneie para entrar"
 }

@@ -509,6 +509,62 @@
       color: var(--color-text-muted);
     }
 
+    /* ── Share link ─────────────────────────────────────────────────────── */
+    .share-link {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      background: var(--color-surface-raised);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-sm) var(--spacing-md);
+    }
+    .share-link__url {
+      flex: 1;
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+      font-family: monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: all;
+    }
+    .share-link__url:hover { color: var(--color-text); }
+    .share-link__copy {
+      flex-shrink: 0;
+      font-size: var(--font-size-sm);
+      padding: 2px var(--spacing-sm);
+    }
+
+    /* ── QR code ────────────────────────────────────────────────────────── */
+    .qr-section {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--spacing-sm);
+    }
+    .qr-toggle {
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+    }
+    .qr-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--spacing-sm);
+      width: 100%;
+    }
+    .qr-container.hidden { display: none; }
+    .qr-code {
+      background: #fff;
+      padding: var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      display: inline-block;
+    }
+    .qr-code canvas, .qr-code img { display: block; }
+    .qr-hint { color: var(--color-text-muted); font-size: var(--font-size-sm); }
+
     /* ── Drop overlay ───────────────────────────────────────────────────── */
     .drop-overlay {
       position: fixed;

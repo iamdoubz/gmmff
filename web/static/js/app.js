@@ -206,6 +206,9 @@ function hideLoading() {
   const serverURL = location.origin.replace(/^http/, 'ws') + '/ws';
   const filesField = document.getElementById('files-server');
   if (filesField && !filesField.value) filesField.value = serverURL;
+
+  // Check for ?code= in the URL — pre-fill the join form.
+  checkURLParams();
 }
 
 function showFatalError(err) {
@@ -330,14 +333,9 @@ document.getElementById('files-cancel-code-btn')?.addEventListener('click', () =
 });
 
 // Copy code
-document.getElementById('files-copy-btn')?.addEventListener('click', async () => {
+document.getElementById('files-copy-btn')?.addEventListener('click', () => {
   const code = document.getElementById('files-code-value')?.textContent;
-  const btn  = document.getElementById('files-copy-btn');
-  try {
-    await navigator.clipboard.writeText(code);
-    btn.textContent = t('code_copied');
-    setTimeout(() => { btn.textContent = t('code_copy'); }, 2000);
-  } catch(_) {}
+  copyToClipboard(code, document.getElementById('files-copy-btn'), t('code_copy'));
 });
 
 // Send files button
@@ -412,6 +410,7 @@ function removeTransferBar(label) {
 
 window.uiFilesShowCode = function(code) {
   document.getElementById('files-code-value').textContent = code;
+  populateShareLink('files', code);
   showFilesState('code');
 };
 
@@ -642,14 +641,9 @@ document.getElementById('chat-cancel-code-btn')?.addEventListener('click', () =>
   showChatState('form');
 });
 
-document.getElementById('chat-copy-btn')?.addEventListener('click', async () => {
+document.getElementById('chat-copy-btn')?.addEventListener('click', () => {
   const code = document.getElementById('chat-code-value')?.textContent;
-  const btn  = document.getElementById('chat-copy-btn');
-  try {
-    await navigator.clipboard.writeText(code);
-    btn.textContent = t('code_copied');
-    setTimeout(() => { btn.textContent = t('code_copy'); }, 2000);
-  } catch(_) {}
+  copyToClipboard(code, document.getElementById('chat-copy-btn'), t('code_copy'));
 });
 
 document.getElementById('chat-join-btn')?.addEventListener('click', () => {
@@ -735,6 +729,7 @@ function appendChatSystem(text) {
 
 window.uiChatShowCode = function(code) {
   document.getElementById('chat-code-value').textContent = code;
+  populateShareLink('chat', code);
   showChatState('code');
 };
 
@@ -887,6 +882,96 @@ document.getElementById('ice-reset-btn')?.addEventListener('click', () => {
   try { localStorage.removeItem(ICE_STORAGE_KEY); } catch(_) {}
   renderIceLists();
 });
+
+// ── Share link & QR code ─────────────────────────────────────────────────────
+
+// populateShareLink builds the share URL, fills the URL display, and generates QR.
+function populateShareLink(panel, code) {
+  const type  = panel === 'chat' ? 'chat' : 'files';
+  const url   = location.origin + location.pathname
+    + '?code=' + encodeURIComponent(code) + '&type=' + type;
+  const urlEl = document.getElementById(panel + '-share-url');
+  const qrEl  = document.getElementById(panel + '-qr-code');
+  if (urlEl) {
+    urlEl.textContent = url;
+    urlEl.title       = url;
+    urlEl.onclick     = () => copyToClipboard(url, urlEl, t('share_copy_url'));
+  }
+  if (qrEl && typeof QRCode !== 'undefined') {
+    qrEl.innerHTML = '';
+    new QRCode(qrEl, {
+      text:         url,
+      width:        180,
+      height:       180,
+      colorDark:    '#000000',
+      colorLight:   '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+  }
+}
+
+// Copy URL buttons
+document.getElementById('files-copy-url-btn')?.addEventListener('click', () => {
+  const url = document.getElementById('files-share-url')?.textContent;
+  if (url) copyToClipboard(url, document.getElementById('files-copy-url-btn'), t('share_copy_url'));
+});
+document.getElementById('chat-copy-url-btn')?.addEventListener('click', () => {
+  const url = document.getElementById('chat-share-url')?.textContent;
+  if (url) copyToClipboard(url, document.getElementById('chat-copy-url-btn'), t('share_copy_url'));
+});
+
+// QR toggle buttons
+function wireQRToggle(panel) {
+  const btn       = document.getElementById(panel + '-qr-toggle');
+  const container = document.getElementById(panel + '-qr-container');
+  if (!btn || !container) return;
+  btn.addEventListener('click', () => {
+    const nowHidden = container.classList.toggle('hidden');
+    btn.textContent = nowHidden ? t('share_show_qr') : t('share_hide_qr');
+  });
+}
+wireQRToggle('files');
+wireQRToggle('chat');
+
+// Generic clipboard helper with temporary button label feedback
+async function copyToClipboard(text, btn, originalLabel) {
+  try {
+    await navigator.clipboard.writeText(text);
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = t('code_copied') || 'Copied!';
+      setTimeout(() => { btn.textContent = orig; }, 2000);
+    }
+  } catch(_) {}
+}
+
+// ── URL parameter detection ───────────────────────────────────────────────────
+
+// checkURLParams reads ?code= and ?type= on load.
+// Pre-fills the appropriate join form and switches to the right tab.
+function checkURLParams() {
+  const params = new URLSearchParams(location.search);
+  const code   = params.get('code');
+  const type   = params.get('type') || 'files';
+  if (!code) return;
+
+  // Remove the params from the URL so they don't persist after joining.
+  history.replaceState({}, '', location.origin + location.pathname);
+
+  if (type === 'chat') {
+    document.getElementById('tab-chat')?.click();
+    const input = document.getElementById('chat-join-code');
+    if (input) input.value = code;
+    showChatState('join');
+    document.getElementById('chat-join-code')?.focus();
+  } else {
+    document.getElementById('tab-files')?.click();
+    const input = document.getElementById('files-join-code');
+    if (input) input.value = code;
+    showFilesState('join');
+    document.getElementById('files-join-code')?.focus();
+  }
+}
 
 // ── Go ────────────────────────────────────────────────────────────────────────
 boot();

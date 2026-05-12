@@ -87,5 +87,9 @@
   "files_send_btn": "Senden",
   "files_session_open": "Sitzung offen. Dateien sind Ende-zu-Ende verschlüsselt.",
   "files_transfer_done": "Übertragung abgeschlossen",
-  "files_receiving": "Datei wird empfangen…"
+  "files_receiving": "Datei wird empfangen…",
+  "share_copy_url": "Link kopieren",
+  "share_show_qr": "QR-Code anzeigen",
+  "share_hide_qr": "QR-Code ausblenden",
+  "share_qr_hint": "Zum Beitreten scannen"
 }
