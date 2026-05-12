@@ -17,6 +17,7 @@ package broker
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"errors"
 	"net/http"
 	"sync"
@@ -204,22 +205,33 @@ func (b *Broker) handleDisconnect(ctx context.Context, c *conn) {
 		return
 	}
 
-	// Notify the peer if the slot still exists.
 	sl, err := b.store.GetByID(ctx, c.slotID)
 	if err != nil {
 		return
 	}
-	if peerID, ok := sl.PeerOf(c.id); ok {
-		if peer, ok := b.conns[peerID]; ok {
-			peer.sendEnvelope(protocol.MustEnvelope(protocol.MsgBye, nil))
+
+	// Notify all remaining members that this peer left.
+	sl.RemovePeer(c.id)
+	peerCount := sl.ConnectedCount()
+	for _, memberID := range sl.OtherMembers(c.id) {
+		if member, ok := b.conns[memberID]; ok {
+			member.sendEnvelope(protocol.MustEnvelope(protocol.MsgPeerLeft, protocol.PeerLeftPayload{
+				PeerID:    c.id,
+				PeerCount: peerCount,
+				MaxPeers:  sl.MaxPeers,
+			}))
 		}
 	}
 
-	// Mark closed and clean up.
-	sl.Close()
-	_ = b.store.Delete(ctx, c.slotID)
-
-	logger().Info().Str("slot_id", c.slotID).Msg("slot closed on disconnect")
+	// If initiator left or no one remains, close the slot entirely.
+	if sl.IsInitiator(c.id) || peerCount == 0 {
+		sl.Close()
+		_ = b.store.Delete(ctx, c.slotID)
+		logger().Info().Str("slot_id", c.slotID).Msg("slot closed on disconnect")
+	} else {
+		_ = b.store.Update(ctx, sl)
+		logger().Info().Str("slot_id", c.slotID).Int("remaining", peerCount).Msg("peer left slot")
+	}
 }
 
 func (b *Broker) handleMessage(ctx context.Context, c *conn, env protocol.Envelope) {
@@ -233,8 +245,9 @@ func (b *Broker) handleMessage(ctx context.Context, c *conn, env protocol.Envelo
 
 	case protocol.MsgPakeA, protocol.MsgPakeB,
 		protocol.MsgSDPOffer, protocol.MsgSDPAnswer,
-		protocol.MsgICECandidate:
-		// Opaque relay — forward to the other peer without inspection.
+		protocol.MsgICECandidate,
+		protocol.MsgTargeted:
+		// Opaque relay — forward to target peer without inspection.
 		b.relay(ctx, c, env)
 
 	case protocol.MsgBye:
@@ -270,7 +283,10 @@ func (b *Broker) handleSlotCreate(ctx context.Context, c *conn, env protocol.Env
 	}
 
 	slotID := uuid.New().String()
-	sl := slot.New(slotID, code, c.id, payload.SessionType)
+	maxPeers := payload.MaxPeers
+	if maxPeers < 2 { maxPeers = slot.DefaultMaxPeers }
+	if maxPeers > slot.MaxAllowedPeers { maxPeers = slot.MaxAllowedPeers }
+	sl := slot.New(slotID, code, c.id, payload.SessionType, maxPeers)
 	if err := b.store.Create(ctx, sl); err != nil {
 		logger().Error().Str("error_code", "ERR_STORE_CREATE").Str("slot_id", slotID).Msg("failed to persist slot")
 		c.sendEnvelope(protocol.ErrorEnvelope("ERR_INTERNAL", "server error; please retry"))
@@ -284,12 +300,14 @@ func (b *Broker) handleSlotCreate(ctx context.Context, c *conn, env protocol.Env
 		Code:        code,
 		TTLSeconds:  int(slot.DefaultTTL.Seconds()),
 		SessionType: payload.SessionType,
+		MaxPeers:    sl.MaxPeers,
 	}))
 
 	logger().Info().Str("slot_id", slotID).Msg("slot created")
 }
 
-// handleSlotJoin processes a slot.join request from the responder.
+// handleSlotJoin processes a slot.join request.
+// Supports multi-peer: notifies all existing members and stays open until full.
 func (b *Broker) handleSlotJoin(ctx context.Context, c *conn, env protocol.Envelope) {
 	var payload protocol.SlotJoinPayload
 	if err := json.Unmarshal(env.Payload, &payload); err != nil {
@@ -325,11 +343,15 @@ func (b *Broker) handleSlotJoin(ctx context.Context, c *conn, env protocol.Envel
 		return
 	}
 
+	// Snapshot existing members before joining.
+	existingMembers := sl.OtherMembers(c.id)
+	initiatorID := sl.InitiatorID
+
 	if err := sl.Join(c.id); err != nil {
 		switch {
 		case errors.Is(err, slot.ErrSlotFull):
 			c.sendEnvelope(protocol.ErrorEnvelope("ERR_SLOT_FULL",
-				"slot already has two peers"))
+				fmt.Sprintf("session is full (%d/%d peers)", sl.ConnectedCount(), sl.MaxPeers)))
 		case errors.Is(err, slot.ErrSlotClosed):
 			c.sendEnvelope(protocol.ErrorEnvelope("ERR_SLOT_CLOSED",
 				"slot is closed — ask the sender to create a new one"))
@@ -347,25 +369,65 @@ func (b *Broker) handleSlotJoin(ctx context.Context, c *conn, env protocol.Envel
 
 	c.slotID = sl.ID
 
-	// Notify both peers of their roles.
-	initiator, ok := b.conns[sl.InitiatorID]
+	initiator, ok := b.conns[initiatorID]
 	if !ok {
-		// Initiator disconnected while we were processing.
 		c.sendEnvelope(protocol.ErrorEnvelope("ERR_PEER_GONE",
-			"the sender disconnected before the session could start"))
+			"the initiator disconnected before the session could start"))
 		_ = b.store.Delete(ctx, sl.ID)
 		return
 	}
 
-	initiator.sendEnvelope(protocol.MustEnvelope(protocol.MsgSlotReady,
-		protocol.SlotReadyPayload{Role: "initiator", SessionType: sl.SessionType}))
-	c.sendEnvelope(protocol.MustEnvelope(protocol.MsgSlotReady,
-		protocol.SlotReadyPayload{Role: "responder", SessionType: sl.SessionType}))
+	peerCount := sl.ConnectedCount()
+	maxPeers  := sl.MaxPeers
 
-	logger().Info().Str("slot_id", sl.ID).Msg("slot ready — both peers connected")
+	// Tell the new joiner their role and session info.
+	c.sendEnvelope(protocol.MustEnvelope(protocol.MsgSlotReady, protocol.SlotReadyPayload{
+		Role:        "responder",
+		SessionType: sl.SessionType,
+		MaxPeers:    maxPeers,
+		PeerCount:   peerCount,
+	}))
+
+	// Tell the initiator: new peer joined — triggers a PAKE+WebRTC handshake.
+	initiator.sendEnvelope(protocol.MustEnvelope(protocol.MsgPeerJoined, protocol.PeerJoinedPayload{
+		PeerID:    c.id,
+		PeerCount: peerCount,
+		MaxPeers:  maxPeers,
+	}))
+
+	// Notify all other existing members (not initiator, not new joiner).
+	for _, memberID := range existingMembers {
+		if memberID == initiatorID {
+			continue // already notified above
+		}
+		if member, ok := b.conns[memberID]; ok {
+			member.sendEnvelope(protocol.MustEnvelope(protocol.MsgPeerJoined, protocol.PeerJoinedPayload{
+				PeerID:    c.id,
+				PeerCount: peerCount,
+				MaxPeers:  maxPeers,
+			}))
+		}
+	}
+
+	// If this is the first peer joining, also send slot.ready to the initiator
+	// so it knows the session has at least one peer and can open its REPL.
+	if len(sl.PeerIDs) == 1 {
+		initiator.sendEnvelope(protocol.MustEnvelope(protocol.MsgSlotReady, protocol.SlotReadyPayload{
+			Role:        "initiator",
+			SessionType: sl.SessionType,
+			MaxPeers:    maxPeers,
+			PeerCount:   peerCount,
+		}))
+	}
+
+	logger().Info().Str("slot_id", sl.ID).
+		Int("peer_count", peerCount).Int("max_peers", maxPeers).
+		Msg("peer joined session")
 }
 
-// relay forwards an opaque message to the other peer in the slot.
+// relay forwards an opaque message.
+// For MsgTargeted: routes to the specific target peer.
+// For all other types: routes to the initiator (star topology).
 func (b *Broker) relay(ctx context.Context, c *conn, env protocol.Envelope) {
 	if c.slotID == "" {
 		c.sendEnvelope(protocol.ErrorEnvelope("ERR_NOT_IN_SLOT",
@@ -379,23 +441,46 @@ func (b *Broker) relay(ctx context.Context, c *conn, env protocol.Envelope) {
 		return
 	}
 
-	peerID, ok := sl.PeerOf(c.id)
-	if !ok {
-		c.sendEnvelope(protocol.ErrorEnvelope("ERR_PEER_GONE", "peer is not connected"))
+	// Targeted message: route to specific peer.
+	if env.Type == protocol.MsgTargeted {
+		var tp protocol.TargetedPayload
+		if err := json.Unmarshal(env.Payload, &tp); err != nil {
+			c.sendEnvelope(protocol.ErrorEnvelope("ERR_BAD_PAYLOAD", "malformed targeted payload"))
+			return
+		}
+		if target, ok := b.conns[tp.TargetPeerID]; ok {
+			target.sendEnvelope(env)
+		}
 		return
 	}
 
-	peer, ok := b.conns[peerID]
+	// Non-targeted: in star topology, route to/from initiator only.
+	// Joiners send to initiator; initiator receives from joiners.
+	var targetID string
+	if sl.IsInitiator(c.id) {
+		// Initiator sending — should not happen for un-targeted PAKE/SDP;
+		// those use MsgTargeted. Forward to first peer as fallback.
+		if len(sl.PeerIDs) > 0 {
+			targetID = sl.PeerIDs[0]
+		}
+	} else {
+		// Joiner sending to initiator.
+		targetID = sl.InitiatorID
+	}
+	if targetID == "" {
+		c.sendEnvelope(protocol.ErrorEnvelope("ERR_PEER_GONE", "no peer available"))
+		return
+	}
+	target, ok := b.conns[targetID]
 	if !ok {
 		c.sendEnvelope(protocol.ErrorEnvelope("ERR_PEER_GONE",
 			"peer disconnected — the transfer cannot continue"))
 		return
 	}
-
-	peer.sendEnvelope(env)
+	target.sendEnvelope(env)
 }
 
-// handleBye tears down the slot on explicit close.
+// handleBye handles a graceful bye from a client.
 func (b *Broker) handleBye(ctx context.Context, c *conn) {
 	if c.slotID == "" {
 		return
@@ -404,12 +489,20 @@ func (b *Broker) handleBye(ctx context.Context, c *conn) {
 	if err != nil {
 		return
 	}
-	if peerID, ok := sl.PeerOf(c.id); ok {
-		if peer, ok := b.conns[peerID]; ok {
-			peer.sendEnvelope(protocol.MustEnvelope(protocol.MsgBye, nil))
+	// Notify all other members.
+	for _, memberID := range sl.OtherMembers(c.id) {
+		if member, ok := b.conns[memberID]; ok {
+			member.sendEnvelope(protocol.MustEnvelope(protocol.MsgBye, nil))
 		}
 	}
-	_ = b.store.Delete(ctx, c.slotID)
+	// If initiator or last member, close entirely.
+	sl.RemovePeer(c.id)
+	if sl.IsInitiator(c.id) || sl.ConnectedCount() == 0 {
+		sl.Close()
+		_ = b.store.Delete(ctx, c.slotID)
+	} else {
+		_ = b.store.Update(ctx, sl)
+	}
 	logger().Info().Str("slot_id", c.slotID).Msg("slot closed by bye")
 }
 

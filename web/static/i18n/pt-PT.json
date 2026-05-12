@@ -91,5 +91,8 @@
   "share_copy_url": "Copiar ligação",
   "share_show_qr": "Mostrar código QR",
   "share_hide_qr": "Ocultar código QR",
-  "share_qr_hint": "Digitalize para entrar"
+  "share_qr_hint": "Digitalize para entrar",
+  "files_max_peers_label": "Máx. participantes:",
+  "files_max_peers_hint": "2 = bidirecional. 3–10 = o iniciador envia para todos.",
+  "session_ended": "Sessão terminada"
 }

@@ -94,6 +94,26 @@ Type `\q` inside `chat` to return to the session REPL without ending the session
 | Initiator | `Ctrl+C` | Leaves quietly; session stays open |
 | Responder | `\q` or `Ctrl+C` | Leaves quietly; session stays open |
 
+### Multi-peer sessions
+
+By default, sessions allow 2 participants. Use `--max-peers` to allow up to 10:
+
+```bash
+# Allow up to 5 participants
+gmmff create --max-peers 5 --server wss://your-server/ws
+```
+
+Share the same code with up to 4 other people — they all `gmmff join` the same code.
+
+**Transfer rules by participant count:**
+
+| Session size | File transfers | Chat messages |
+|-------------|---------------|---------------|
+| 2 peers | Either side can send (bidirectional) | Either side |
+| 3–10 peers | Initiator only (broadcast to all) | Any participant |
+
+The initiator is the hub — all file transfers flow through them. If a peer leaves mid-transfer, their transfer ends but all other peers continue receiving. A session slot never reopens once it has been fully filled.
+
 The session closes automatically after 10 minutes of inactivity. Any file
 transfer or message resets the timer.
 
@@ -118,6 +138,7 @@ gmmff join river-stone-fog --server wss://your-server/ws
 Open the **Files** tab, click **Start session** to get a code, or click
 **Join with a code** to enter one. Once connected:
 
+- Set **Max participants** (2–10) before starting — 2 is bidirectional, 3–10 makes the initiator the broadcaster
 - Drag and drop files anywhere on the page, or use **Choose files** / **Choose folder**
 - Click **Send** to transfer — the other side auto-downloads once verified
 - Type in the message box to send a text message
@@ -148,6 +169,7 @@ Usage: gmmff create [flags]
 | `--stun` | `GMMFF_STUN` | Google STUN | STUN/STUNS URL, repeatable |
 | `--turn` | `GMMFF_TURN` | — | TURN server, repeatable (see TURN section) |
 | `--out` / `-o` | — | `.` | Directory to save received files |
+| `--max-peers` | — | `2` | Maximum participants including yourself (2–10) |
 
 ### `gmmff join <code>` — join any session
 
@@ -662,7 +684,7 @@ gmmff/
 
 ### Current
 
-- **Bidirectional sessions** — `gmmff create` / `gmmff join` open a persistent session; either peer can send files or messages
+- **Multi-peer sessions** — `gmmff create --max-peers N` allows 2–10 participants; 2-peer sessions are bidirectional, 3–10 peer sessions broadcast from the initiator to all
 - **Signaling server** — Go, Redis-backed, privacy-safe structured logs, Docker-ready
 - **CPace PAKE** — zero-knowledge authentication; server stays blind to the shared secret
 - **SDP MAC binding** — HMAC-signed SDP with HKDF-derived subkeys; prevents MITM via signaling relay
@@ -681,22 +703,24 @@ gmmff/
 - **Drag and drop** — drop files anywhere on the browser UI to queue them for sending
 - **10 languages** — English, Spanish, French, German, Italian, Swedish, Brazilian Portuguese, European Portuguese, Tamil, Sinhala; language picker with 7-day persistence
 - **ICE settings panel** — configurable STUN/TURN in the browser UI, persisted 7 days
+- **QR Codes** — generate easy-to-share QR codes to scan
 
 ### Backlog
 
-- **QR Codes** — generate easy-to-share QR codes to scan
 - **Browser extension** — use your favourite browser to send/receive files
 - **Docker images** — pipeline to package, build, and publish Docker images
-- **More languages** — contributions welcome
-- **Multiple participants** — multi-peer sessions with N-way file distribution
-- **Password-protected zips** — optional encryption on the zip archive
-- **Quantum-safe encryption** — post-quantum algorithms with elliptic-curve fallback
-
----
+- **More languages** — contributions welcome!
+- **More themes** — contributions welcome!
+- **Wasm webclient settings** — window slider, number of peers, etc.
+- **Quantum-safe encryption** — post-quantum algorithms with elliptic-curve fallback (blocked by Pion WebRTC)
 
 ### In queue
 
-- wasm webclient: window slider (defaults to 2, 1–16 range)
+- **Multiple participants** — multi-peer sessions with N-way file distribution
+
+### Probably won't do
+
+- **Password-protected zips** — optional encryption on the zip archive
 
 ---
 
@@ -705,7 +729,7 @@ gmmff/
 [https://xkcd.com/949](https://xkcd.com/949)
 
 <p align="center">
-  <img src="https://imgs.xkcd.com/comics/file_transfer.png" alt="xkcd comic explaining the difficulties of sending large files between two people">
+  <a href="https://xkcd.com/949" target="_blank"><img src="https://imgs.xkcd.com/comics/file_transfer.png" alt="xkcd comic explaining the difficulties of sending large files between two people"></a>
 </p>
 
 - [X] [webwormhole](https://github.com/saljam/webwormhole) by [@saljam](https://github.com/saljam)

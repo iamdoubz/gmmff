@@ -91,5 +91,8 @@
   "share_copy_url": "Kopiera länk",
   "share_show_qr": "Visa QR-kod",
   "share_hide_qr": "Dölj QR-kod",
-  "share_qr_hint": "Skanna för att gå med"
+  "share_qr_hint": "Skanna för att gå med",
+  "files_max_peers_label": "Max deltagare:",
+  "files_max_peers_hint": "2 = dubbelriktad. 3–10 = initieraren skickar till alla.",
+  "session_ended": "Session avslutad"
 }

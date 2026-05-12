@@ -91,5 +91,8 @@
   "share_copy_url": "Link kopieren",
   "share_show_qr": "QR-Code anzeigen",
   "share_hide_qr": "QR-Code ausblenden",
-  "share_qr_hint": "Zum Beitreten scannen"
+  "share_qr_hint": "Zum Beitreten scannen",
+  "files_max_peers_label": "Max. Teilnehmer:",
+  "files_max_peers_hint": "2 = bidirektional. 3–10 = Initiator sendet an alle.",
+  "session_ended": "Sitzung beendet"
 }

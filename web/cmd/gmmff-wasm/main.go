@@ -89,7 +89,7 @@ func jsSend(_ js.Value, args []js.Value) any {
 			return
 		}
 
-		if err := sig.CreateSlot("files"); err != nil {
+		if err := sig.CreateSlot("files", 2); err != nil {
 			uiError(err.Error(), "send")
 			return
 		}
@@ -282,7 +282,7 @@ func jsChat(_ js.Value, args []js.Value) any {
 		defer cancelFn.Release()
 		sig, err := signaling.Connect(ctx, serverURL)
 		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
-		if err := sig.CreateSlot("chat"); err != nil { js.Global().Call("uiChatError", err.Error()); return }
+		if err := sig.CreateSlot("chat", 2); err != nil { js.Global().Call("uiChatError", err.Error()); return }
 		createdMsg, err := sig.WaitFor(ctx, protocol.MsgSlotCreated)
 		if err != nil { js.Global().Call("uiChatError", err.Error()); return }
 		var created protocol.SlotCreatedPayload
@@ -381,8 +381,9 @@ func jsCreateSession(_ js.Value, args []js.Value) any {
 		return nil
 	}
 	serverURL := args[0].String()
+	maxPeers  := getJSInt(args, 1, 2)
 	var iceCfg js.Value
-	if len(args) > 1 { iceCfg = args[1] }
+	if len(args) > 2 { iceCfg = args[2] }
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	cancelFn := js.FuncOf(func(_ js.Value, _ []js.Value) any { cancelCtx(); return nil })
 	js.Global().Call("uiRegisterCancel", cancelFn)
@@ -391,22 +392,19 @@ func jsCreateSession(_ js.Value, args []js.Value) any {
 		defer cancelFn.Release()
 		sig, err := signaling.Connect(ctx, serverURL)
 		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
-		if err := sig.CreateSlot("files"); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+		if err := sig.CreateSlot("files", maxPeers); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
 		createdMsg, err := sig.WaitFor(ctx, protocol.MsgSlotCreated)
 		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
 		var created protocol.SlotCreatedPayload
 		if err := json.Unmarshal(createdMsg.Payload, &created); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
 		js.Global().Call("uiFilesShowCode", created.Code)
-		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
-		// Use a fresh context for the session — the slot-joining goroutine
-		// returns immediately after this, which would cancel ctx and kill the
-		// session. The session manages its own lifetime via sessCtx.
+		// StartSession waits for slot.ready internally.
 		sessCtx := context.Background()
-		sess, err := peer.StartSession(sessCtx, sig, created.Code, configFromJS(iceCfg))
+		sess, err := peer.StartSession(sessCtx, sig, created.Code, configFromJS(iceCfg), maxPeers)
 		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
 		activeSession = sess
 		go runWasmSession(sessCtx, sess)
-		js.Global().Call("uiFilesSessionReady", true) // true = isInitiator
+		js.Global().Call("uiFilesSessionReady", true, sess.PeerCount(), sess.MaxPeers)
 	}()
 	return nil
 }
@@ -428,13 +426,13 @@ func jsJoinSession(_ js.Value, args []js.Value) any {
 		sig, err := signaling.Connect(ctx, serverURL)
 		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
 		if err := sig.JoinSlot(code); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
-		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil { js.Global().Call("uiFilesError", err.Error()); return }
+		// JoinSession waits for slot.ready internally.
 		sessCtx := context.Background()
-		sess, err := peer.JoinSession(sessCtx, sig, code, configFromJS(iceCfg))
+		sess, err := peer.JoinSession(sessCtx, sig, code, configFromJS(iceCfg), nil)
 		if err != nil { js.Global().Call("uiFilesError", err.Error()); return }
 		activeSession = sess
 		go runWasmSession(sessCtx, sess)
-		js.Global().Call("uiFilesSessionReady", false) // false = not initiator
+		js.Global().Call("uiFilesSessionReady", false, sess.PeerCount(), sess.MaxPeers)
 	}()
 	return nil
 }
@@ -534,14 +532,25 @@ func dispatchSessionEvent(ev session.Event) {
 		if len(ev.Data) > 0 {
 			browserDownload(ev.Path, ev.Data)
 		}
+	case session.EventPeerJoined:
+		js.Global().Call("uiFilesPeerCount", ev.PeerCount, ev.MaxPeers)
 	case session.EventPeerLeft:
 		js.Global().Call("uiFilesParticipantLeft", ev.Message)
+		js.Global().Call("uiFilesPeerCount", ev.PeerCount, ev.MaxPeers)
 	case session.EventSessionClosed:
 		js.Global().Call("uiFilesSessionClosed", ev.Message)
 		activeSession = nil
 	case session.EventError:
 		js.Global().Call("uiFilesError", ev.Message)
 	}
+}
+
+// getJSInt safely reads an integer from a JS args slice.
+func getJSInt(args []js.Value, idx, defaultVal int) int {
+	if idx >= len(args) || args[idx].IsUndefined() || args[idx].IsNull() {
+		return defaultVal
+	}
+	return args[idx].Int()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
