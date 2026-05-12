@@ -2,12 +2,14 @@
 //
 // Lifecycle:
 //
-//	Created ──► Waiting  (initiator connected, code issued)
-//	         ──► Ready   (responder joined, both peers present)
-//	         ──► Closed  (bye received, or TTL expired)
+//	Created ──► Waiting   (initiator connected, code issued, accepting joins)
+//	         ──► Active   (at least one peer joined, still accepting if not full)
+//	         ──► Full     (max peers reached, no longer accepting joins)
+//	         ──► Closed   (bye received, initiator left, or TTL expired)
 //
-// The slot state is stored in Redis; this package defines the struct
-// and the transition rules only — no I/O.
+// With multi-peer support the slot remains open for new joins until either
+// MaxPeers is reached or the slot expires. Once ever full (EverFull=true)
+// it stays closed even if peers leave.
 package slot
 
 import (
@@ -19,59 +21,59 @@ import (
 type State string
 
 const (
-	StateWaiting State = "waiting" // initiator connected, awaiting peer
-	StateReady   State = "ready"   // both peers present
+	StateWaiting State = "waiting" // initiator connected, awaiting peers
+	StateActive  State = "active"  // at least one peer joined, still open
+	StateFull    State = "full"    // max peers reached
 	StateClosed  State = "closed"  // expired or explicitly closed
 )
 
-// DefaultTTL is how long a slot lives in the waiting state before expiry.
+// DefaultTTL is how long a slot lives before expiry.
 const DefaultTTL = 10 * time.Minute
 
-// MaxMessageSize is the maximum bytes allowed in a single WebSocket frame
-// from a client.  Protects against memory exhaustion.
-const MaxMessageSize = 64 * 1024 // 64 KiB — more than enough for SDP/ICE
+// MaxAllowedPeers is the hard upper limit on peers per session (initiator + N).
+const MaxAllowedPeers = 10
 
-// ErrSlotFull is returned when a third peer attempts to join.
-var ErrSlotFull = errors.New("slot is full")
+// DefaultMaxPeers is the default when none is specified.
+const DefaultMaxPeers = 2
 
-// ErrSlotNotFound is returned when the requested code does not map to a slot.
+// MaxMessageSize is the maximum bytes allowed in a single WebSocket frame.
+const MaxMessageSize = 64 * 1024
+
+var ErrSlotFull     = errors.New("slot is full")
 var ErrSlotNotFound = errors.New("slot not found")
+var ErrSlotClosed   = errors.New("slot is closed")
 
-// ErrSlotClosed is returned when a message arrives for a closed slot.
-var ErrSlotClosed = errors.New("slot is closed")
-
-// Slot is the persisted representation of a rendezvous pair.
-// Stored as a Redis hash under key "slot:<slot_id>".
+// Slot is the persisted representation of a rendezvous session.
 type Slot struct {
-	// ID is the canonical UUID (not shown to users).
-	ID string `json:"id"`
-
-	// Code is the human-readable passphrase (shown to initiator, shared OOB).
-	Code string `json:"code"`
-
-	// State is the current lifecycle stage.
-	State State `json:"state"`
+	ID          string    `json:"id"`
+	Code        string    `json:"code"`
+	State       State     `json:"state"`
+	SessionType string    `json:"session_type,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	ExpiresAt   time.Time `json:"expires_at"`
 
 	// InitiatorID is the connection ID of the peer that created the slot.
 	InitiatorID string `json:"initiator_id"`
 
-	// ResponderID is the connection ID of the peer that joined.
-	// Empty until the responder connects.
-	ResponderID string `json:"responder_id,omitempty"`
+	// PeerIDs holds the connection IDs of all joined peers (not including initiator).
+	PeerIDs []string `json:"peer_ids,omitempty"`
 
-	// CreatedAt is when the slot was allocated.
-	CreatedAt time.Time `json:"created_at"`
+	// MaxPeers is the total number of participants allowed (initiator counts as 1).
+	MaxPeers int `json:"max_peers"`
 
-	// ExpiresAt is when the slot will be reaped if still in Waiting state.
-	ExpiresAt time.Time `json:"expires_at"`
-
-	// SessionType identifies what kind of session this slot holds.
-	// Echoed from the slot.create payload so the joiner knows what to expect.
-	SessionType string `json:"session_type,omitempty"`
+	// EverFull is set to true the first time the slot reaches MaxPeers.
+	// Once true, the slot will not reopen for new joins after a peer leaves.
+	EverFull bool `json:"ever_full,omitempty"`
 }
 
 // New constructs a new Slot in the Waiting state.
-func New(id, code, initiatorID, sessionType string) *Slot {
+func New(id, code, initiatorID, sessionType string, maxPeers int) *Slot {
+	if maxPeers < 2 {
+		maxPeers = DefaultMaxPeers
+	}
+	if maxPeers > MaxAllowedPeers {
+		maxPeers = MaxAllowedPeers
+	}
 	now := time.Now().UTC()
 	return &Slot{
 		ID:          id,
@@ -79,49 +81,109 @@ func New(id, code, initiatorID, sessionType string) *Slot {
 		State:       StateWaiting,
 		InitiatorID: initiatorID,
 		SessionType: sessionType,
+		MaxPeers:    maxPeers,
+		PeerIDs:     []string{},
 		CreatedAt:   now,
 		ExpiresAt:   now.Add(DefaultTTL),
 	}
 }
 
-// Join transitions the slot from Waiting → Ready by recording the responder.
-// Returns ErrSlotFull if the slot is already ready, ErrSlotClosed if closed.
-func (s *Slot) Join(responderID string) error {
-	switch s.State {
-	case StateReady:
-		return ErrSlotFull
-	case StateClosed:
-		return ErrSlotClosed
+// ConnectedCount returns the total number of connected participants
+// (initiator + joined peers).
+func (s *Slot) ConnectedCount() int {
+	return 1 + len(s.PeerIDs) // 1 = initiator
+}
+
+// CanJoin reports whether the slot will accept another peer.
+func (s *Slot) CanJoin() bool {
+	if s.State == StateClosed || s.State == StateFull {
+		return false
 	}
-	s.ResponderID = responderID
-	s.State = StateReady
+	if s.EverFull {
+		return false
+	}
+	return s.ConnectedCount() < s.MaxPeers
+}
+
+// Join adds a new peer to the slot.
+// Returns ErrSlotFull if no room, ErrSlotClosed if closed.
+func (s *Slot) Join(peerID string) error {
+	if !s.CanJoin() {
+		if s.State == StateClosed {
+			return ErrSlotClosed
+		}
+		return ErrSlotFull
+	}
+	s.PeerIDs = append(s.PeerIDs, peerID)
+	if s.ConnectedCount() >= s.MaxPeers {
+		s.State = StateFull
+		s.EverFull = true
+	} else {
+		s.State = StateActive
+	}
 	return nil
 }
 
-// Close marks the slot as closed.
-func (s *Slot) Close() {
-	s.State = StateClosed
+// RemovePeer removes a peer by connection ID.
+// If the removed peer was the last non-initiator and EverFull is false,
+// the slot transitions back to Waiting.
+func (s *Slot) RemovePeer(connID string) {
+	filtered := s.PeerIDs[:0]
+	for _, id := range s.PeerIDs {
+		if id != connID {
+			filtered = append(filtered, id)
+		}
+	}
+	s.PeerIDs = filtered
+	// Update state
+	if !s.EverFull && s.ConnectedCount() < s.MaxPeers {
+		if len(s.PeerIDs) == 0 {
+			s.State = StateWaiting
+		} else {
+			s.State = StateActive
+		}
+	}
 }
+
+// Close marks the slot as closed.
+func (s *Slot) Close() { s.State = StateClosed }
 
 // IsExpired reports whether the slot has passed its TTL.
-func (s *Slot) IsExpired() bool {
-	return time.Now().UTC().After(s.ExpiresAt)
+func (s *Slot) IsExpired() bool { return time.Now().UTC().After(s.ExpiresAt) }
+
+// IsInitiator reports whether connID is the slot initiator.
+func (s *Slot) IsInitiator(connID string) bool { return connID == s.InitiatorID }
+
+// HasPeer reports whether connID is a joined (non-initiator) peer.
+func (s *Slot) HasPeer(connID string) bool {
+	for _, id := range s.PeerIDs {
+		if id == connID {
+			return true
+		}
+	}
+	return false
 }
 
-// PeerOf returns the connection ID of the other peer given one connection ID.
-// Returns ("", false) if connID is not a member of this slot.
-func (s *Slot) PeerOf(connID string) (string, bool) {
-	switch connID {
-	case s.InitiatorID:
-		if s.ResponderID != "" {
-			return s.ResponderID, true
-		}
-		return "", false
-	case s.ResponderID:
-		return s.InitiatorID, true
-	default:
-		return "", false
+// IsMember reports whether connID is any participant (initiator or peer).
+func (s *Slot) IsMember(connID string) bool {
+	return s.IsInitiator(connID) || s.HasPeer(connID)
+}
+
+// AllPeerIDs returns all non-initiator peer IDs.
+func (s *Slot) AllPeerIDs() []string { return append([]string{}, s.PeerIDs...) }
+
+// OtherMembers returns connection IDs of all members except the given connID.
+func (s *Slot) OtherMembers(connID string) []string {
+	var others []string
+	if s.InitiatorID != connID {
+		others = append(others, s.InitiatorID)
 	}
+	for _, id := range s.PeerIDs {
+		if id != connID {
+			others = append(others, id)
+		}
+	}
+	return others
 }
 
 // RoleOf returns "initiator" or "responder" for the given connection ID.
