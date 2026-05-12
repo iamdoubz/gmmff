@@ -188,7 +188,7 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	}
 	cspValue := "default-src 'none'; " +
 		"connect-src 'self' wss: https:; " +
-		"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; " +
+		"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' https://cdnjs.cloudflare.com; " +
 		"style-src 'self' https://fonts.googleapis.com; " +
 		"font-src https://fonts.gstatic.com; " +
 		"img-src 'self' data:"
