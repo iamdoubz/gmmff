@@ -14,6 +14,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"mime"
 	"net/http"
 	"runtime"
@@ -45,8 +46,9 @@ type Server struct {
 	store  store.SlotStore
 	router *chi.Mux
 	start  time.Time
-	webDir        string // path to web/static; empty = plain landing page
-	cspReportOnly bool   // use CSP-Report-Only instead of enforcing
+	webDir        string   // path to web/static on disk; empty = plain landing
+	staticFS      fs.FS    // embedded fs.FS; non-nil overrides webDir
+	cspReportOnly bool     // use CSP-Report-Only instead of enforcing
 }
 
 // NewServer constructs a Server and registers all routes.
@@ -62,6 +64,22 @@ func NewServer(b *Broker, st store.SlotStore, webDir string, cspReportOnly bool)
 		router: chi.NewRouter(),
 		start:  time.Now(),
 		webDir:        webDir,
+		cspReportOnly: cspReportOnly,
+	}
+	s.routes()
+	return s
+}
+
+// NewServerWithFS constructs a Server that serves the browser UI from an
+// embedded fs.FS instead of a disk directory.  Used by gmmff local.
+func NewServerWithFS(b *Broker, st store.SlotStore, staticFS fs.FS, cspReportOnly bool) *Server {
+	_ = mime.AddExtensionType(".wasm", "application/wasm")
+	s := &Server{
+		broker:        b,
+		store:         st,
+		router:        chi.NewRouter(),
+		start:         time.Now(),
+		staticFS:      staticFS,
 		cspReportOnly: cspReportOnly,
 	}
 	s.routes()
@@ -86,9 +104,11 @@ func (s *Server) routes() {
 	r.Get("/readyz", s.handleReadiness)
 	r.Get("/metrics", s.handleMetrics)
 
-	if s.webDir != "" {
+	if s.staticFS != nil {
+		// Serve from embedded fs.FS (local mode).
+		r.Get("/*", http.FileServer(http.FS(s.staticFS)).ServeHTTP)
+	} else if s.webDir != "" {
 		// Serve the browser UI from the given directory.
-		// The file server handles / and all static assets.
 		fs := http.FileServer(http.Dir(s.webDir))
 		r.Get("/*", fs.ServeHTTP)
 	} else {

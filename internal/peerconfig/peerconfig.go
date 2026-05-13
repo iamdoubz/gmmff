@@ -30,4 +30,9 @@ type Config struct {
 	// ChunkSize is the number of bytes per chunk.
 	// Defaults to transfer.DefaultChunkSize (65526) when zero.
 	ChunkSize int
+
+	// LocalMode disables all STUN and TURN servers. On a local network, ICE
+	// uses host candidates (direct LAN IPs) which are sufficient without any
+	// external servers. No internet traffic is generated.
+	LocalMode bool
 }
