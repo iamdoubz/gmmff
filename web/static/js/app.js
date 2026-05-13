@@ -974,29 +974,59 @@ async function copyToClipboard(text, btn, originalLabel) {
 
 // ── URL parameter detection ───────────────────────────────────────────────────
 
-// checkURLParams reads ?code= and ?type= on load.
-// Pre-fills the appropriate join form and switches to the right tab.
+// checkURLParams reads ?code=, ?type=, ?local=, and ?autoconnect= on load.
+// Hides the Chat tab in local mode, and auto-fires the join in autoconnect mode.
 function checkURLParams() {
-  const params = new URLSearchParams(location.search);
-  const code   = params.get('code');
-  const type   = params.get('type') || 'files';
-  if (!code) return;
+  const params      = new URLSearchParams(location.search);
+  const code        = params.get('code');
+  const type_       = params.get('type') || 'files';
+  const isLocal     = params.get('local') === '1';
+  const autoconnect = params.get('autoconnect') === '1';
 
-  // Remove the params from the URL so they don't persist after joining.
+  // Hide Chat tab in local mode (Files only).
+  if (isLocal) {
+    const chatTab   = document.getElementById('tab-chat');
+    const chatPanel = document.getElementById('panel-chat');
+    if (chatTab)   chatTab.style.display   = 'none';
+    if (chatPanel) chatPanel.style.display = 'none';
+    document.getElementById('tab-files')?.click();
+  }
+
+  // Remove URL params so they don't persist on refresh.
   history.replaceState({}, '', location.origin + location.pathname);
 
-  if (type === 'chat') {
+  if (!code) return;
+
+  if (type_ === 'chat' && !isLocal) {
     document.getElementById('tab-chat')?.click();
     const input = document.getElementById('chat-join-code');
     if (input) input.value = code;
-    showChatState('join');
-    document.getElementById('chat-join-code')?.focus();
+    if (autoconnect) {
+      const server = normaliseServerURL(location.origin.replace(/^http/, 'ws') + '/ws');
+      if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, buildIceConfig());
+    } else {
+      showChatState('join');
+      document.getElementById('chat-join-code')?.focus();
+    }
   } else {
     document.getElementById('tab-files')?.click();
     const input = document.getElementById('files-join-code');
     if (input) input.value = code;
-    showFilesState('join');
-    document.getElementById('files-join-code')?.focus();
+    if (autoconnect) {
+      // Show the code screen briefly so the user sees something while connecting.
+      document.getElementById('files-join-code').value = code;
+      showFilesState('join');
+      // Small delay so the UI renders before Wasm starts.
+      const server = normaliseServerURL(location.origin.replace(/^http/, 'ws') + '/ws');
+      setTimeout(() => {
+        if (typeof window.gmmffJoinSession === 'function') {
+          window.gmmffJoinSession(code, server, buildIceConfig());
+        }
+      }, 100);
+    } else {
+      showFilesState('join');
+      document.getElementById('files-join-code')?.focus();
+    }
   }
 }
 

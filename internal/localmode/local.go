@@ -373,12 +373,53 @@ func findFreePort() (int, error) {
 }
 
 func getPreferredLocalIP() string {
-	// Try to find a non-loopback IPv4 address.
 	ifaces, _ := net.Interfaces()
+
+	// Score interfaces: prefer physical/wireless, skip virtual bridges and containers.
+	// Lower score = higher priority.
+	type candidate struct {
+		ip    string
+		score int
+	}
+	var candidates []candidate
+
 	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+		// Skip down, loopback, and point-to-point interfaces.
+		if iface.Flags&net.FlagUp == 0 ||
+			iface.Flags&net.FlagLoopback != 0 ||
+			iface.Flags&net.FlagPointToPoint != 0 {
 			continue
 		}
+
+		name := strings.ToLower(iface.Name)
+
+		// Skip known virtual interface prefixes.
+		virtualPrefixes := []string{
+			"docker", "br-", "veth", "virbr", "vbox", "vmnet",
+			"tun", "tap", "utun", "awdl", "llw", "anpi",
+		}
+		isVirtual := false
+		for _, prefix := range virtualPrefixes {
+			if strings.HasPrefix(name, prefix) {
+				isVirtual = true
+				break
+			}
+		}
+		if isVirtual {
+			continue
+		}
+
+		// Score by interface name — prefer physical/wireless.
+		score := 50
+		switch {
+		case strings.HasPrefix(name, "eth") || strings.HasPrefix(name, "en"):
+			score = 10 // wired ethernet
+		case strings.HasPrefix(name, "wlan") || strings.HasPrefix(name, "wl") || strings.HasPrefix(name, "wifi"):
+			score = 20 // wireless
+		case strings.HasPrefix(name, "bond") || strings.HasPrefix(name, "team"):
+			score = 30 // bonded
+		}
+
 		addrs, _ := iface.Addrs()
 		for _, addr := range addrs {
 			var ip net.IP
@@ -388,15 +429,35 @@ func getPreferredLocalIP() string {
 			case *net.IPAddr:
 				ip = v.IP
 			}
-			if ip == nil || ip.IsLoopback() {
+			if ip == nil || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
 				continue
 			}
 			if ip4 := ip.To4(); ip4 != nil {
-				return ip4.String()
+				// Prefer private RFC-1918 ranges.
+				ipStr := ip4.String()
+				if strings.HasPrefix(ipStr, "192.168.") ||
+					strings.HasPrefix(ipStr, "10.") ||
+					strings.HasPrefix(ipStr, "172.") {
+					candidates = append(candidates, candidate{ipStr, score})
+				} else {
+					candidates = append(candidates, candidate{ipStr, score + 40})
+				}
 			}
 		}
 	}
-	return "127.0.0.1"
+
+	if len(candidates) == 0 {
+		return "127.0.0.1"
+	}
+
+	// Return the candidate with the lowest score (highest priority).
+	best := candidates[0]
+	for _, c := range candidates[1:] {
+		if c.score < best.score {
+			best = c
+		}
+	}
+	return best.ip
 }
 
 func printQR(url string) error {
