@@ -703,12 +703,13 @@ gmmff/
 - **QR Codes** — generate easy-to-share QR codes to scan
 - **Browser Links** — generate a URL to copy and share to join a session
 - **Drag and drop** — drop files anywhere on the browser UI to queue them for sending
-- **10 languages** — English, Spanish, French, German, Italian, Swedish, Brazilian Portuguese, European Portuguese, Tamil, Sinhala; language picker with 7-day persistence
+- **32 languages** — English, Spanish, French, German, Italian, Swedish, Portuguese (EU, BR), Sinhala, Tamil, and more!; language picker with 7-day persistence
 - **ICE settings panel** — configurable STUN/TURN in the browser UI, persisted 7 days
 - **Multiple participants** — multi-peer sessions from 2-10 peers
 
 ### Backlog
 
+- **Local-only mode** — use gmmff without internet access
 - **Browser extension** — use your favourite browser to send/receive files
 - **Docker images** — pipeline to package, build, and publish Docker images
 - **More languages** — contributions welcome

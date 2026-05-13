@@ -10,6 +10,7 @@ package signaling
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -61,6 +62,29 @@ func Connect(ctx context.Context, wsURL string) (*Client, error) {
 	go c.readPump()
 	go c.writePump()
 
+	return c, nil
+}
+
+// ConnectInsecure opens a WebSocket connection that skips TLS certificate
+// verification. Used only for loopback connections to a local self-signed
+// server started by the same process (gmmff local).
+func ConnectInsecure(ctx context.Context, wsURL string) (*Client, error) {
+	dialer := websocket.Dialer{
+		HandshakeTimeout: 10 * time.Second,
+		TLSClientConfig:  &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // loopback only
+	}
+	conn, _, err := dialer.DialContext(ctx, wsURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("signaling: dial (insecure) %s: %w", wsURL, err)
+	}
+	c := &Client{
+		conn: conn,
+		send: make(chan []byte, 32),
+		recv: make(chan Message, 64),
+		done: make(chan struct{}),
+	}
+	go c.readPump()
+	go c.writePump()
 	return c, nil
 }
 

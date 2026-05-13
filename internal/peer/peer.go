@@ -46,7 +46,12 @@ var DefaultSTUNServers = peerconfig.DefaultSTUNServers
 type Config = peerconfig.Config
 
 // iceServers returns the full ICEServer slice — STUN entries first, then TURN.
+// In LocalMode it returns an empty slice so Pion only gathers host candidates
+// (direct LAN IPs) — no internet traffic, no STUN/TURN servers required.
 func iceServers(c Config) []webrtc.ICEServer {
+	if c.LocalMode {
+		return []webrtc.ICEServer{} // host candidates only — no internet needed
+	}
 	urls := c.STUNServers
 	if len(urls) == 0 {
 		urls = peerconfig.DefaultSTUNServers

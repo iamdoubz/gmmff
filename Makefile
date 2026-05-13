@@ -1,4 +1,4 @@
-.PHONY: build run-server create join chat dev test test-cover lint tidy docker up down clean wasm wasm-serve help
+.PHONY: build local run-server create join chat dev test test-cover lint tidy docker up down clean wasm wasm-serve help
 
 BINARY    := gmmff
 CMD       := ./cmd/gmmff
@@ -20,9 +20,13 @@ WASM_EXEC_SRC    := $(shell \
 		echo "$$(go env GOROOT)/misc/wasm/wasm_exec.js"; \
 	fi)
 
-## build: compile a local binary
-build:
+## build: compile the binary (builds Wasm first so embed works)
+build: wasm
 	go build -ldflags="$(LDFLAGS)" -o bin/$(BINARY) $(CMD)
+
+## local: alias for running gmmff local after building
+local: build
+	./bin/$(BINARY) local $(ARGS)
 
 ## run-server: run the signaling server with in-memory store (dev)
 run-server: build
