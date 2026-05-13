@@ -25,30 +25,32 @@ type MDNSServer struct {
 // Runs with a 3-second timeout — if mDNS setup fails or hangs (e.g. IPv6
 // disabled at OS level) it returns an error without blocking startup.
 func RegisterMDNS(port int, scheme string) (*MDNSServer, error) {
-	type result struct {
-		srv *zeroconf.Server
-		err error
-	}
-	ch := make(chan result, 1)
-
-	go func() {
-		txt := []string{
-			"version=1",
-			fmt.Sprintf("scheme=%s", scheme),
-		}
-		srv, err := zeroconf.Register(mdnsInstance, mdnsService, mdnsDomain, port, txt, nil)
-		ch <- result{srv, err}
-	}()
-
 	select {
-	case r := <-ch:
-		if r.err != nil {
-			return nil, fmt.Errorf("local: mDNS register: %w", r.err)
+	case srv := <-RegisterMDNSAsync(port, scheme):
+		if srv == nil {
+			return nil, fmt.Errorf("local: mDNS register failed")
 		}
-		return &MDNSServer{server: r.srv}, nil
+		return srv, nil
 	case <-time.After(3 * time.Second):
-		return nil, fmt.Errorf("local: mDNS register timed out (IPv6 may be disabled)")
+		return nil, fmt.Errorf("local: mDNS register timed out")
 	}
+}
+
+// RegisterMDNSAsync starts mDNS registration in a goroutine and returns a
+// channel that receives the result. Sends nil on failure. The caller should
+// select on this channel with its own timeout.
+func RegisterMDNSAsync(port int, scheme string) <-chan *MDNSServer {
+	ch := make(chan *MDNSServer, 1)
+	go func() {
+		txt := []string{"version=1", fmt.Sprintf("scheme=%s", scheme)}
+		srv, err := zeroconf.Register(mdnsInstance, mdnsService, mdnsDomain, port, txt, nil)
+		if err != nil {
+			ch <- nil
+			return
+		}
+		ch <- &MDNSServer{server: srv}
+	}()
+	return ch
 }
 
 // Shutdown deregisters this instance from mDNS.
