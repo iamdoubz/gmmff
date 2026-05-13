@@ -461,18 +461,18 @@ func getPreferredLocalIP() string {
 }
 
 func printQR(url string) error {
-	defer func() {
-		if r := recover(); r != nil {
-			// qrterminal can panic on some terminals; treat as fallback.
-		}
-	}()
+	defer func() { recover() }() //nolint:errcheck // panic fallback
+
+	// Use standard (non-half-block) mode for maximum terminal compatibility.
+	// Half-blocks look great in Linux terminals but break in MSYS2/Windows Terminal.
 	config := qrterminal.Config{
-		Level:      qrterminal.M,
-		Writer:     os.Stdout,
-		HalfBlocks: true,
-		BlackChar:  qrterminal.BLACK,
-		WhiteChar:  qrterminal.WHITE,
-		QuietZone:  1,
+		Level:          qrterminal.M,
+		Writer:         os.Stdout,
+		HalfBlocks:     false,
+		BlackChar:      qrterminal.BLACK,
+		WhiteChar:      qrterminal.WHITE,
+		BlackWhiteChar: qrterminal.BLACK,
+		QuietZone:      2,
 	}
 	qrterminal.GenerateWithConfig(url, config)
 	return nil
