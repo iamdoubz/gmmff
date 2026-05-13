@@ -49,6 +49,7 @@ type Server struct {
 	webDir        string   // path to web/static on disk; empty = plain landing
 	staticFS      fs.FS    // embedded fs.FS; non-nil overrides webDir
 	cspReportOnly bool     // use CSP-Report-Only instead of enforcing
+	localMode     bool     // offline-safe CSP, no external origins
 }
 
 // NewServer constructs a Server and registers all routes.
@@ -72,6 +73,7 @@ func NewServer(b *Broker, st store.SlotStore, webDir string, cspReportOnly bool)
 
 // NewServerWithFS constructs a Server that serves the browser UI from an
 // embedded fs.FS instead of a disk directory.  Used by gmmff local.
+// Sets localMode=true for an offline-safe CSP with no external origins.
 func NewServerWithFS(b *Broker, st store.SlotStore, staticFS fs.FS, cspReportOnly bool) *Server {
 	_ = mime.AddExtensionType(".wasm", "application/wasm")
 	s := &Server{
@@ -81,6 +83,7 @@ func NewServerWithFS(b *Broker, st store.SlotStore, staticFS fs.FS, cspReportOnl
 		start:         time.Now(),
 		staticFS:      staticFS,
 		cspReportOnly: cspReportOnly,
+		localMode:     true,
 	}
 	s.routes()
 	return s
@@ -189,29 +192,34 @@ func privacyLogger(next http.Handler) http.Handler {
 }
 
 // securityHeaders returns middleware that sets conservative HTTP security headers.
-// When serving the web UI, additional directives are needed:
-//   - script-src 'wasm-unsafe-eval' — required to instantiate WebAssembly
-//   - script-src 'unsafe-eval' — required by wasm_exec.js (Go runtime shim)
-//     which calls eval() internally; unavoidable with the standard shim
-//   - font-src fonts.gstatic.com — Inter font via Google Fonts
-//   - style-src fonts.googleapis.com — Google Fonts CSS
-//   - Cross-Origin-Opener-Policy / Cross-Origin-Embedder-Policy — required
-//     for SharedArrayBuffer (used by some Wasm runtimes)
-//
-// When cspReportOnly is true, Content-Security-Policy-Report-Only is used
-// instead of Content-Security-Policy so violations are logged but not blocked.
-// This is intended for development debugging only.
+// When localMode is true a relaxed CSP is applied that does not reference any
+// external origins — safe for offline / local-network use.
 func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	cspHeader := "Content-Security-Policy"
 	if s.cspReportOnly {
 		cspHeader = "Content-Security-Policy-Report-Only"
 	}
-	cspValue := "default-src 'none'; " +
-		"connect-src 'self' wss: https:; " +
-		"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' https://cdnjs.cloudflare.com; " +
-		"style-src 'self' https://fonts.googleapis.com; " +
-		"font-src https://fonts.gstatic.com; " +
-		"img-src 'self' data:"
+
+	var cspValue string
+	if s.localMode {
+		// Local mode: no external origins allowed or needed.
+		// Allow ws: and wss: for WebSocket (we don't know the scheme at
+		// middleware construction time so allow both).
+		cspValue = "default-src 'none'; " +
+			"connect-src 'self' ws: wss:; " +
+			"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; " +
+			"style-src 'self' 'unsafe-inline'; " +
+			"font-src 'self'; " +
+			"img-src 'self' data:"
+	} else {
+		cspValue = "default-src 'none'; " +
+			"connect-src 'self' wss: https:; " +
+			"script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' https://cdnjs.cloudflare.com; " +
+			"style-src 'self' https://fonts.googleapis.com; " +
+			"font-src https://fonts.gstatic.com; " +
+			"img-src 'self' data:"
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
