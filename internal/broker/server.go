@@ -73,7 +73,8 @@ func NewServer(b *Broker, st store.SlotStore, webDir string, cspReportOnly bool)
 
 // NewServerWithFS constructs a Server that serves the browser UI from an
 // embedded fs.FS instead of a disk directory.  Used by gmmff local.
-// Sets localMode=true for an offline-safe CSP with no external origins.
+// Sets localMode=true for an offline-safe CSP and cspReportOnly=true so
+// CSP violations are logged but never block the UI in local mode.
 func NewServerWithFS(b *Broker, st store.SlotStore, staticFS fs.FS, cspReportOnly bool) *Server {
 	_ = mime.AddExtensionType(".wasm", "application/wasm")
 	s := &Server{
@@ -82,7 +83,7 @@ func NewServerWithFS(b *Broker, st store.SlotStore, staticFS fs.FS, cspReportOnl
 		router:        chi.NewRouter(),
 		start:         time.Now(),
 		staticFS:      staticFS,
-		cspReportOnly: cspReportOnly,
+		cspReportOnly: true, // always report-only in local mode — never block
 		localMode:     true,
 	}
 	s.routes()
