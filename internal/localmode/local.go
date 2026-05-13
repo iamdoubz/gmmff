@@ -186,6 +186,7 @@ func Run(cfg Config) error {
 		fmt.Println()
 	}
 
+	fmt.Println("Waiting for peers to connect...")
 	fmt.Println("Session REPL ready. Commands:")
 	fmt.Println("  send <file|dir>   send file(s) to all peers")
 	fmt.Println("  message <text>    send a text message")
@@ -193,6 +194,9 @@ func Run(cfg Config) error {
 	fmt.Println()
 
 	// ── 9. Start the session ─────────────────────────────────────────────────
+	// NOTE: StartSession blocks until the first peer connects and completes
+	// the PAKE+WebRTC handshake. The banner and QR code are printed above
+	// so the user sees them immediately while waiting.
 	sess, err := peer.StartSession(ctx, sig, created.Code, cfg.PeerCfg, maxPeers)
 	if err != nil {
 		return fmt.Errorf("local: start session: %w", err)
