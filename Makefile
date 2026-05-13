@@ -22,6 +22,8 @@ WASM_EXEC_SRC    := $(shell \
 
 ## build: compile the binary (builds Wasm first so embed works)
 build: wasm
+    mkdir -p internal/localmode/static
+    cp -rf web/static/. internal/localmode/static/
 	go build -ldflags="$(LDFLAGS)" -o bin/$(BINARY) $(CMD)
 
 ## local: alias for running gmmff local after building
