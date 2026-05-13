@@ -41,18 +41,26 @@ func Run(cfg Config) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// ── 1. Discover other gmmff peers before we start ────────────────────────
-	fmt.Println("Scanning for other gmmff instances on the local network...")
-	peers, err := DiscoverPeers(ctx, 2*time.Second)
-	if err == nil && len(peers) > 0 {
-		fmt.Printf("  Found %d gmmff instance(s):\n", len(peers))
-		for _, p := range peers {
-			fmt.Printf("    %s://%s\n", p.Scheme, p.Addr)
+	// ── 1. Discover other gmmff peers (best-effort, never blocks startup) ────
+	fmt.Print("Scanning for other gmmff instances on the local network... ")
+	discoverCh := make(chan []PeerInfo, 1)
+	go func() {
+		peers, _ := discoverPeers(ctx, 2*time.Second)
+		discoverCh <- peers
+	}()
+	select {
+	case peers := <-discoverCh:
+		if len(peers) > 0 {
+			fmt.Printf("found %d\n", len(peers))
+			for _, p := range peers {
+				fmt.Printf("  %s://%s\n", p.Scheme, p.Addr)
+			}
+		} else {
+			fmt.Println("none found.")
 		}
-	} else {
-		fmt.Println("  No other gmmff instances found.")
+	case <-time.After(3 * time.Second):
+		fmt.Println("scan timed out.")
 	}
-	fmt.Println()
 
 	// ── 2. TLS certificate ────────────────────────────────────────────────────
 	var certPaths CertPaths
@@ -61,7 +69,8 @@ func Run(cfg Config) error {
 	wsScheme := "ws"
 
 	if !cfg.NoTLS {
-		fmt.Println("Generating self-signed TLS certificate...")
+		fmt.Print("Generating self-signed TLS certificate... ")
+		var err error
 		certPaths, certCleanup, err = GenerateSelfSignedCert()
 		if err != nil {
 			return fmt.Errorf("local: TLS: %w", err)
@@ -69,24 +78,27 @@ func Run(cfg Config) error {
 		defer certCleanup()
 		scheme = "https"
 		wsScheme = "wss"
-		fmt.Printf("  Certificate: %s\n", certPaths.CertFile)
+		fmt.Println("done.")
 		fmt.Println("  Note: browsers will show a security warning for self-signed certs.")
 		fmt.Println("  Mobile users: tap Advanced → Proceed to connect.")
-		fmt.Println()
 	}
 
 	// ── 3. Pick a port ───────────────────────────────────────────────────────
 	port := cfg.Port
 	if port == 0 {
+		var err error
 		port, err = findFreePort()
 		if err != nil {
 			return fmt.Errorf("local: find port: %w", err)
 		}
 	}
+	fmt.Printf("Using port %d\n", port)
 
-	// ── 4. Start the embedded broker ─────────────────────────────────────────
+	// ── 4. Start the embedded broker and web server ───────────────────────────
+	fmt.Print("Starting embedded server... ")
 	st := store.NewMemStore()
 	b := broker.New(st)
+	go b.Run(ctx) // must be running before any WebSocket connections are accepted
 
 	staticFS, err := StaticFS()
 	if err != nil {
@@ -110,24 +122,30 @@ func Run(cfg Config) error {
 		}
 	}()
 
-	// Give the server a moment to start.
 	time.Sleep(200 * time.Millisecond)
 	select {
 	case err := <-serverErr:
 		return fmt.Errorf("local: server failed to start: %w", err)
 	default:
 	}
+	fmt.Println("done.")
 
-	// ── 5. Register on mDNS ──────────────────────────────────────────────────
-	mdnsSrv, err := RegisterMDNS(port, scheme)
-	if err != nil {
-		fmt.Printf("  Warning: mDNS registration failed: %v\n", err)
-		fmt.Println("  Other gmmff instances won't discover this one automatically.")
-	} else {
-		defer mdnsSrv.Shutdown()
+	// ── 5. Register on mDNS (best-effort, never blocks startup) ──────────────
+	fmt.Print("Registering on mDNS... ")
+	select {
+	case mdnsSrv := <-RegisterMDNSAsync(port, scheme):
+		if mdnsSrv != nil {
+			defer mdnsSrv.Shutdown()
+			fmt.Println("done.")
+		} else {
+			fmt.Println("failed (mDNS unavailable, continuing anyway).")
+		}
+	case <-time.After(3 * time.Second):
+		fmt.Println("timed out (mDNS unavailable, continuing anyway).")
 	}
 
 	// ── 6. Connect to our own broker as a client ─────────────────────────────
+	fmt.Print("Connecting to local broker... ")
 	wsURL := fmt.Sprintf("%s://127.0.0.1:%d/ws", wsScheme, port)
 
 	var sig *signaling.Client
@@ -139,8 +157,10 @@ func Run(cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("local: connect to own broker: %w", err)
 	}
+	fmt.Println("done.")
 
-	// Create a session slot.
+	// ── 7. Create a session slot ──────────────────────────────────────────────
+	fmt.Print("Creating session... ")
 	maxPeers := cfg.MaxPeers
 	if maxPeers < 2 {
 		maxPeers = 2
@@ -156,15 +176,15 @@ func Run(cfg Config) error {
 	if err := json.Unmarshal(createdMsg.Payload, &created); err != nil {
 		return fmt.Errorf("local: decode slot.created: %w", err)
 	}
+	fmt.Println("done.")
 
-	// ── 7. Build the QR code URL ──────────────────────────────────────────────
-	// Determine the best local IP to put in the URL.
+	// ── 8. Build and print the banner + QR code ───────────────────────────────
 	localIP := getPreferredLocalIP()
 	joinURL := fmt.Sprintf("%s://%s:%d/?code=%s&type=files&autoconnect=1&local=1",
 		scheme, localIP, port, created.Code)
 	serverURL := fmt.Sprintf("%s://%s:%d", scheme, localIP, port)
 
-	// ── 8. Print the banner ───────────────────────────────────────────────────
+	fmt.Println()
 	fmt.Printf("╔══════════════════════════════════════════════════════╗\n")
 	fmt.Printf("║  gmmff local mode                                    ║\n")
 	fmt.Printf("╠══════════════════════════════════════════════════════╣\n")
@@ -174,30 +194,28 @@ func Run(cfg Config) error {
 	fmt.Printf("╚══════════════════════════════════════════════════════╝\n")
 	fmt.Println()
 
-	// Print QR code or fall back to plain URL.
 	fmt.Println("Scan this QR code to join:")
-	if err := printQR(joinURL); err != nil {
-		fmt.Printf("  (QR code unavailable — share this URL instead):\n  %s\n", joinURL)
-	}
+	printQR(joinURL)
 	fmt.Println()
+	fmt.Printf("Or open: %s\n\n", joinURL)
 
 	if !cfg.NoTLS {
-		fmt.Println("  ⚠  Self-signed certificate: tap 'Advanced → Proceed' in your browser.")
+		fmt.Println("⚠  Self-signed certificate: tap 'Advanced → Proceed' in your browser.")
 		fmt.Println()
 	}
 
-	fmt.Println("Session REPL ready. Commands:")
-	fmt.Println("  send <file|dir>   send file(s) to all peers")
-	fmt.Println("  message <text>    send a text message")
-	fmt.Println("  \\q                end session and shut down")
+	fmt.Println("Waiting for first peer to connect...")
+	fmt.Println("Once connected, commands: send <file>  message <text>  \\q (quit+shutdown)")
 	fmt.Println()
 
-	// ── 9. Start the session ─────────────────────────────────────────────────
+	// ── 9. Start the session (blocks until first peer connects) ───────────────
 	sess, err := peer.StartSession(ctx, sig, created.Code, cfg.PeerCfg, maxPeers)
 	if err != nil {
 		return fmt.Errorf("local: start session: %w", err)
 	}
 	sess.OutDir = "."
+	fmt.Println("Peer connected! Session is live.")
+	fmt.Println()
 
 	// ── 10. Run the session REPL ─────────────────────────────────────────────
 	go runLocalEvents(sess)
@@ -355,12 +373,53 @@ func findFreePort() (int, error) {
 }
 
 func getPreferredLocalIP() string {
-	// Try to find a non-loopback IPv4 address.
 	ifaces, _ := net.Interfaces()
+
+	// Score interfaces: prefer physical/wireless, skip virtual bridges and containers.
+	// Lower score = higher priority.
+	type candidate struct {
+		ip    string
+		score int
+	}
+	var candidates []candidate
+
 	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+		// Skip down, loopback, and point-to-point interfaces.
+		if iface.Flags&net.FlagUp == 0 ||
+			iface.Flags&net.FlagLoopback != 0 ||
+			iface.Flags&net.FlagPointToPoint != 0 {
 			continue
 		}
+
+		name := strings.ToLower(iface.Name)
+
+		// Skip known virtual interface prefixes.
+		virtualPrefixes := []string{
+			"docker", "br-", "veth", "virbr", "vbox", "vmnet",
+			"tun", "tap", "utun", "awdl", "llw", "anpi",
+		}
+		isVirtual := false
+		for _, prefix := range virtualPrefixes {
+			if strings.HasPrefix(name, prefix) {
+				isVirtual = true
+				break
+			}
+		}
+		if isVirtual {
+			continue
+		}
+
+		// Score by interface name — prefer physical/wireless.
+		score := 50
+		switch {
+		case strings.HasPrefix(name, "eth") || strings.HasPrefix(name, "en"):
+			score = 10 // wired ethernet
+		case strings.HasPrefix(name, "wlan") || strings.HasPrefix(name, "wl") || strings.HasPrefix(name, "wifi"):
+			score = 20 // wireless
+		case strings.HasPrefix(name, "bond") || strings.HasPrefix(name, "team"):
+			score = 30 // bonded
+		}
+
 		addrs, _ := iface.Addrs()
 		for _, addr := range addrs {
 			var ip net.IP
@@ -370,30 +429,50 @@ func getPreferredLocalIP() string {
 			case *net.IPAddr:
 				ip = v.IP
 			}
-			if ip == nil || ip.IsLoopback() {
+			if ip == nil || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
 				continue
 			}
 			if ip4 := ip.To4(); ip4 != nil {
-				return ip4.String()
+				// Prefer private RFC-1918 ranges.
+				ipStr := ip4.String()
+				if strings.HasPrefix(ipStr, "192.168.") ||
+					strings.HasPrefix(ipStr, "10.") ||
+					strings.HasPrefix(ipStr, "172.") {
+					candidates = append(candidates, candidate{ipStr, score})
+				} else {
+					candidates = append(candidates, candidate{ipStr, score + 40})
+				}
 			}
 		}
 	}
-	return "127.0.0.1"
+
+	if len(candidates) == 0 {
+		return "127.0.0.1"
+	}
+
+	// Return the candidate with the lowest score (highest priority).
+	best := candidates[0]
+	for _, c := range candidates[1:] {
+		if c.score < best.score {
+			best = c
+		}
+	}
+	return best.ip
 }
 
 func printQR(url string) error {
-	defer func() {
-		if r := recover(); r != nil {
-			// qrterminal can panic on some terminals; treat as fallback.
-		}
-	}()
+	defer func() { recover() }() //nolint:errcheck // panic fallback
+
+	// Use standard (non-half-block) mode for maximum terminal compatibility.
+	// Half-blocks look great in Linux terminals but break in MSYS2/Windows Terminal.
 	config := qrterminal.Config{
-		Level:      qrterminal.M,
-		Writer:     os.Stdout,
-		HalfBlocks: true,
-		BlackChar:  qrterminal.BLACK,
-		WhiteChar:  qrterminal.WHITE,
-		QuietZone:  1,
+		Level:          qrterminal.M,
+		Writer:         os.Stdout,
+		HalfBlocks:     false,
+		BlackChar:      qrterminal.BLACK,
+		WhiteChar:      qrterminal.WHITE,
+		BlackWhiteChar: qrterminal.BLACK,
+		QuietZone:      2,
 	}
 	qrterminal.GenerateWithConfig(url, config)
 	return nil
