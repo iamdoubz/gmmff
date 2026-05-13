@@ -983,12 +983,14 @@ function checkURLParams() {
   const isLocal     = params.get('local') === '1';
   const autoconnect = params.get('autoconnect') === '1';
 
-  // Hide Chat tab in local mode (Files only).
+  // Hide Chat tab and ICE settings in local mode (Files only, no external servers).
   if (isLocal) {
-    const chatTab   = document.getElementById('tab-chat');
-    const chatPanel = document.getElementById('panel-chat');
+    const chatTab    = document.getElementById('tab-chat');
+    const chatPanel  = document.getElementById('panel-chat');
+    const icePanel   = document.getElementById('ice-settings');
     if (chatTab)   chatTab.style.display   = 'none';
     if (chatPanel) chatPanel.style.display = 'none';
+    if (icePanel)  icePanel.style.display  = 'none';
     document.getElementById('tab-files')?.click();
   }
 
