@@ -1,0 +1,99 @@
+version: 2
+
+project_name: gmmff
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: gmmff
+    main: ./cmd/gmmff
+    binary: gmmff
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - 386
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: gmmff
+    builds:
+      - gmmff
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+      - goos: linux
+        formats:
+          - zip
+      - goos: darwin
+        formats:
+          - zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+# Generate a changelog from commit messages between the last two tags.
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: "New features"
+      regexp: "^feat"
+      order: 0
+    - title: "Bug fixes"
+      regexp: "^fix"
+      order: 1
+    - title: "Performance"
+      regexp: "^perf"
+      order: 2
+    - title: Other
+      order: 999
+
+release:
+  github:
+    owner: iamdoubz
+    name: gmmff
+  draft: true         # Review the release on GitHub before publishing.
+  replace_existing_draft: true
+  name_template: "gmmff {{.Version}}"
+
+# Build and push the Docker image for the signaling server.
+dockers:
+  - image_templates:
+      - "iamdoubz/gmmff:{{ .Version }}"
+      - "iamdoubz/gmmff:latest"
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .Commit }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
