@@ -1504,7 +1504,7 @@ func trickleICETargeted(sig *signaling.Client, pc *webrtc.PeerConnection, peerID
 		}
 		ci := c.ToJSON()
 		inner := protocol.MustEnvelope(protocol.MsgICECandidate, protocol.ICECandidatePayload{
-			Candidate:     ci.Candidate,
+			Candidate:     c.String(), // full candidate with raddr/rport
 			SDPMid:        *ci.SDPMid,
 			SDPMLineIndex: *ci.SDPMLineIndex,
 		})
@@ -1760,6 +1760,10 @@ func trickleICE(sig *signaling.Client, pc *webrtc.PeerConnection) {
 		if c == nil {
 			return
 		}
+		// Use c.ToJSON() for sdpMid/sdpMLineIndex but build the candidate
+		// string from c.String() which includes all required RFC 8445 fields
+		// (raddr, rport) for srflx/relay candidates. c.ToJSON().Candidate
+		// omits these in some Pion versions, causing Firefox to reject them.
 		init := c.ToJSON()
 		mid := ""
 		if init.SDPMid != nil {
@@ -1769,7 +1773,9 @@ func trickleICE(sig *signaling.Client, pc *webrtc.PeerConnection) {
 		if init.SDPMLineIndex != nil {
 			idx = *init.SDPMLineIndex
 		}
-		_ = sig.SendICE(init.Candidate, mid, idx)
+		// c.String() returns the full SDP attribute line e.g.
+		// "candidate:xxx 1 udp 1677729535 1.2.3.4 1234 typ srflx raddr 0.0.0.0 rport 0"
+		_ = sig.SendICE(c.String(), mid, idx)
 	})
 }
 
