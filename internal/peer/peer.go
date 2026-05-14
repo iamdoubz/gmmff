@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"filippo.io/cpace"
@@ -1503,8 +1504,12 @@ func trickleICETargeted(sig *signaling.Client, pc *webrtc.PeerConnection, peerID
 			return
 		}
 		ci := c.ToJSON()
+		s := iceString(c, ci.Candidate)
+		if s == "" {
+			return // skip empty end-of-candidates marker
+		}
 		inner := protocol.MustEnvelope(protocol.MsgICECandidate, protocol.ICECandidatePayload{
-			Candidate:     c.String(), // full candidate with raddr/rport
+			Candidate:     s,
 			SDPMid:        *ci.SDPMid,
 			SDPMLineIndex: *ci.SDPMLineIndex,
 		})
@@ -1755,15 +1760,49 @@ func newPeerConnection(cfg Config) (*webrtc.PeerConnection, error) {
 	return pc, nil
 }
 
+// iceString returns a fully RFC 8445 compliant ICE candidate string.
+//
+// Pion's ICECandidate.ToJSON().Candidate omits the mandatory raddr/rport
+// extension attributes for srflx/relay candidates, causing strict parsers
+// (Firefox) to reject them. ICECandidate.String() includes them but panics
+// or errors on bracketed IPv6 addresses in some Pion versions.
+//
+// Strategy: try c.String() first; if it errors fall back to appending
+// raddr/rport to the ToJSON candidate string for non-host types.
+func iceString(c *webrtc.ICECandidate, fallback string) (s string) {
+	defer func() {
+		if r := recover(); r != nil {
+			s = fixCandidate(c, fallback)
+		}
+	}()
+	str := c.String()
+	// c.String() returned successfully — use it.
+	return str
+}
+
+// fixCandidate appends raddr/rport to a candidate string that is missing them.
+// For host candidates the ToJSON string is already complete.
+func fixCandidate(c *webrtc.ICECandidate, s string) string {
+	switch c.Typ {
+	case webrtc.ICECandidateTypeSrflx, webrtc.ICECandidateTypeRelay, webrtc.ICECandidateTypePrflx:
+		// Check if raddr is already present.
+		if !strings.Contains(s, "raddr") {
+			raddr := c.RelatedAddress
+			rport := c.RelatedPort
+			if raddr == "" {
+				raddr = "0.0.0.0"
+			}
+			s = fmt.Sprintf("%s raddr %s rport %d", s, raddr, rport)
+		}
+	}
+	return s
+}
+
 func trickleICE(sig *signaling.Client, pc *webrtc.PeerConnection) {
 	pc.OnICECandidate(func(c *webrtc.ICECandidate) {
 		if c == nil {
 			return
 		}
-		// Use c.ToJSON() for sdpMid/sdpMLineIndex but build the candidate
-		// string from c.String() which includes all required RFC 8445 fields
-		// (raddr, rport) for srflx/relay candidates. c.ToJSON().Candidate
-		// omits these in some Pion versions, causing Firefox to reject them.
 		init := c.ToJSON()
 		mid := ""
 		if init.SDPMid != nil {
@@ -1773,9 +1812,11 @@ func trickleICE(sig *signaling.Client, pc *webrtc.PeerConnection) {
 		if init.SDPMLineIndex != nil {
 			idx = *init.SDPMLineIndex
 		}
-		// c.String() returns the full SDP attribute line e.g.
-		// "candidate:xxx 1 udp 1677729535 1.2.3.4 1234 typ srflx raddr 0.0.0.0 rport 0"
-		_ = sig.SendICE(c.String(), mid, idx)
+		s := iceString(c, init.Candidate)
+		if s == "" {
+			return // skip empty end-of-candidates marker
+		}
+		_ = sig.SendICE(s, mid, idx)
 	})
 }
 
