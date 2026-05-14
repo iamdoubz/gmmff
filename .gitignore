@@ -31,6 +31,7 @@ go.work.sum
 # .idea/
 # .vscode/
 bin/
+dist/
 .env
 tmp/
 .air.toml
