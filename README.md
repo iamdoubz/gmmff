@@ -119,6 +119,72 @@ transfer or message resets the timer.
 
 ---
 
+### Local-network mode (no internet required)
+
+`gmmff local` is a fully self-contained mode that requires no external server,
+no internet connection, and no configuration. It is designed for transferring
+files between devices on the same Wi-Fi or LAN.
+
+```bash
+gmmff local
+```
+
+On startup it:
+- Starts an embedded signaling server and web server
+- Generates a self-signed TLS certificate automatically
+- Registers on mDNS so other `gmmff local` instances on the network can find it
+- Prints a QR code and URL encoding the session code
+
+```
+Scanning for other gmmff instances on the local network... none found.
+Using port 51423
+Starting embedded server... done.
+Registering on mDNS... done.
+Connecting to local broker... done.
+Creating session... done.
+
+╔══════════════════════════════════════════════════════╗
+║  gmmff local mode                                    ║
+╠══════════════════════════════════════════════════════╣
+║  Server:   https://192.168.1.25:51423                ║
+║  Code:     acid-lake-drum                            ║
+║  Join URL: https://192.168.1.25:51423/?code=acid-... ║
+╚══════════════════════════════════════════════════════╝
+
+Scan this QR code to join:
+[QR code]
+
+Or open: https://192.168.1.25:51423/?code=acid-lake-drum&type=files&autoconnect=1&local=1
+
+Waiting for first peer to connect...
+```
+
+Any device on the same network scans the QR code — the browser opens, the
+session connects automatically, and the Files UI appears ready to receive.
+No typing, no code entry, no external server.
+
+**Browser compatibility in local mode:**
+
+| Browser | TLS (default) | `--no-tls` |
+|---------|--------------|------------|
+| Chrome / Edge (desktop + Android) | Tap "Advanced → Proceed" once | ✅ works |
+| Firefox | Accept the risk once | ✅ works |
+| Safari / iOS Safari | ⚠ Cert must be trusted in Settings | ✅ works |
+
+For mixed-device sessions where Safari is involved, use `--no-tls` — WebRTC
+works over plain HTTP on local networks in Chrome and Firefox, but iOS Safari
+requires HTTPS with a trusted certificate.
+
+**Session control in local mode:**
+
+| Command | Effect |
+|---------|--------|
+| `send <file\|dir>` | Send file(s) to all connected peers |
+| `message <text>` | Send a text message |
+| `\q` | End session and shut down the local server |
+
+---
+
 ### Starting a pure chat session (CLI)
 
 For a text-only session without file transfer, use `gmmff chat`:
@@ -197,6 +263,40 @@ Usage: gmmff chat [flags]
 | `--server` | `GMMFF_SERVER` | `ws://localhost:8080/ws` | Signaling server WebSocket URL |
 | `--stun` | `GMMFF_STUN` | Google STUN | STUN/STUNS URL, repeatable |
 | `--turn` | `GMMFF_TURN` | — | TURN server, repeatable |
+
+### `gmmff local` — self-contained local-network mode
+
+```
+Usage: gmmff local [flags]
+```
+
+No internet required. Starts an embedded signaling server, web server, and
+session all in one process. Discovers other `gmmff local` instances via mDNS.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--port` | random | Port to listen on |
+| `--no-tls` | `false` | Use plain HTTP instead of self-signed TLS |
+| `--max-peers` | `2` | Maximum participants (2–10, including yourself) |
+
+**TLS behaviour:** By default a self-signed certificate is generated each run
+and written to `$TMPDIR/gmmff-cert.pem` and `$TMPDIR/gmmff-key.pem`. These
+files are removed on clean shutdown. Use `--no-tls` to skip certificate
+generation — recommended for Chrome/Firefox-only sessions.
+
+```bash
+# Default (TLS on, random port)
+gmmff local
+
+# Plain HTTP — Chrome and Firefox only (no cert warning)
+gmmff local --no-tls
+
+# Fixed port for firewall rules
+gmmff local --no-tls --port 8787
+
+# Allow up to 5 participants
+gmmff local --max-peers 5
+```
 
 ---
 
@@ -613,7 +713,8 @@ gmmff/
 ├── cmd/gmmff/              # Binary entrypoint (Cobra CLI)
 │   ├── main.go             # Root command + serve subcommand + shared helpers
 │   ├── create.go           # gmmff create — starts file+message session, session REPL
-│   └── chat.go             # gmmff chat — pure chat; gmmff join — joins any session
+│   ├── chat.go             # gmmff chat — pure chat; gmmff join — joins any session
+│   └── local.go            # gmmff local — self-contained local-network mode
 ├── internal/
 │   ├── broker/             # WebSocket hub, message router, HTTP server
 │   │   ├── broker.go
@@ -644,6 +745,11 @@ gmmff/
 │   │   └── b64.go
 │   ├── transfer/           # Binary chunk protocol (send + receive state machines)
 │   │   └── transfer.go
+│   ├── localmode/          # Self-contained local-network mode
+│   │   ├── embed.go        # //go:embed of web/static (built by make build)
+│   │   ├── tls.go          # Self-signed cert generation
+│   │   ├── mdns.go         # mDNS registration and peer discovery
+│   │   └── local.go        # Orchestrator: broker + web server + session REPL
 │   └── turn/               # TURN URL parsing and ephemeral credential derivation
 │       └── turn.go
 ├── pkg/protocol/           # Wire message types (shared server/client)
@@ -675,6 +781,7 @@ gmmff/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── go.mod
+├── go.sum
 └── README.md
 ```
 
@@ -684,6 +791,7 @@ gmmff/
 
 ### Current
 
+- **Local-network mode** — `gmmff local` is a fully self-contained mode with embedded server, auto TLS, mDNS discovery, and QR code; no internet or external server required
 - **Multi-peer sessions** — `gmmff create --max-peers N` allows 2–10 participants; 2-peer sessions are bidirectional, 3–10 peer sessions broadcast from the initiator to all
 - **Signaling server** — Go, Redis-backed, privacy-safe structured logs, Docker-ready
 - **CPace PAKE** — zero-knowledge authentication; server stays blind to the shared secret
@@ -697,23 +805,21 @@ gmmff/
 - **Secure chat** — pure text chat (`gmmff chat`) or inline messaging within a file session
 - **Sliding window** — configurable in-flight chunks (`--window`); default 2
 - **Configurable chunk size** — up to SCTP maximum 65526 bytes (`--chunk-size`)
-- **STUN multi-server** — append additional STUN servers via `--stun` (repeatable) or `GMMFF_STUN` comma-separated
-- **TURN multi-server** — append additional TURN servers via `--turn` (repeatable) or `GMMFF_TURN` comma-separated
+- **STUN multi-server** — append additional STUN servers via `--stun` (repeatable) or `GMMFF_STUN`
+- **TURN support** — long-term and ephemeral credentials, mixed auth types, transport hints, max 3 servers
 - **Browser UI (Wasm)** — same Go source compiled to WebAssembly; Files tab + Chat tab
-- **QR Codes** — generate easy-to-share QR codes to scan
-- **Browser Links** — generate a URL to copy and share to join a session
 - **Drag and drop** — drop files anywhere on the browser UI to queue them for sending
-- **32 languages** — English, Spanish, French, German, Italian, Swedish, Portuguese (EU, BR), Sinhala, Tamil, and more!; language picker with 7-day persistence
+- **32 languages** — English, Spanish, French, German, Italian, Swedish, Portuguese, Tamil, Sinhala, and more!; language picker with 7-day persistence
 - **ICE settings panel** — configurable STUN/TURN in the browser UI, persisted 7 days
-- **Multiple participants** — multi-peer sessions from 2-10 peers
+- **Share links + QR codes** — shareable URLs and scannable QR codes on all code screens
 
 ### Backlog
 
-- **Local-only mode** — use gmmff without internet access
 - **Browser extension** — use your favourite browser to send/receive files
 - **Docker images** — pipeline to package, build, and publish Docker images
 - **More languages** — contributions welcome
-- **Quantum-safe encryption** — post-quantum algorithms with elliptic-curve fallback (blocked)
+- **Trusted local CA** — one-time CA install for iOS Safari support in `gmmff local`
+- **Quantum-safe encryption** — post-quantum algorithms with elliptic-curve fallback
 
 ### Probably won't do
 
@@ -727,7 +833,7 @@ gmmff/
 [https://xkcd.com/949](https://xkcd.com/949)
 
 <p align="center">
-  <img src="https://imgs.xkcd.com/comics/file_transfer.png" alt="xkcd comic explaining the difficulties of sending large files between two people">
+  <a href=https://xkcd.com/949" target="_blank"><img src="https://imgs.xkcd.com/comics/file_transfer.png" alt="xkcd comic explaining the difficulties of sending large files between two people"></a>
 </p>
 
 - [X] [webwormhole](https://github.com/saljam/webwormhole) by [@saljam](https://github.com/saljam)
