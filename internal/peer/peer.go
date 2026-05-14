@@ -1294,8 +1294,55 @@ func initiatorHandshakeWithPeer(
 	dcReady := make(chan struct{}, 1)
 	controlDC.OnOpen(func() { dcReady <- struct{}{} })
 
+	// Buffer ICE candidates that arrive before SetRemoteDescription.
+	// pumpICETargeted and td.waitFor would race on disp.targeted otherwise.
+	iceBuf := make(chan protocol.ICECandidatePayload, 64)
+
+	// Collect targeted ICE candidates into the buffer in a goroutine.
+	// This runs alongside td.waitFor so neither blocks the other.
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msg := <-disp.targeted:
+				var tp protocol.TargetedPayload
+				if err := json.Unmarshal(msg.Payload, &tp); err != nil {
+					continue
+				}
+				var inner signaling.Message
+				if err := json.Unmarshal(tp.Inner, &inner); err != nil {
+					continue
+				}
+				if inner.Type == protocol.MsgICECandidate {
+					var cp protocol.ICECandidatePayload
+					if err := json.Unmarshal(inner.Payload, &cp); err == nil && cp.Candidate != "" {
+						iceBuf <- cp
+					}
+				} else {
+					// Not ICE — put back for td.waitFor to pick up.
+					go func(m signaling.Message) { disp.targeted <- m }(msg)
+				}
+			}
+		}
+	}()
+
+	// Also buffer plain ICE from disp.ice (responder sends un-targeted).
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msg := <-disp.ice:
+				ice, err := signaling.DecodeICE(msg)
+				if err == nil && ice.Candidate != "" {
+					iceBuf <- ice
+				}
+			}
+		}
+	}()
+
 	trickleICETargeted(sig, pc, peerID)
-	go pumpICETargeted(ctx, pc, disp, peerID)
 
 	offer, err := pc.CreateOffer(nil)
 	if err != nil {
@@ -1333,6 +1380,19 @@ func initiatorHandshakeWithPeer(
 	if err := pc.SetRemoteDescription(answer); err != nil {
 		return nil, nil, fmt.Errorf("session: set remote desc: %w", err)
 	}
+
+	// Now that SetRemoteDescription is done, drain the ICE buffer into the PC.
+	go func() {
+		for cp := range iceBuf {
+			mlineIdx := cp.SDPMLineIndex
+			mid := cp.SDPMid
+			_ = pc.AddICECandidate(webrtc.ICECandidateInit{
+				Candidate:     cp.Candidate,
+				SDPMid:        &mid,
+				SDPMLineIndex: &mlineIdx,
+			})
+		}
+	}()
 
 	select {
 	case <-ctx.Done():
@@ -1659,11 +1719,54 @@ func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string,
 		}
 	})
 
+	// Buffer incoming ICE candidates — both plain (disp.ice) and targeted
+	// (disp.targeted wrapping MsgICECandidate). We must not call
+	// AddICECandidate before SetRemoteDescription or Pion silently drops them.
+	iceBuf := make(chan protocol.ICECandidatePayload, 64)
+
+	// Drain targeted channel: ICE goes to buffer, everything else goes back.
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msg := <-disp.targeted:
+				var tp protocol.TargetedPayload
+				if err := json.Unmarshal(msg.Payload, &tp); err != nil {
+					continue
+				}
+				var inner signaling.Message
+				if err := json.Unmarshal(tp.Inner, &inner); err != nil {
+					continue
+				}
+				if inner.Type == protocol.MsgICECandidate {
+					var cp protocol.ICECandidatePayload
+					if err := json.Unmarshal(inner.Payload, &cp); err == nil && cp.Candidate != "" {
+						iceBuf <- cp
+					}
+				} else {
+					go func(m signaling.Message) { disp.targeted <- m }(msg)
+				}
+			}
+		}
+	}()
+
+	// Drain plain ICE (un-targeted relay from broker).
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msg := <-disp.ice:
+				ice, err := signaling.DecodeICE(msg)
+				if err == nil && ice.Candidate != "" {
+					iceBuf <- ice
+				}
+			}
+		}
+	}()
+
 	trickleICE(sig, pc)
-	// Use pumpICETargeted (with empty peerID) so we handle both plain ICE
-	// from the broker relay AND targeted ICE wrapped in MsgTargeted by the
-	// initiator. The empty peerID means we accept ICE from any peer.
-	go pumpICETargeted(ctx, pc, disp, "")
 
 	// Receive the SDP offer — may arrive as targeted or direct.
 	var offerMsg signaling.Message
@@ -1672,7 +1775,7 @@ func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string,
 		pc.Close()
 		return nil, ctx.Err()
 	case offerMsg = <-disp.offer:
-		// Direct (2-peer)
+		// Direct (2-peer plain relay)
 	case raw := <-disp.targeted:
 		var tp protocol.TargetedPayload
 		if err := json.Unmarshal(raw.Payload, &tp); err != nil {
@@ -1720,6 +1823,19 @@ func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string,
 		pc.Close()
 		return nil, fmt.Errorf("session: send sdp.answer: %w", err)
 	}
+
+	// SetRemoteDescription done — now drain buffered ICE candidates into the PC.
+	go func() {
+		for cp := range iceBuf {
+			mlineIdx := cp.SDPMLineIndex
+			mid := cp.SDPMid
+			_ = pc.AddICECandidate(webrtc.ICECandidateInit{
+				Candidate:     cp.Candidate,
+				SDPMid:        &mid,
+				SDPMLineIndex: &mlineIdx,
+			})
+		}
+	}()
 
 	fmt.Println("Direct connection established.")
 	var controlDC *webrtc.DataChannel
