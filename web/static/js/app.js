@@ -22,7 +22,8 @@ function normaliseServerURL(url) {
   return url.replace(/\/\/localhost([:/#?]|$)/, '//127.0.0.1$1');
 }
 let i18n   = {};
-let cancel = null; // function set by Wasm to cancel active transfer
+let cancel        = null; // function set by Wasm to cancel active transfer
+let peerDisplayName = 'Participant'; // set from the name field on the join form
 
 // ── Boot sequence ─────────────────────────────────────────────────────────────
 async function boot() {
@@ -328,6 +329,11 @@ document.getElementById('files-join-btn')?.addEventListener('click', () => {
   if (errEl) errEl.textContent = '';
   if (!code)   { if (errEl) errEl.textContent = t('error_no_code');   return; }
   if (!server) { if (errEl) errEl.textContent = t('error_no_server'); return; }
+  // Capture display name; disable button immediately to prevent double-join.
+  const nameVal = document.getElementById('files-join-name')?.value.trim();
+  if (nameVal) peerDisplayName = nameVal;
+  const joinBtn = document.getElementById('files-join-btn');
+  if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = t('join_connecting') || 'Connecting…'; }
   if (typeof window.gmmffJoinSession === 'function') {
     window.gmmffJoinSession(code, server, buildIceConfig());
   }
@@ -477,7 +483,7 @@ window.uiFilesInboundStarted = function(label, total) {
 };
 
 window.uiFilesMessage = function(from, text) {
-  appendFilesMessage('them', t('chat_participant') || 'Participant', text);
+  appendFilesMessage('them', peerDisplayName, text);
 };
 
 window.uiFilesPeerCount = function(peerCount, maxPeers) {
@@ -488,7 +494,7 @@ window.uiFilesPeerCount = function(peerCount, maxPeers) {
 };
 
 window.uiFilesParticipantLeft = function(msg) {
-  appendFilesSystem(msg);
+  appendFilesSystem(msg || (peerDisplayName + ' left.'));
 };
 
 window.uiFilesSessionClosed = function(msg) {
@@ -506,6 +512,9 @@ window.uiFilesSessionClosed = function(msg) {
 };
 
 window.uiFilesError = function(msg) {
+  // Re-enable join button so the user can retry.
+  const joinBtn = document.getElementById('files-join-btn');
+  if (joinBtn) { joinBtn.disabled = false; joinBtn.textContent = t('chat_join_btn') || 'Join'; }
   const errEl = document.getElementById('files-error');
   if (errEl) errEl.textContent = t('status_error', { message: msg });
   showFilesState('form');
@@ -681,6 +690,10 @@ document.getElementById('chat-join-btn')?.addEventListener('click', () => {
   errEl.textContent = '';
   if (!code)   { errEl.textContent = t('error_no_code');   return; }
   if (!server) { errEl.textContent = t('error_no_server'); return; }
+  const chatNameVal = document.getElementById('chat-join-name')?.value.trim();
+  if (chatNameVal) peerDisplayName = chatNameVal;
+  const chatJoinBtn = document.getElementById('chat-join-btn');
+  if (chatJoinBtn) { chatJoinBtn.disabled = true; chatJoinBtn.textContent = t('join_connecting') || 'Connecting…'; }
   if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, buildIceConfig());
 });
 
@@ -774,7 +787,7 @@ window.uiChatOpen = function(remoteRole) {
 };
 
 window.uiChatMessage = function(from, text) {
-  appendChatBubble('them', t('chat_participant') || 'Participant', text);
+  appendChatBubble('them', peerDisplayName, text);
 };
 
 window.uiChatClosed = function(reason) {
@@ -783,7 +796,7 @@ window.uiChatClosed = function(reason) {
 };
 
 window.uiChatParticipantLeft = function(who) {
-  appendChatSystem((who || 'Participant') + ' left the session.');
+  appendChatSystem((who || peerDisplayName) + ' left the session.');
 };
 
 window.uiChatError = function(message) {
