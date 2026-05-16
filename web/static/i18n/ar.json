@@ -94,5 +94,9 @@
   "share_qr_hint": "امسح للانضمام",
   "files_max_peers_label": "الحد الأقصى للمشاركين:",
   "files_max_peers_hint": "2 = ثنائي الاتجاه. 3-10 = المُبادِر يرسل للجميع.",
-  "session_ended": "انتهت الجلسة"
+  "session_ended": "انتهت الجلسة",
+  "join_name_label": "اسمك",
+  "join_name_optional": "(اختياري)",
+  "join_name_placeholder": "مثال: أحمد",
+  "join_connecting": "جارٍ الاتصال…"
 }

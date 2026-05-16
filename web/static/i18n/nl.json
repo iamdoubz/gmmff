@@ -94,5 +94,9 @@
   "share_qr_hint": "Scan om deel te nemen",
   "files_max_peers_label": "Max. deelnemers:",
   "files_max_peers_hint": "2 = bidirectioneel. 3–10 = initiator stuurt naar allen.",
-  "session_ended": "Sessie beëindigd"
+  "session_ended": "Sessie beëindigd",
+  "join_name_label": "Uw naam",
+  "join_name_optional": "(optioneel)",
+  "join_name_placeholder": "bijv. Jan",
+  "join_connecting": "Verbinden…"
 }
