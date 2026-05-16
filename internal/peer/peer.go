@@ -184,6 +184,7 @@ func (d *dispatcher) pumpICE(ctx context.Context, pc *webrtc.PeerConnection) {
 			if err != nil {
 				continue
 			}
+			fmt.Printf("[ICE] applying remote candidate: %s\n", ice.Candidate)
 			sdpMid := ice.SDPMid
 			sdpIdx := ice.SDPMLineIndex
 			_ = pc.AddICECandidate(webrtc.ICECandidateInit{
@@ -1384,6 +1385,7 @@ func initiatorHandshakeWithPeer(
 	// Now that SetRemoteDescription is done, drain the ICE buffer into the PC.
 	go func() {
 		for cp := range iceBuf {
+			fmt.Printf("[ICE] applying buffered remote candidate (initiator): %s\n", cp.Candidate)
 			mlineIdx := cp.SDPMLineIndex
 			mid := cp.SDPMid
 			_ = pc.AddICECandidate(webrtc.ICECandidateInit{
@@ -1827,6 +1829,7 @@ func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string,
 	// SetRemoteDescription done — now drain buffered ICE candidates into the PC.
 	go func() {
 		for cp := range iceBuf {
+			fmt.Printf("[ICE] applying buffered remote candidate (responder): %s\n", cp.Candidate)
 			mlineIdx := cp.SDPMLineIndex
 			mid := cp.SDPMid
 			_ = pc.AddICECandidate(webrtc.ICECandidateInit{
@@ -1873,6 +1876,21 @@ func newPeerConnection(cfg Config) (*webrtc.PeerConnection, error) {
 	if err != nil {
 		return nil, fmt.Errorf("peer: new PeerConnection: %w", err)
 	}
+
+	// Verbose ICE diagnostics — log every state transition and candidate.
+	pc.OnICEConnectionStateChange(func(s webrtc.ICEConnectionState) {
+		fmt.Printf("[ICE] connection state: %s\n", s)
+	})
+	pc.OnICEGatheringStateChange(func(s webrtc.ICEGathererState) {
+		fmt.Printf("[ICE] gathering state: %s\n", s)
+	})
+	pc.OnConnectionStateChange(func(s webrtc.PeerConnectionState) {
+		fmt.Printf("[PC]  connection state: %s\n", s)
+	})
+	pc.OnSignalingStateChange(func(s webrtc.SignalingState) {
+		fmt.Printf("[PC]  signaling state: %s\n", s)
+	})
+
 	return pc, nil
 }
 
@@ -1917,6 +1935,7 @@ func fixCandidate(c *webrtc.ICECandidate, s string) string {
 func trickleICE(sig *signaling.Client, pc *webrtc.PeerConnection) {
 	pc.OnICECandidate(func(c *webrtc.ICECandidate) {
 		if c == nil {
+			fmt.Println("[ICE] local gathering complete (nil candidate)")
 			return
 		}
 		init := c.ToJSON()
@@ -1930,8 +1949,9 @@ func trickleICE(sig *signaling.Client, pc *webrtc.PeerConnection) {
 		}
 		s := iceString(c, init.Candidate)
 		if s == "" {
-			return // skip empty end-of-candidates marker
+			return
 		}
+		fmt.Printf("[ICE] sending local candidate: %s\n", s)
 		_ = sig.SendICE(s, mid, idx)
 	})
 }
