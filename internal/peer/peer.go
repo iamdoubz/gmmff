@@ -1891,42 +1891,39 @@ func newPeerConnection(cfg Config) (*webrtc.PeerConnection, error) {
 	return pc, nil
 }
 
-// iceString returns a fully RFC 8445 compliant ICE candidate string.
+// iceString returns a fully RFC 8445 compliant SDP ICE candidate string.
 //
-// Pion's ICECandidate.ToJSON().Candidate omits the mandatory raddr/rport
-// extension attributes for srflx/relay candidates, causing strict parsers
-// (Firefox) to reject them. ICECandidate.String() includes them but panics
-// or errors on bracketed IPv6 addresses in some Pion versions.
+// Pion's ICECandidate.ToJSON().Candidate is the correct SDP attribute value
+// (e.g. "candidate:xxx 1 udp 1677729535 1.2.3.4 1234 typ srflx") but omits
+// the mandatory raddr/rport fields for non-host candidates in some versions.
+// ICECandidate.String() is a human-readable DEBUG format, NOT valid SDP —
+// never use it as a candidate string.
 //
-// Strategy: try c.String() first; if it errors fall back to appending
-// raddr/rport to the ToJSON candidate string for non-host types.
-func iceString(c *webrtc.ICECandidate, fallback string) (s string) {
-	defer func() {
-		if r := recover(); r != nil {
-			s = fixCandidate(c, fallback)
-		}
-	}()
-	str := c.String()
-	// c.String() returned successfully — use it.
-	return str
-}
-
-// fixCandidate appends raddr/rport to a candidate string that is missing them.
-// For host candidates the ToJSON string is already complete.
-func fixCandidate(c *webrtc.ICECandidate, s string) string {
+// Strategy: use ToJSON().Candidate as the base and append raddr/rport for
+// srflx/relay/prflx candidates when those fields are missing.
+func iceString(c *webrtc.ICECandidate, base string) string {
+	if base == "" {
+		return ""
+	}
 	switch c.Typ {
 	case webrtc.ICECandidateTypeSrflx, webrtc.ICECandidateTypeRelay, webrtc.ICECandidateTypePrflx:
-		// Check if raddr is already present.
-		if !strings.Contains(s, "raddr") {
+		if !strings.Contains(base, " raddr ") {
 			raddr := c.RelatedAddress
-			rport := c.RelatedPort
 			if raddr == "" {
 				raddr = "0.0.0.0"
 			}
-			s = fmt.Sprintf("%s raddr %s rport %d", s, raddr, rport)
+			// Strip brackets from IPv6 addresses — they're invalid in SDP.
+			raddr = strings.TrimPrefix(raddr, "[")
+			raddr = strings.TrimSuffix(raddr, "]")
+			return fmt.Sprintf("%s raddr %s rport %d", base, raddr, c.RelatedPort)
 		}
 	}
-	return s
+	return base
+}
+
+// fixCandidate is kept for compatibility but no longer used.
+func fixCandidate(c *webrtc.ICECandidate, s string) string {
+	return iceString(c, s)
 }
 
 func trickleICE(sig *signaling.Client, pc *webrtc.PeerConnection) {
