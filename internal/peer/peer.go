@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"filippo.io/cpace"
@@ -183,6 +184,7 @@ func (d *dispatcher) pumpICE(ctx context.Context, pc *webrtc.PeerConnection) {
 			if err != nil {
 				continue
 			}
+			fmt.Printf("[ICE] applying remote candidate: %s\n", candidateType(ice.Candidate))
 			sdpMid := ice.SDPMid
 			sdpIdx := ice.SDPMLineIndex
 			_ = pc.AddICECandidate(webrtc.ICECandidateInit{
@@ -1293,8 +1295,55 @@ func initiatorHandshakeWithPeer(
 	dcReady := make(chan struct{}, 1)
 	controlDC.OnOpen(func() { dcReady <- struct{}{} })
 
+	// Buffer ICE candidates that arrive before SetRemoteDescription.
+	// pumpICETargeted and td.waitFor would race on disp.targeted otherwise.
+	iceBuf := make(chan protocol.ICECandidatePayload, 64)
+
+	// Collect targeted ICE candidates into the buffer in a goroutine.
+	// This runs alongside td.waitFor so neither blocks the other.
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msg := <-disp.targeted:
+				var tp protocol.TargetedPayload
+				if err := json.Unmarshal(msg.Payload, &tp); err != nil {
+					continue
+				}
+				var inner signaling.Message
+				if err := json.Unmarshal(tp.Inner, &inner); err != nil {
+					continue
+				}
+				if inner.Type == protocol.MsgICECandidate {
+					var cp protocol.ICECandidatePayload
+					if err := json.Unmarshal(inner.Payload, &cp); err == nil && cp.Candidate != "" {
+						iceBuf <- cp
+					}
+				} else {
+					// Not ICE — put back for td.waitFor to pick up.
+					go func(m signaling.Message) { disp.targeted <- m }(msg)
+				}
+			}
+		}
+	}()
+
+	// Also buffer plain ICE from disp.ice (responder sends un-targeted).
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msg := <-disp.ice:
+				ice, err := signaling.DecodeICE(msg)
+				if err == nil && ice.Candidate != "" {
+					iceBuf <- ice
+				}
+			}
+		}
+	}()
+
 	trickleICETargeted(sig, pc, peerID)
-	go pumpICETargeted(ctx, pc, disp, peerID)
 
 	offer, err := pc.CreateOffer(nil)
 	if err != nil {
@@ -1332,6 +1381,20 @@ func initiatorHandshakeWithPeer(
 	if err := pc.SetRemoteDescription(answer); err != nil {
 		return nil, nil, fmt.Errorf("session: set remote desc: %w", err)
 	}
+
+	// Now that SetRemoteDescription is done, drain the ICE buffer into the PC.
+	go func() {
+		for cp := range iceBuf {
+			fmt.Printf("[ICE] applying buffered remote candidate (initiator): %s\n", candidateType(cp.Candidate))
+			mlineIdx := cp.SDPMLineIndex
+			mid := cp.SDPMid
+			_ = pc.AddICECandidate(webrtc.ICECandidateInit{
+				Candidate:     cp.Candidate,
+				SDPMid:        &mid,
+				SDPMLineIndex: &mlineIdx,
+			})
+		}
+	}()
 
 	select {
 	case <-ctx.Done():
@@ -1503,8 +1566,12 @@ func trickleICETargeted(sig *signaling.Client, pc *webrtc.PeerConnection, peerID
 			return
 		}
 		ci := c.ToJSON()
+		s := iceString(c, ci.Candidate)
+		if s == "" {
+			return // skip empty end-of-candidates marker
+		}
 		inner := protocol.MustEnvelope(protocol.MsgICECandidate, protocol.ICECandidatePayload{
-			Candidate:     ci.Candidate,
+			Candidate:     s,
 			SDPMid:        *ci.SDPMid,
 			SDPMLineIndex: *ci.SDPMLineIndex,
 		})
@@ -1654,11 +1721,54 @@ func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string,
 		}
 	})
 
+	// Buffer incoming ICE candidates — both plain (disp.ice) and targeted
+	// (disp.targeted wrapping MsgICECandidate). We must not call
+	// AddICECandidate before SetRemoteDescription or Pion silently drops them.
+	iceBuf := make(chan protocol.ICECandidatePayload, 64)
+
+	// Drain targeted channel: ICE goes to buffer, everything else goes back.
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msg := <-disp.targeted:
+				var tp protocol.TargetedPayload
+				if err := json.Unmarshal(msg.Payload, &tp); err != nil {
+					continue
+				}
+				var inner signaling.Message
+				if err := json.Unmarshal(tp.Inner, &inner); err != nil {
+					continue
+				}
+				if inner.Type == protocol.MsgICECandidate {
+					var cp protocol.ICECandidatePayload
+					if err := json.Unmarshal(inner.Payload, &cp); err == nil && cp.Candidate != "" {
+						iceBuf <- cp
+					}
+				} else {
+					go func(m signaling.Message) { disp.targeted <- m }(msg)
+				}
+			}
+		}
+	}()
+
+	// Drain plain ICE (un-targeted relay from broker).
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msg := <-disp.ice:
+				ice, err := signaling.DecodeICE(msg)
+				if err == nil && ice.Candidate != "" {
+					iceBuf <- ice
+				}
+			}
+		}
+	}()
+
 	trickleICE(sig, pc)
-	// Use pumpICETargeted (with empty peerID) so we handle both plain ICE
-	// from the broker relay AND targeted ICE wrapped in MsgTargeted by the
-	// initiator. The empty peerID means we accept ICE from any peer.
-	go pumpICETargeted(ctx, pc, disp, "")
 
 	// Receive the SDP offer — may arrive as targeted or direct.
 	var offerMsg signaling.Message
@@ -1667,7 +1777,7 @@ func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string,
 		pc.Close()
 		return nil, ctx.Err()
 	case offerMsg = <-disp.offer:
-		// Direct (2-peer)
+		// Direct (2-peer plain relay)
 	case raw := <-disp.targeted:
 		var tp protocol.TargetedPayload
 		if err := json.Unmarshal(raw.Payload, &tp); err != nil {
@@ -1716,6 +1826,20 @@ func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string,
 		return nil, fmt.Errorf("session: send sdp.answer: %w", err)
 	}
 
+	// SetRemoteDescription done — now drain buffered ICE candidates into the PC.
+	go func() {
+		for cp := range iceBuf {
+			fmt.Printf("[ICE] applying buffered remote candidate (responder): %s\n", candidateType(cp.Candidate))
+			mlineIdx := cp.SDPMLineIndex
+			mid := cp.SDPMid
+			_ = pc.AddICECandidate(webrtc.ICECandidateInit{
+				Candidate:     cp.Candidate,
+				SDPMid:        &mid,
+				SDPMLineIndex: &mlineIdx,
+			})
+		}
+	}()
+
 	fmt.Println("Direct connection established.")
 	var controlDC *webrtc.DataChannel
 	select {
@@ -1752,12 +1876,75 @@ func newPeerConnection(cfg Config) (*webrtc.PeerConnection, error) {
 	if err != nil {
 		return nil, fmt.Errorf("peer: new PeerConnection: %w", err)
 	}
+
+	// Verbose ICE diagnostics — log every state transition and candidate.
+	pc.OnICEConnectionStateChange(func(s webrtc.ICEConnectionState) {
+		fmt.Printf("[ICE] connection state: %s\n", s)
+	})
+	pc.OnConnectionStateChange(func(s webrtc.PeerConnectionState) {
+		fmt.Printf("[PC]  connection state: %s\n", s)
+	})
+	pc.OnSignalingStateChange(func(s webrtc.SignalingState) {
+		fmt.Printf("[PC]  signaling state: %s\n", s)
+	})
+
 	return pc, nil
+}
+
+// candidateType extracts just the candidate type (host/srflx/relay/prflx)
+// from an SDP candidate string without exposing IP addresses.
+func candidateType(candidate string) string {
+	parts := strings.Fields(candidate)
+	for i, p := range parts {
+		if p == "typ" && i+1 < len(parts) {
+			return parts[i+1]
+		}
+	}
+	if strings.Contains(candidate, "local") {
+		return "host (.local mDNS)"
+	}
+	return "unknown"
+}
+
+// iceString returns a fully RFC 8445 compliant SDP ICE candidate string.
+//
+// Pion's ICECandidate.ToJSON().Candidate is the correct SDP attribute value
+// (e.g. "candidate:xxx 1 udp 1677729535 1.2.3.4 1234 typ srflx") but omits
+// the mandatory raddr/rport fields for non-host candidates in some versions.
+// ICECandidate.String() is a human-readable DEBUG format, NOT valid SDP —
+// never use it as a candidate string.
+//
+// Strategy: use ToJSON().Candidate as the base and append raddr/rport for
+// srflx/relay/prflx candidates when those fields are missing.
+func iceString(c *webrtc.ICECandidate, base string) string {
+	if base == "" {
+		return ""
+	}
+	switch c.Typ {
+	case webrtc.ICECandidateTypeSrflx, webrtc.ICECandidateTypeRelay, webrtc.ICECandidateTypePrflx:
+		if !strings.Contains(base, " raddr ") {
+			raddr := c.RelatedAddress
+			if raddr == "" {
+				raddr = "0.0.0.0"
+			}
+			// Strip brackets from IPv6 addresses — they're invalid in SDP.
+			raddr = strings.TrimPrefix(raddr, "[")
+			raddr = strings.TrimSuffix(raddr, "]")
+			return fmt.Sprintf("%s raddr %s rport %d", base, raddr, c.RelatedPort)
+		}
+	}
+	return base
+}
+
+// fixCandidate is kept for compatibility but no longer used.
+func fixCandidate(c *webrtc.ICECandidate, s string) string {
+	return iceString(c, s)
 }
 
 func trickleICE(sig *signaling.Client, pc *webrtc.PeerConnection) {
 	pc.OnICECandidate(func(c *webrtc.ICECandidate) {
 		if c == nil {
+			fmt.Println("[ICE] local gathering complete (nil candidate)")
 			return
 		}
 		init := c.ToJSON()
@@ -1769,7 +1956,12 @@ func trickleICE(sig *signaling.Client, pc *webrtc.PeerConnection) {
 		if init.SDPMLineIndex != nil {
 			idx = *init.SDPMLineIndex
 		}
-		_ = sig.SendICE(init.Candidate, mid, idx)
+		s := iceString(c, init.Candidate)
+		if s == "" {
+			return
+		}
+		fmt.Printf("[ICE] sending local candidate: %s\n", candidateType(s))
+		_ = sig.SendICE(s, mid, idx)
 	})
 }
 
