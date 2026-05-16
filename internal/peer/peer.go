@@ -184,7 +184,7 @@ func (d *dispatcher) pumpICE(ctx context.Context, pc *webrtc.PeerConnection) {
 			if err != nil {
 				continue
 			}
-			fmt.Printf("[ICE] applying remote candidate: %s\n", ice.Candidate)
+			fmt.Printf("[ICE] applying remote candidate: %s\n", candidateType(ice.Candidate))
 			sdpMid := ice.SDPMid
 			sdpIdx := ice.SDPMLineIndex
 			_ = pc.AddICECandidate(webrtc.ICECandidateInit{
@@ -1385,7 +1385,7 @@ func initiatorHandshakeWithPeer(
 	// Now that SetRemoteDescription is done, drain the ICE buffer into the PC.
 	go func() {
 		for cp := range iceBuf {
-			fmt.Printf("[ICE] applying buffered remote candidate (initiator): %s\n", cp.Candidate)
+			fmt.Printf("[ICE] applying buffered remote candidate (initiator): %s\n", candidateType(cp.Candidate))
 			mlineIdx := cp.SDPMLineIndex
 			mid := cp.SDPMid
 			_ = pc.AddICECandidate(webrtc.ICECandidateInit{
@@ -1829,7 +1829,7 @@ func doSessionHandshake(ctx context.Context, sig *signaling.Client, code string,
 	// SetRemoteDescription done — now drain buffered ICE candidates into the PC.
 	go func() {
 		for cp := range iceBuf {
-			fmt.Printf("[ICE] applying buffered remote candidate (responder): %s\n", cp.Candidate)
+			fmt.Printf("[ICE] applying buffered remote candidate (responder): %s\n", candidateType(cp.Candidate))
 			mlineIdx := cp.SDPMLineIndex
 			mid := cp.SDPMid
 			_ = pc.AddICECandidate(webrtc.ICECandidateInit{
@@ -1891,6 +1891,21 @@ func newPeerConnection(cfg Config) (*webrtc.PeerConnection, error) {
 	return pc, nil
 }
 
+// candidateType extracts just the candidate type (host/srflx/relay/prflx)
+// from an SDP candidate string without exposing IP addresses.
+func candidateType(candidate string) string {
+	parts := strings.Fields(candidate)
+	for i, p := range parts {
+		if p == "typ" && i+1 < len(parts) {
+			return parts[i+1]
+		}
+	}
+	if strings.Contains(candidate, "local") {
+		return "host (.local mDNS)"
+	}
+	return "unknown"
+}
+
 // iceString returns a fully RFC 8445 compliant SDP ICE candidate string.
 //
 // Pion's ICECandidate.ToJSON().Candidate is the correct SDP attribute value
@@ -1945,7 +1960,7 @@ func trickleICE(sig *signaling.Client, pc *webrtc.PeerConnection) {
 		if s == "" {
 			return
 		}
-		fmt.Printf("[ICE] sending local candidate: %s\n", s)
+		fmt.Printf("[ICE] sending local candidate: %s\n", candidateType(s))
 		_ = sig.SendICE(s, mid, idx)
 	})
 }
