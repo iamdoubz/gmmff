@@ -1881,9 +1881,6 @@ func newPeerConnection(cfg Config) (*webrtc.PeerConnection, error) {
 	pc.OnICEConnectionStateChange(func(s webrtc.ICEConnectionState) {
 		fmt.Printf("[ICE] connection state: %s\n", s)
 	})
-	pc.OnICEGatheringStateChange(func() {
-		fmt.Printf("[ICE] gathering state: %s\n", pc.ICEGatheringState())
-	})
 	pc.OnConnectionStateChange(func(s webrtc.PeerConnectionState) {
 		fmt.Printf("[PC]  connection state: %s\n", s)
 	})
