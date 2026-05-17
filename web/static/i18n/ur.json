@@ -94,5 +94,9 @@
   "share_qr_hint": "شامل ہونے کے لیے اسکین کریں",
   "files_max_peers_label": "زیادہ سے زیادہ شرکاء:",
   "files_max_peers_hint": "۲ = دو طرفہ۔ ۳–۱۰ = آغاز کرنے والا سب کو بھیجتا ہے۔",
-  "session_ended": "سیشن ختم ہو گیا"
+  "session_ended": "سیشن ختم ہو گیا",
+  "join_name_label": "آپ کا نام",
+  "join_name_optional": "(اختیاری)",
+  "join_name_placeholder": "مثلاً احمد",
+  "join_connecting": "کنکشن ہو رہا ہے…"
 }

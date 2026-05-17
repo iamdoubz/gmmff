@@ -94,5 +94,9 @@
   "share_qr_hint": "සම්බන්ධ වීමට ස්කෑන් කරන්න",
   "files_max_peers_label": "උපරිම සහභාගිවන්නන්:",
   "files_max_peers_hint": "2 = ද්විදිශානුගත. 3–10 = ආරම්භකයා සියල්ලන්ට යවයි.",
-  "session_ended": "සැසිය අවසන් විය"
+  "session_ended": "සැසිය අවසන් විය",
+  "join_name_label": "ඔබේ නම",
+  "join_name_optional": "(අවශ්‍ය නම්)",
+  "join_name_placeholder": "උදා. Alice",
+  "join_connecting": "සම්බන්ධ වෙමින්…"
 }

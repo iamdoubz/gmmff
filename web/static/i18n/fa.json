@@ -94,5 +94,9 @@
   "share_qr_hint": "برای پیوستن اسکن کنید",
   "files_max_peers_label": "حداکثر شرکت‌کنندگان:",
   "files_max_peers_hint": "۲ = دو طرفه. ۳–۱۰ = آغازکننده برای همه ارسال می‌کند.",
-  "session_ended": "جلسه پایان یافت"
+  "session_ended": "جلسه پایان یافت",
+  "join_name_label": "نام شما",
+  "join_name_optional": "(اختیاری)",
+  "join_name_placeholder": "مثلاً: علی",
+  "join_connecting": "در حال اتصال…"
 }

@@ -94,5 +94,9 @@
   "share_qr_hint": "สแกนเพื่อเข้าร่วม",
   "files_max_peers_label": "จำนวนผู้เข้าร่วมสูงสุด:",
   "files_max_peers_hint": "2 = สองทิศทาง 3–10 = ผู้เริ่มต้นส่งให้ทุกคน",
-  "session_ended": "สิ้นสุดเซสชันแล้ว"
+  "session_ended": "สิ้นสุดเซสชันแล้ว",
+  "join_name_label": "ชื่อของคุณ",
+  "join_name_optional": "(ไม่จำเป็น)",
+  "join_name_placeholder": "เช่น สมชาย",
+  "join_connecting": "กำลังเชื่อมต่อ…"
 }

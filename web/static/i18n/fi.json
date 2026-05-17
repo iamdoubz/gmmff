@@ -94,5 +94,9 @@
   "share_qr_hint": "Skannaa liittyäksesi",
   "files_max_peers_label": "Enimmäisosallistujamäärä:",
   "files_max_peers_hint": "2 = kaksisuuntainen. 3–10 = aloittaja lähettää kaikille.",
-  "session_ended": "Istunto päättyi"
+  "session_ended": "Istunto päättyi",
+  "join_name_label": "Nimesi",
+  "join_name_optional": "(valinnainen)",
+  "join_name_placeholder": "esim. Matti",
+  "join_connecting": "Yhdistetään…"
 }

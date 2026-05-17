@@ -94,5 +94,9 @@
   "share_qr_hint": "जुड़ने के लिए स्कैन करें",
   "files_max_peers_label": "अधिकतम प्रतिभागी:",
   "files_max_peers_hint": "2 = द्विदिशात्मक। 3–10 = आरंभकर्ता सभी को भेजता है।",
-  "session_ended": "सत्र समाप्त हो गया"
+  "session_ended": "सत्र समाप्त हो गया",
+  "join_name_label": "आपका नाम",
+  "join_name_optional": "(वैकल्पिक)",
+  "join_name_placeholder": "जैसे Alice",
+  "join_connecting": "कनेक्ट हो रहा है…"
 }
