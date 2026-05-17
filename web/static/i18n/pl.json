@@ -94,5 +94,9 @@
   "share_qr_hint": "Zeskanuj, aby dołączyć",
   "files_max_peers_label": "Maks. uczestników:",
   "files_max_peers_hint": "2 = dwukierunkowy. 3–10 = inicjator wysyła do wszystkich.",
-  "session_ended": "Sesja zakończona"
+  "session_ended": "Sesja zakończona",
+  "join_name_label": "Twoje imię",
+  "join_name_optional": "(opcjonalnie)",
+  "join_name_placeholder": "np. Anna",
+  "join_connecting": "Łączenie…"
 }

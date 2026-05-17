@@ -94,5 +94,9 @@
   "share_qr_hint": "스캔하여 참여",
   "files_max_peers_label": "최대 참가자 수:",
   "files_max_peers_hint": "2 = 양방향. 3–10 = 개시자가 전체에게 전송.",
-  "session_ended": "세션 종료됨"
+  "session_ended": "세션 종료됨",
+  "join_name_label": "이름",
+  "join_name_optional": "(선택)",
+  "join_name_placeholder": "예: 홍길동",
+  "join_connecting": "연결 중…"
 }

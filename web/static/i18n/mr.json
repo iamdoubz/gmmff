@@ -94,5 +94,9 @@
   "share_qr_hint": "सहभागी होण्यासाठी स्कॅन करा",
   "files_max_peers_label": "कमाल सहभागी:",
   "files_max_peers_hint": "२ = द्विदिशात्मक. ३–१० = प्रवर्तक सर्वांना पाठवतो.",
-  "session_ended": "सत्र संपले"
+  "session_ended": "सत्र संपले",
+  "join_name_label": "तुमचे नाव",
+  "join_name_optional": "(पर्यायी)",
+  "join_name_placeholder": "उदा. राज",
+  "join_connecting": "कनेक्ट होत आहे…"
 }

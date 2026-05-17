@@ -94,5 +94,9 @@
   "share_qr_hint": "Imbas untuk menyertai",
   "files_max_peers_label": "Maks. peserta:",
   "files_max_peers_hint": "2 = dua hala. 3–10 = pemula menghantar kepada semua.",
-  "session_ended": "Sesi telah tamat"
+  "session_ended": "Sesi telah tamat",
+  "join_name_label": "Nama anda",
+  "join_name_optional": "(pilihan)",
+  "join_name_placeholder": "cth. Ali",
+  "join_connecting": "Menyambung…"
 }

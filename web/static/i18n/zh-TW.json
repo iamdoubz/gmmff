@@ -94,5 +94,9 @@
   "share_qr_hint": "掃碼加入",
   "files_max_peers_label": "最大參與人數：",
   "files_max_peers_hint": "2 = 雙向。3–10 = 發起者向所有人傳送。",
-  "session_ended": "工作階段已結束"
+  "session_ended": "工作階段已結束",
+  "join_name_label": "您的姓名",
+  "join_name_optional": "（選填）",
+  "join_name_placeholder": "例如：小明",
+  "join_connecting": "連線中…"
 }

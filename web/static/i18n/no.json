@@ -94,5 +94,9 @@
   "share_qr_hint": "Skann for å bli med",
   "files_max_peers_label": "Maks deltakere:",
   "files_max_peers_hint": "2 = toveis. 3–10 = initiator sender til alle.",
-  "session_ended": "Økt avsluttet"
+  "session_ended": "Økt avsluttet",
+  "join_name_label": "Ditt navn",
+  "join_name_optional": "(valgfritt)",
+  "join_name_placeholder": "f.eks. Kari",
+  "join_connecting": "Kobler til…"
 }

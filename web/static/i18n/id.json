@@ -94,5 +94,9 @@
   "share_qr_hint": "Pindai untuk bergabung",
   "files_max_peers_label": "Maks. peserta:",
   "files_max_peers_hint": "2 = dua arah. 3–10 = inisiator mengirim ke semua.",
-  "session_ended": "Sesi telah berakhir"
+  "session_ended": "Sesi telah berakhir",
+  "join_name_label": "Nama Anda",
+  "join_name_optional": "(opsional)",
+  "join_name_placeholder": "mis. Budi",
+  "join_connecting": "Menghubungkan…"
 }

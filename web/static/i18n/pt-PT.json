@@ -94,5 +94,9 @@
   "share_qr_hint": "Digitalize para entrar",
   "files_max_peers_label": "Máx. participantes:",
   "files_max_peers_hint": "2 = bidirecional. 3–10 = o iniciador envia para todos.",
-  "session_ended": "Sessão terminada"
+  "session_ended": "Sessão terminada",
+  "join_name_label": "O seu nome",
+  "join_name_optional": "(opcional)",
+  "join_name_placeholder": "ex. Alice",
+  "join_connecting": "A ligar…"
 }

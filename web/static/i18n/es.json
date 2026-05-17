@@ -94,5 +94,9 @@
   "share_qr_hint": "Escanea para unirte",
   "files_max_peers_label": "Máx. participantes:",
   "files_max_peers_hint": "2 = bidireccional. 3–10 = el iniciador envía a todos.",
-  "session_ended": "Sesión terminada"
+  "session_ended": "Sesión terminada",
+  "join_name_label": "Tu nombre",
+  "join_name_optional": "(opcional)",
+  "join_name_placeholder": "p.ej. Alice",
+  "join_connecting": "Conectando…"
 }

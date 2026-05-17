@@ -94,5 +94,9 @@
   "share_qr_hint": "扫码加入",
   "files_max_peers_label": "最大参与人数：",
   "files_max_peers_hint": "2 = 双向。3–10 = 发起者向所有人发送。",
-  "session_ended": "会话已结束"
+  "session_ended": "会话已结束",
+  "join_name_label": "您的姓名",
+  "join_name_optional": "（可选）",
+  "join_name_placeholder": "例如：小明",
+  "join_connecting": "连接中…"
 }

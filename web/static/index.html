@@ -158,6 +158,12 @@
         <p class="field-hint"><small data-i18n="files_max_peers_hint">2 = bidirectional. 3–10 = initiator sends to all.</small></p>
       </div>
 
+      <div class="field">
+        <label for="files-my-name" data-i18n="join_name_label">Your name <small data-i18n="join_name_optional">(optional)</small></label>
+        <input type="text" id="files-my-name" autocomplete="name" autocorrect="off" spellcheck="false"
+               maxlength="32" data-i18n-placeholder="join_name_placeholder">
+      </div>
+
       <p class="status" id="files-error" role="alert"></p>
       <button class="btn-primary" id="files-create-btn" data-i18n="files_create_btn">Start session</button>
     </div>
@@ -198,6 +204,11 @@
         <label for="files-join-code" data-i18n="receive_code_label">Code</label>
         <input type="text" id="files-join-code" autocomplete="off" autocorrect="off" autocapitalize="none"
                spellcheck="false" inputmode="text" data-i18n-placeholder="receive_code_placeholder">
+      </div>
+      <div class="field">
+        <label for="files-join-name" data-i18n="join_name_label">Your name <small data-i18n="join_name_optional">(optional)</small></label>
+        <input type="text" id="files-join-name" autocomplete="name" autocorrect="off" spellcheck="false"
+               maxlength="32" data-i18n-placeholder="join_name_placeholder">
       </div>
       <p class="status" id="files-join-error" role="alert"></p>
       <button class="btn-primary" id="files-join-btn" data-i18n="chat_join_btn">Join</button>
@@ -302,6 +313,11 @@
         <label for="chat-join-code" data-i18n="receive_code_label">Code</label>
         <input type="text" id="chat-join-code" autocomplete="off" autocorrect="off" autocapitalize="none"
                spellcheck="false" inputmode="text" data-i18n-placeholder="receive_code_placeholder">
+      </div>
+      <div class="field">
+        <label for="chat-join-name" data-i18n="join_name_label">Your name <small data-i18n="join_name_optional">(optional)</small></label>
+        <input type="text" id="chat-join-name" autocomplete="name" autocorrect="off" spellcheck="false"
+               maxlength="32" data-i18n-placeholder="join_name_placeholder">
       </div>
       <p class="status" id="chat-join-error" role="alert"></p>
       <button class="btn-primary" id="chat-join-btn" data-i18n="chat_join_btn">Join</button>
