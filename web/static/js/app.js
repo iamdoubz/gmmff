@@ -23,7 +23,13 @@ function normaliseServerURL(url) {
 }
 let i18n   = {};
 let cancel        = null; // function set by Wasm to cancel active transfer
-let peerDisplayName = 'Participant'; // set from the name field on the join form
+let myName    = 'Me';        // my own display name (set from name field)
+let peerNames = new Map();   // peerIndex (1-based) → display name
+let peerCount = 0;           // number of peers joined so far (for auto-naming)
+
+// NAME_PREFIX is a sentinel prepended to name-announcement messages.
+// It lets the receiver distinguish a name announcement from a chat message.
+const NAME_PREFIX = '\x01name:';
 
 // ── Boot sequence ─────────────────────────────────────────────────────────────
 async function boot() {
@@ -299,6 +305,8 @@ document.getElementById('files-create-btn')?.addEventListener('click', () => {
   errEl.textContent = '';
   if (!server) { errEl.textContent = t('error_no_server'); return; }
   const maxPeers = parseInt(document.getElementById('files-max-peers')?.value || '2', 10);
+  const myNameVal = document.getElementById('files-my-name')?.value.trim();
+  if (myNameVal) myName = myNameVal;
   if (typeof window.gmmffCreateSession === 'function') {
     window.gmmffCreateSession(server, maxPeers, buildIceConfig());
   }
@@ -331,7 +339,7 @@ document.getElementById('files-join-btn')?.addEventListener('click', () => {
   if (!server) { if (errEl) errEl.textContent = t('error_no_server'); return; }
   // Capture display name; disable button immediately to prevent double-join.
   const nameVal = document.getElementById('files-join-name')?.value.trim();
-  if (nameVal) peerDisplayName = nameVal;
+  if (nameVal) myName = nameVal;
   const joinBtn = document.getElementById('files-join-btn');
   if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = t('join_connecting') || 'Connecting…'; }
   if (typeof window.gmmffJoinSession === 'function') {
@@ -371,7 +379,7 @@ function sendFilesMessage() {
   const text  = input?.value.trim();
   if (!text) return;
   if (typeof window.gmmffSessionSendMessage === 'function') window.gmmffSessionSendMessage(text);
-  appendFilesMessage('me', 'You', text);
+  appendFilesMessage('me', myName, text);
   input.value = '';
   input.focus();
 }
@@ -430,9 +438,17 @@ window.uiFilesShowCode = function(code) {
 
 window.uiFilesSessionReady = function(isInitiator, peerCount, maxPeers) {
   filesIsInitiator = isInitiator;
+  peerNames = new Map();
+  peerCount = 0;
   if (peerCount && maxPeers) {
     window.uiFilesPeerCount(peerCount, maxPeers);
   }
+  // Announce our name to the other side.
+  setTimeout(() => {
+    if (typeof window.gmmffSessionSendMessage === 'function') {
+      window.gmmffSessionSendMessage(NAME_PREFIX + myName);
+    }
+  }, 300);
   document.getElementById('files-messages').innerHTML = '';
   document.getElementById('files-transfers').innerHTML = '';
   const statusEl = document.getElementById('files-active-status');
@@ -483,7 +499,17 @@ window.uiFilesInboundStarted = function(label, total) {
 };
 
 window.uiFilesMessage = function(from, text) {
-  appendFilesMessage('them', peerDisplayName, text);
+  if (text.startsWith(NAME_PREFIX)) {
+    // Name announcement — record the name for this peer, don't display as message.
+    peerCount++;
+    const announcedName = text.slice(NAME_PREFIX.length).trim() || ('Participant ' + peerCount);
+    peerNames.set(peerCount, announcedName);
+    appendFilesSystem(announcedName + ' joined.');
+    return;
+  }
+  // Use the most recently announced peer name, falling back to Participant N.
+  const label = peerNames.size > 0 ? peerNames.get(peerNames.size) || ('Participant ' + peerNames.size) : 'Participant';
+  appendFilesMessage('them', label, text);
 };
 
 window.uiFilesPeerCount = function(peerCount, maxPeers) {
@@ -494,7 +520,8 @@ window.uiFilesPeerCount = function(peerCount, maxPeers) {
 };
 
 window.uiFilesParticipantLeft = function(msg) {
-  appendFilesSystem(msg || (peerDisplayName + ' left.'));
+  const label = peerNames.size > 0 ? (peerNames.get(peerNames.size) || 'Participant') : 'Participant';
+  appendFilesSystem(msg || (label + ' left.'));
 };
 
 window.uiFilesSessionClosed = function(msg) {
@@ -691,7 +718,7 @@ document.getElementById('chat-join-btn')?.addEventListener('click', () => {
   if (!code)   { errEl.textContent = t('error_no_code');   return; }
   if (!server) { errEl.textContent = t('error_no_server'); return; }
   const chatNameVal = document.getElementById('chat-join-name')?.value.trim();
-  if (chatNameVal) peerDisplayName = chatNameVal;
+  if (chatNameVal) myName = chatNameVal;
   const chatJoinBtn = document.getElementById('chat-join-btn');
   if (chatJoinBtn) { chatJoinBtn.disabled = true; chatJoinBtn.textContent = t('join_connecting') || 'Connecting…'; }
   if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, buildIceConfig());
@@ -712,7 +739,7 @@ function sendChatMessage() {
     return;
   }
   if (typeof window.gmmffChatSend === 'function') window.gmmffChatSend(text);
-  appendChatBubble('me', 'You', text);
+  appendChatBubble('me', myName, text);
   input.value = '';
   input.focus();
 }
@@ -775,6 +802,12 @@ window.uiChatShowCode = function(code) {
 
 window.uiChatOpen = function(remoteRole) {
   document.getElementById('chat-messages').innerHTML = '';
+  // Announce our name.
+  setTimeout(() => {
+    if (typeof window.gmmffChatSend === 'function') {
+      window.gmmffChatSend(NAME_PREFIX + myName);
+    }
+  }, 300);
   const statusEl = document.getElementById('chat-active-status');
   statusEl.textContent = t('chat_connected') || 'Connected';
   statusEl.style.color = 'var(--color-success)';
@@ -787,7 +820,14 @@ window.uiChatOpen = function(remoteRole) {
 };
 
 window.uiChatMessage = function(from, text) {
-  appendChatBubble('them', peerDisplayName, text);
+  if (text.startsWith(NAME_PREFIX)) {
+    const announcedName = text.slice(NAME_PREFIX.length).trim() || 'Participant';
+    peerNames.set(1, announcedName);
+    appendChatSystem(announcedName + ' joined.');
+    return;
+  }
+  const label = peerNames.get(1) || 'Participant';
+  appendChatBubble('them', label, text);
 };
 
 window.uiChatClosed = function(reason) {
@@ -796,7 +836,8 @@ window.uiChatClosed = function(reason) {
 };
 
 window.uiChatParticipantLeft = function(who) {
-  appendChatSystem((who || peerDisplayName) + ' left the session.');
+  const label = peerNames.get(1) || 'Participant';
+  appendChatSystem((who || label) + ' left the session.');
 };
 
 window.uiChatError = function(message) {

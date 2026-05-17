@@ -204,6 +204,7 @@ gmmff join river-stone-fog --server wss://your-server/ws
 Open the **Files** tab, click **Start session** to get a code, or click
 **Join with a code** to enter one. Once connected:
 
+- Set your **name** (optional) — shown to other participants as your message label
 - Set **Max participants** (2–10) before starting — 2 is bidirectional, 3–10 makes the initiator the broadcaster
 - Drag and drop files anywhere on the page, or use **Choose files** / **Choose folder**
 - Click **Send** to transfer — the other side auto-downloads once verified
@@ -550,10 +551,13 @@ is overridable — colors, spacing, radii, fonts, max-width — with no build st
 
 ### Translations
 
-The UI ships with 10 languages: English, Spanish, French, German, Italian,
-Swedish, Brazilian Portuguese, European Portuguese, Tamil, and Sinhala. The
-language picker in the footer auto-detects your browser preference and
-persists your choice for 7 days.
+The UI ships with 32 languages including English, Spanish, French, German,
+Italian, Swedish, Portuguese, Arabic, Bengali, Persian, Finnish, Hindi,
+Indonesian, Japanese, Korean, Marathi, Malay, Dutch, Norwegian, Polish,
+Russian, Thai, Filipino, Turkish, Ukrainian, Urdu, Vietnamese, Chinese
+(Simplified and Traditional), Tamil, and Sinhala. The language picker in
+the footer auto-detects your browser preference and persists your choice
+for 7 days.
 
 To add a language: copy `web/static/i18n/en.json`, translate the values, save
 as `web/static/i18n/<code>.json`, and add an entry to `web/static/i18n/languages.json`.
@@ -781,7 +785,6 @@ gmmff/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── go.mod
-├── go.sum
 └── README.md
 ```
 
@@ -809,17 +812,20 @@ gmmff/
 - **TURN support** — long-term and ephemeral credentials, mixed auth types, transport hints, max 3 servers
 - **Browser UI (Wasm)** — same Go source compiled to WebAssembly; Files tab + Chat tab
 - **Drag and drop** — drop files anywhere on the browser UI to queue them for sending
-- **32 languages** — English, Spanish, French, German, Italian, Swedish, Portuguese, Tamil, Sinhala, and more!; language picker with 7-day persistence
+- **32 languages** — English, Spanish, French, German, Italian, Swedish, Portuguese (BR/EU), Arabic, Bengali, Persian, Finnish, Hindi, Indonesian, Japanese, Korean, Marathi, Malay, Dutch, Norwegian, Polish, Russian, Thai, Filipino, Turkish, Ukrainian, Urdu, Vietnamese, Chinese (Simplified/Traditional), Tamil, Sinhala; language picker with 7-day persistence
 - **ICE settings panel** — configurable STUN/TURN in the browser UI, persisted 7 days
 - **Share links + QR codes** — shareable URLs and scannable QR codes on all code screens
+- **Display names** — both initiator and joiner can set a name; names are announced to peers on connect and used as message labels throughout the session
 
 ### Backlog
 
 - **Browser extension** — use your favourite browser to send/receive files
 - **Docker images** — pipeline to package, build, and publish Docker images
-- **More languages** — contributions welcome
+- **More languages** — 32 languages shipped; contributions welcome
 - **Trusted local CA** — one-time CA install for iOS Safari support in `gmmff local`
 - **Quantum-safe encryption** — post-quantum algorithms with elliptic-curve fallback
+
+---
 
 ### Probably won't do
 
@@ -833,7 +839,7 @@ gmmff/
 [https://xkcd.com/949](https://xkcd.com/949)
 
 <p align="center">
-  <a href=https://xkcd.com/949" target="_blank"><img src="https://imgs.xkcd.com/comics/file_transfer.png" alt="xkcd comic explaining the difficulties of sending large files between two people"></a>
+  <a href="https://xkcd.com/949" target="_blank"><img src="https://imgs.xkcd.com/comics/file_transfer.png" alt="xkcd comic explaining the difficulties of sending large files between two people"></a>
 </p>
 
 - [X] [webwormhole](https://github.com/saljam/webwormhole) by [@saljam](https://github.com/saljam)

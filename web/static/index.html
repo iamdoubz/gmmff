@@ -158,6 +158,12 @@
         <p class="field-hint"><small data-i18n="files_max_peers_hint">2 = bidirectional. 3–10 = initiator sends to all.</small></p>
       </div>
 
+      <div class="field">
+        <label for="files-my-name" data-i18n="join_name_label">Your name <small data-i18n="join_name_optional">(optional)</small></label>
+        <input type="text" id="files-my-name" autocomplete="name" autocorrect="off" spellcheck="false"
+               maxlength="32" data-i18n-placeholder="join_name_placeholder">
+      </div>
+
       <p class="status" id="files-error" role="alert"></p>
       <button class="btn-primary" id="files-create-btn" data-i18n="files_create_btn">Start session</button>
     </div>
