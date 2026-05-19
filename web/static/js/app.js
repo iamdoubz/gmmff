@@ -16,7 +16,19 @@ const lastProgress = {
   receive: { total: 0, speed: 0, startTime: null },
 };
 
-// normaliseServerURL rewrites 'localhost' → '127.0.0.1' so the browser's
+// Load Inter font asynchronously — avoids CSP inline-event-handler violations.
+// Falls back to system-ui immediately; Inter swaps in once downloaded.
+// Skipped when offline (request simply times out, no error shown to user).
+(function loadInterFont() {
+  const link  = document.createElement('link');
+  link.rel    = 'stylesheet';
+  link.media  = 'print';
+  link.href   = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap';
+  link.onload = function() { this.media = 'all'; };
+  document.head.appendChild(link);
+}());
+
+
 // native WebSocket API can connect without a DNS lookup, which fails in Wasm.
 function normaliseServerURL(url) {
   return url.replace(/\/\/localhost([:/#?]|$)/, '//127.0.0.1$1');

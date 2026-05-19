@@ -54,15 +54,10 @@
   <meta name="msapplication-TileImage" content="/gmmff-logo.png" />
   <!-- END SOCIAL MEDIA STUFFS ------------------------------------------------------------>
 
-  <!-- Inter font — loaded asynchronously so it fails gracefully offline.
-       system-ui is the fallback; the UI works fine without Inter. -->
+  <!-- Inter font is loaded asynchronously by app.js to avoid CSP violations
+       and fail gracefully offline. system-ui is the immediate fallback. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" media="print" onload="this.media='all'"
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
-  <noscript>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
-  </noscript>
 
   <link rel="stylesheet" href="css/app.css">
 </head>
