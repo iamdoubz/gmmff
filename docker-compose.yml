@@ -1,8 +1,8 @@
 services:
   redis:
     image: redis:8-alpine
-    name: gmmff-redis
-    mem_limit: 128M
+    container_name: gmmff-redis
+    mem_limit: 92M
     restart: unless-stopped
     command: >
       redis-server
@@ -10,7 +10,6 @@ services:
         --loglevel warning
         --maxmemory 64mb
         --maxmemory-policy allkeys-lru
-        --requirepass "${GMMFF_REDIS_PASSWORD}"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -22,21 +21,18 @@ services:
     # Expose 6379 here only for local debugging (remove in production).
     ports:
       - "127.0.0.1:6379:6379"
-
   gmmff:
     image: ghcr.io/iamdoubz/gmmff:latest
-    name: gmmff
-    mem_limit: 256M
+    container_name: gmmff
+    mem_limit: 64M
     restart: unless-stopped
+    env_file:
+      - configs/.env
     depends_on:
       redis:
         condition: service_healthy
-    environment:
-      - GMMFF_ADDR=${GMMFF_ADDR:-:8080}
-      - GMMFF_REDIS_URL=redis://:${GMMFF_REDIS_PASSWORD}@redis:6379/0
-      - GMMFF_LOG_LEVEL=info
     ports:
-      - "8080${GMMFF_ADDR:-:8080}"
+      - "8080:8080"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
       interval: 10s
