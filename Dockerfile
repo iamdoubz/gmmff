@@ -1,7 +1,7 @@
 # ── Stage 1: build Wasm ───────────────────────────────────────────────────────
 # Wasm must be built before the main binary because internal/localmode/embed.go
 # uses //go:embed and requires internal/localmode/static/ to exist at compile time.
-FROM golang:1.23-alpine AS wasm-builder
+FROM golang:1.26-alpine AS wasm-builder
 
 RUN apk add --no-cache ca-certificates git
 
@@ -25,7 +25,7 @@ RUN mkdir -p internal/localmode/static && \
     cp -rf web/static/. internal/localmode/static/
 
 # ── Stage 2: build the server binary ──────────────────────────────────────────
-FROM golang:1.23-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 # TARGETARCH is set automatically by Docker Buildx for multi-platform builds.
 ARG TARGETARCH
@@ -94,4 +94,4 @@ RUN apk add --no-cache su-exec
 EXPOSE 8080
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/gmmff", "serve", "--web /web/static"]
+CMD ["/gmmff", "serve", "--web", "/web/static"]
