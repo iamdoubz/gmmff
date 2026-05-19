@@ -9,404 +9,12 @@
 
 gmmff consists of two parts: a **signaling server** that brokers the initial
 connection, and a **CLI client** that handles the actual transfer.  The server
-never sees file contents — once two peers are connected, all data flows
+never sees file contents — once two (or more) peers are connected, all data flows
 directly between them over an encrypted WebRTC data channel.
 
 ---
 
-## Quick start
-
-### Starting a file session
-
-Machine A creates the session and gets a code:
-
-```bash
-gmmff create --server wss://your-server/ws
-```
-
-```
-  ╔══════════════════════════════════════╗
-  ║  Share this code with the other side ║
-  ║                                      ║
-  ║    acid-lake-drum                    ║
-  ║                                      ║
-  ║  Expires in 10 minutes               ║
-  ╚══════════════════════════════════════╝
-
-  Run on the other machine:
-    gmmff join acid-lake-drum
-```
-
-Machine B joins the session:
-
-```bash
-gmmff join acid-lake-drum --server wss://your-server/ws
-```
-
-Once connected, both sides drop into the session REPL:
-
-```
-Session ready. Commands:
-  send <file|dir> [file|dir ...]   send file(s) to peer
-  message <text>                   send a text message
-  chat                             open interactive chat sub-session
-  \q                               end session for everyone (initiator only)
-```
-
-### Sending files in a session
-
-```bash
-> send report.pdf
-> send notes.txt data.csv
-> send ./project-folder
-```
-
-A single file is sent as-is. Multiple files or a directory are zipped on the
-fly — the receiver gets one `.zip` archive.
-
-### Sending a message in a session
-
-```bash
-> message "Here is the Q3 report, let me know if you have questions"
-```
-
-Messages appear instantly on the other terminal. Optionally, with a single
-file transfer the message is printed before the file saves; with multiple
-files it is injected as `message.txt` inside the zip.
-
-### Opening a chat sub-session
-
-```bash
-> chat
-chat> Hello! Ready to transfer?
-chat> \q
-Returning to session.
->
-```
-
-Type `\q` inside `chat` to return to the session REPL without ending the session.
-
-### Session control
-
-| Who | Action | Effect |
-|-----|--------|--------|
-| Initiator | `\q` | Ends the session for everyone |
-| Initiator | `Ctrl+C` | Leaves quietly; session stays open |
-| Responder | `\q` or `Ctrl+C` | Leaves quietly; session stays open |
-
-### Multi-peer sessions
-
-By default, sessions allow 2 participants. Use `--max-peers` to allow up to 10:
-
-```bash
-# Allow up to 5 participants
-gmmff create --max-peers 5 --server wss://your-server/ws
-```
-
-Share the same code with up to 4 other people — they all `gmmff join` the same code.
-
-**Transfer rules by participant count:**
-
-| Session size | File transfers | Chat messages |
-|-------------|---------------|---------------|
-| 2 peers | Either side can send (bidirectional) | Either side |
-| 3–10 peers | Initiator only (broadcast to all) | Any participant |
-
-The initiator is the hub — all file transfers flow through them. If a peer leaves mid-transfer, their transfer ends but all other peers continue receiving. A session slot never reopens once it has been fully filled.
-
-The session closes automatically after 10 minutes of inactivity. Any file
-transfer or message resets the timer.
-
----
-
-### Local-network mode (no internet required)
-
-`gmmff local` is a fully self-contained mode that requires no external server,
-no internet connection, and no configuration. It is designed for transferring
-files between devices on the same Wi-Fi or LAN.
-
-```bash
-gmmff local
-```
-
-On startup it:
-- Starts an embedded signaling server and web server
-- Generates a self-signed TLS certificate automatically
-- Registers on mDNS so other `gmmff local` instances on the network can find it
-- Prints a QR code and URL encoding the session code
-
-```
-Scanning for other gmmff instances on the local network... none found.
-Using port 51423
-Starting embedded server... done.
-Registering on mDNS... done.
-Connecting to local broker... done.
-Creating session... done.
-
-╔══════════════════════════════════════════════════════╗
-║  gmmff local mode                                    ║
-╠══════════════════════════════════════════════════════╣
-║  Server:   https://192.168.1.25:51423                ║
-║  Code:     acid-lake-drum                            ║
-║  Join URL: https://192.168.1.25:51423/?code=acid-... ║
-╚══════════════════════════════════════════════════════╝
-
-Scan this QR code to join:
-[QR code]
-
-Or open: https://192.168.1.25:51423/?code=acid-lake-drum&type=files&autoconnect=1&local=1
-
-Waiting for first peer to connect...
-```
-
-Any device on the same network scans the QR code — the browser opens, the
-session connects automatically, and the Files UI appears ready to receive.
-No typing, no code entry, no external server.
-
-**Browser compatibility in local mode:**
-
-| Browser | TLS (default) | `--no-tls` |
-|---------|--------------|------------|
-| Chrome / Edge (desktop + Android) | Tap "Advanced → Proceed" once | ✅ works |
-| Firefox | Accept the risk once | ✅ works |
-| Safari / iOS Safari | ⚠ Cert must be trusted in Settings | ✅ works |
-
-For mixed-device sessions where Safari is involved, use `--no-tls` — WebRTC
-works over plain HTTP on local networks in Chrome and Firefox, but iOS Safari
-requires HTTPS with a trusted certificate.
-
-**Session control in local mode:**
-
-| Command | Effect |
-|---------|--------|
-| `send <file\|dir>` | Send file(s) to all connected peers |
-| `message <text>` | Send a text message |
-| `\q` | End session and shut down the local server |
-
----
-
-### Starting a pure chat session (CLI)
-
-For a text-only session without file transfer, use `gmmff chat`:
-
-```bash
-# Machine A
-gmmff chat --server wss://your-server/ws
-
-# Machine B — gmmff join detects the session type and routes to the chat REPL
-gmmff join river-stone-fog --server wss://your-server/ws
-```
-
----
-
-### Files tab (browser UI)
-
-Open the **Files** tab, click **Start session** to get a code, or click
-**Join with a code** to enter one. Once connected:
-
-- Set your **name** (optional) — shown to other participants as your message label
-- Set **Max participants** (2–10) before starting — 2 is bidirectional, 3–10 makes the initiator the broadcaster
-- Drag and drop files anywhere on the page, or use **Choose files** / **Choose folder**
-- Click **Send** to transfer — the other side auto-downloads once verified
-- Type in the message box to send a text message
-- **End session** leaves quietly; typing `\q` ends for everyone (initiator) or leaves quietly (responder)
-
-A progress bar appears per transfer. Queued transfers each get their own bar.
-
-### Chat tab (browser UI)
-
-Open the **Chat** tab, click **Start session** to get a code, or click
-**Join with a code** to enter one. Type `\q` in the message box to end the
-session (initiator) or leave quietly (responder). The **End session** button
-always leaves quietly.
-
----
-
-## Commands
-
-### `gmmff create` — start a file + message session
-
-```
-Usage: gmmff create [flags]
-```
-
-| Flag | Env var | Default | Description |
-|------|---------|---------|-------------|
-| `--server` | `GMMFF_SERVER` | `ws://localhost:8080/ws` | Signaling server WebSocket URL |
-| `--stun` | `GMMFF_STUN` | Google STUN | STUN/STUNS URL, repeatable |
-| `--turn` | `GMMFF_TURN` | — | TURN server, repeatable (see TURN section) |
-| `--out` / `-o` | — | `.` | Directory to save received files |
-| `--max-peers` | — | `2` | Maximum participants including yourself (2–10) |
-
-### `gmmff join <code>` — join any session
-
-```
-Usage: gmmff join <code> [flags]
-```
-
-Detects the session type from the server automatically — routes to the file
-session REPL for `files` sessions, or the chat REPL for `chat` sessions.
-
-| Flag | Env var | Default | Description |
-|------|---------|---------|-------------|
-| `--server` | `GMMFF_SERVER` | `ws://localhost:8080/ws` | Signaling server WebSocket URL |
-| `--stun` | `GMMFF_STUN` | Google STUN | STUN/STUNS URL, repeatable |
-| `--turn` | `GMMFF_TURN` | — | TURN server, repeatable |
-
-### `gmmff chat` — start a pure text chat session
-
-```
-Usage: gmmff chat [flags]
-```
-
-| Flag | Env var | Default | Description |
-|------|---------|---------|-------------|
-| `--server` | `GMMFF_SERVER` | `ws://localhost:8080/ws` | Signaling server WebSocket URL |
-| `--stun` | `GMMFF_STUN` | Google STUN | STUN/STUNS URL, repeatable |
-| `--turn` | `GMMFF_TURN` | — | TURN server, repeatable |
-
-### `gmmff local` — self-contained local-network mode
-
-```
-Usage: gmmff local [flags]
-```
-
-No internet required. Starts an embedded signaling server, web server, and
-session all in one process. Discovers other `gmmff local` instances via mDNS.
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--port` | random | Port to listen on |
-| `--no-tls` | `false` | Use plain HTTP instead of self-signed TLS |
-| `--max-peers` | `2` | Maximum participants (2–10, including yourself) |
-
-**TLS behaviour:** By default a self-signed certificate is generated each run
-and written to `$TMPDIR/gmmff-cert.pem` and `$TMPDIR/gmmff-key.pem`. These
-files are removed on clean shutdown. Use `--no-tls` to skip certificate
-generation — recommended for Chrome/Firefox-only sessions.
-
-```bash
-# Default (TLS on, random port)
-gmmff local
-
-# Plain HTTP — Chrome and Firefox only (no cert warning)
-gmmff local --no-tls
-
-# Fixed port for firewall rules
-gmmff local --no-tls --port 8787
-
-# Allow up to 5 participants
-gmmff local --max-peers 5
-```
-
----
-
-## Environment variables
-
-Set these to avoid passing flags on every command:
-
-```bash
-export GMMFF_SERVER=wss://your-server/ws
-gmmff create
-```
-
-| Variable | Used by | Description |
-|----------|---------|-------------|
-| `GMMFF_SERVER` | all client commands | Signaling server WebSocket URL |
-| `GMMFF_STUN` | all client commands | Comma-separated STUN/STUNS URLs |
-| `GMMFF_TURN` | all client commands | Comma-separated TURN URLs (Option A format) |
-
----
-
-## STUN configuration
-
-`--stun` is repeatable. User-supplied servers **append** to the default Google
-STUN server — the default is always present as a baseline.
-
-```bash
-# Add one more STUN server alongside the default
-gmmff create --stun stun:mystun.example.com:3478
-
-# Add two more
-gmmff create \
-  --stun stun:stun1.example.com:3478 \
-  --stun stuns:stun2.example.com:5349
-
-# Via environment variable (comma-separated)
-export GMMFF_STUN=stun:stun1.example.com:3478,stuns:stun2.example.com:5349
-```
-
----
-
-## TURN configuration
-
-TURN servers are specified in a single string with auth embedded as query
-parameters. Maximum 3 TURN servers. Mixing auth types across servers is
-fully supported.
-
-### URL format
-
-```
-turn:host:port[?transport=udp|tcp][&user=u&pass=p]
-turn:host:port[?transport=udp|tcp][&secret=s]
-turns:host:port[?transport=tcp][&user=u&pass=p]
-turns:host:port[?transport=tcp][&secret=s]
-```
-
-### Long-term credentials (username + password)
-
-```bash
-gmmff create --turn "turn:turn.example.com:3478?user=alice&pass=s3cr3t"
-
-# With transport hint and TLS
-gmmff create --turn "turns:turn.example.com:5349?transport=tcp&user=alice&pass=s3cr3t"
-```
-
-### Ephemeral credentials (coturn static-auth-secret)
-
-Credentials are derived via RFC 8489 §9.2 (HMAC-SHA1) and expire after 24 hours.
-
-```bash
-gmmff create --turn "turn:turn.example.com:3478?transport=udp&secret=mystaticsecret"
-```
-
-### Mixed auth types across servers
-
-```bash
-# Local ephemeral (UDP) + remote long-term (TCP/TLS)
-gmmff create \
-  --turn "turn:local.host:3478?transport=udp&secret=abc" \
-  --turn "turns:paid.host:5349?transport=tcp&user=alice&pass=xyz"
-```
-
-### Via environment variable
-
-```bash
-export GMMFF_TURN="turn:local.host:3478?transport=udp&secret=abc,turns:paid.host:5349?user=alice&pass=xyz"
-```
-
-### Transport parameter
-
-| Value | When to use |
-|-------|-------------|
-| `transport=udp` | Prefer UDP — lower latency, works in most networks |
-| `transport=tcp` | Prefer TCP — better through strict firewalls |
-| *(omitted)* | coturn tries both automatically |
-| `turns:` scheme | Always TLS/TCP — `transport=tcp` implied |
-
-### TURN validation errors
-
-```
-turn: too many servers — maximum is 3, got 4
-turn: "turn:host:port" has no credentials — provide user+pass or secret
-turn: "turn:host:port" has user or pass but not both
-turn: turns: scheme requires TCP/TLS — transport=udp is not valid
-turn: URL must begin with turn: or turns:
-```
-
----
-
-## How it works
+## Architecture overview
 
 ```
 Peer A ──┐                          ┌── Peer B
@@ -415,10 +23,6 @@ Peer A ──┐                          ┌── Peer B
                     │
                Redis (slot state)
 ```
-
-<p align="center">
-  <img src="imgs/architecture.png" alt="A diagram explaining the high level design of gmmff">
-</p>
 
 1. Peer A runs `gmmff create` and receives a one-time 3-word code
 2. Peer A shares that code out-of-band with Peer B
@@ -440,16 +44,73 @@ entirely between the two clients, and the DTLS session key is bound to the
 PAKE shared secret via HMAC — so a compromised signaling server cannot
 substitute its own SDP fingerprints.
 
+If you want to learn more, see the dedicated [Architecture document](docs/ARCHITECTURE.md).
+
 ---
 
-## Running the signaling server
+## Application overview
 
-### Option A — Docker Compose (recommended)
+### Installing
+
+Please use the [guide here](docs/INSTALL.md) for installing `gmmff`.
+
+### Building
+
+Please use the [guide here](docs/BUILD.md) for building `gmmff`.
+
+### CLI
+
+[CLI Guide](docs/CLI.md)
+
+### WASM Webclient
+
+[WASM Guide](docs/WASM.md)
+
+### Local-network mode (no internet required)
+
+[Local mode Guide](docs/LOCAL.md)
+
+### Starting a pure chat session (CLI)
+
+For a text-only session without file transfer, use `gmmff chat`:
+
+```bash
+# Machine A
+gmmff chat --server wss://your-server/ws
+
+# Machine B — gmmff join detects the session type and routes to the chat REPL
+gmmff join river-stone-fog --server wss://your-server/ws
+```
+
+---
+
+## Commands
+
+See the [Commands Guide](docs/CMDS.md)
+
+---
+
+## Environment variables
+
+See the [Commands Guide](docs/CMDS.md) and the [env example](configs/.env.example)
+
+---
+
+## STUN/TURN configuration
+
+See the [STUN/TURN Guide](docs/TURN.md)
+
+---
+
+## Quick Start
+
+### Option A — Docker Compose
 
 ```bash
 git clone https://github.com/iamdoubz/gmmff
 cd gmmff
-docker compose up
+cp configs/.env.example configs/.env
+docker compose up -d
 # Server available at ws://localhost:8080/ws
 ```
 
@@ -507,49 +168,17 @@ speaks plain HTTP internally; the proxy handles TLS termination and forwards
 The same Go code that powers the CLI compiles to WebAssembly and runs directly
 in the browser — one codebase, two delivery targets.
 
-### Build
+---
 
-**Note**: this is for go 1.23 and lower
-
-```bash
-make wasm
-# Outputs: web/static/gmmff.wasm + web/static/wasm_exec.js
-```
-
-Or manually for go <= 1.23:
-
-```bash
-GOOS=js GOARCH=wasm go build -o web/static/gmmff.wasm ./web/cmd/gmmff-wasm
-cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" web/static/wasm_exec.js
-```
-
-Or manually for go > 1.23:
-
-```bash
-GOOS=js GOARCH=wasm go build -o web/static/gmmff.wasm ./web/cmd/gmmff-wasm
-cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" web/static/wasm_exec.js
-```
-
-### Run locally
-
-```bash
-make wasm-serve
-# → http://localhost:9000
-```
-
-### Deploy
-
-Copy `web/static/` to any static host (S3, Cloudflare Pages, nginx `root`).
-The `gmmff.wasm` file is typically 8–15 MB — serve it with `Content-Type: application/wasm`
-and gzip/brotli compression enabled for fast first-load.
-
-### Theming
+## Theming
 
 Copy `web/static/themes/default.json`, edit the values, and point the `THEME_URL`
 constant at the top of `app.js` at your new file. Every CSS custom property
 is overridable — colors, spacing, radii, fonts, max-width — with no build step required.
 
-### Translations
+---
+
+## Translations
 
 The UI ships with 32 languages including English, Spanish, French, German,
 Italian, Swedish, Portuguese, Arabic, Bengali, Persian, Finnish, Hindi,
@@ -563,7 +192,9 @@ To add a language: copy `web/static/i18n/en.json`, translate the values, save
 as `web/static/i18n/<code>.json`, and add an entry to `web/static/i18n/languages.json`.
 No build step required.
 
-### ICE settings
+---
+
+## ICE settings
 
 A collapsible **ICE servers** panel sits below the tab bar, shared across all
 tabs. STUN servers you add are appended to the default. TURN servers use the
@@ -577,121 +208,19 @@ Settings persist in `localStorage` for 7 days.
 For production deployments, see the dedicated guides in the `docs/` directory:
 
 - **[docs/SYSTEMD.md](docs/SYSTEMD.md)** — Creating a dedicated system user, installing the binary and service file, managing configuration without editing the service file, and Redis Unix socket access.
-
 - **[docs/NGINX.md](docs/NGINX.md)** — Configuring nginx as a reverse proxy with TLS termination, WebSocket upgrade headers, timeout tuning, and endpoint access control.
 
 ---
 
 ## Security model
 
-### CPace PAKE
-Both peers authenticate using CPace over the ristretto255 group
-(`filippo.io/cpace`).  The signaling server forwards PAKE messages opaquely
-and never learns the shared secret.
-
-### SDP MAC binding (zero-trust signaling)
-After the PAKE handshake, two subkeys are derived from the shared secret using
-HKDF-SHA256:
-
-```
-offerKey  = HKDF(sharedKey, salt="gmmff-v1", info="sdp-offer-mac")
-answerKey = HKDF(sharedKey, salt="gmmff-v1", info="sdp-answer-mac")
-```
-
-The initiator HMAC-signs the SDP offer with `offerKey` before sending it to
-the relay.  The responder verifies the MAC before calling `SetRemoteDescription`
-— and vice versa for the answer.  A compromised signaling server cannot
-substitute its own SDP fingerprints because it does not know the shared key.
-
-### DTLS 1.3
-All data channel traffic is encrypted end-to-end by Pion's DTLS 1.3
-implementation.  The signaling server is out of the loop once ICE completes.
-
-### Resumable transfers
-Partial files are written as `<name>.gmmff_partial` with a `<name>.gmmff_meta`
-sidecar (SHA256 + chunk size + bytes written).  On resume, the receiver
-replays the partial file through SHA-256 to reconstruct the running hash and
-sends a `ResumeFrom` frame to the sender.  Both progress bars advance to the
-correct offset before transfer continues.  On completion, both temp files are
-deleted and the final file is renamed into place.
+See [Security Documentation](docs/SECURITY.md) for more information.
 
 ---
 
 ## Wire protocol
 
-All signaling messages are JSON `{ "type": "...", "payload": { ... } }`.
-
-### Slot creation
-
-```
-Client → Server:   { "type": "slot.create", "payload": { "protocol_version": "1", "session_type": "files|chat" } }
-Server → Client:   { "type": "slot.created", "payload": { "slot_id": "...", "code": "word-word-word", "ttl_seconds": 600, "session_type": "files|chat" } }
-```
-
-### Slot join
-
-```
-Client → Server:   { "type": "slot.join", "payload": { "code": "word-word-word", "protocol_version": "1" } }
-Server → both:     { "type": "slot.ready", "payload": { "role": "initiator|responder", "session_type": "files|chat" } }
-```
-
-The `session_type` in `slot.ready` lets `gmmff join` route automatically to
-the correct REPL without the user needing to know what kind of session they
-are joining.
-
-### PAKE relay (opaque)
-
-```
-Client → Server:   { "type": "pake.a", "payload": { "data": "<base64>" } }
-Server → peer:     { "type": "pake.a", "payload": { "data": "<base64>" } }
-```
-
-The same opaque relay applies to `pake.b`.  The server never decodes these.
-
-### Signed SDP
-
-```
-Client → Server:   { "type": "sdp.offer", "payload": { "sdp": "<base64>", "mac": "<base64>" } }
-Server → peer:     { "type": "sdp.offer", "payload": { "sdp": "<base64>", "mac": "<base64>" } }
-```
-
-`sdp` is the base64-encoded WebRTC `SessionDescription` JSON.  `mac` is the
-base64-encoded HMAC-SHA256 over the raw SDP bytes, computed with the
-appropriate HKDF subkey.  The same structure applies to `sdp.answer`.
-
-### Data channel binary tags
-
-Once a WebRTC data channel opens, all frames are binary with a one-byte tag
-prefix. Sessions use two kinds of channels: a persistent **control channel**
-and ephemeral **transfer channels** (one opened per file, named
-`transfer-<timestamp>`).
-
-| Tag | Direction | Channel | Meaning |
-|-----|-----------|---------|---------|
-| `0x01` | sender → receiver | transfer | File header (JSON: name, size, SHA-256, chunk count, optional message) |
-| `0x02` | sender → receiver | transfer | Chunk (8-byte seq + payload) |
-| `0x03` | receiver → sender | transfer | Chunk ack (8-byte seq) |
-| `0x04` | sender → receiver | transfer | Transfer done |
-| `0x05` | receiver → sender | transfer | Transfer OK (hash verified) |
-| `0x06` | either direction | transfer | Transfer error |
-| `0x07` | receiver → sender | transfer | Resume from chunk N (8-byte seq) |
-| `0x08` | either direction | either | Cancelled |
-| `0x09` | either direction | control | Chat / session message (UTF-8 text) |
-| `0x0A` | initiator → all | control | Chat close — ends chat session for everyone |
-| `0x0B` | any participant | control | Participant leave — quiet exit; session continues |
-| `0x0C` | either direction | control | Session ready |
-| `0x0D` | sender → receiver | control | Transfer announce (channel label) |
-| `0x0E` | receiver → sender | control | Transfer accepted (channel label) |
-| `0x0F` | initiator → all | control | Session close — ends file session for everyone |
-
-### Error frames
-
-```json
-{ "type": "error", "payload": { "code": "ERR_SLOT_NOT_FOUND", "message": "slot not found..." } }
-```
-
-Error codes contain no user-identifying information and are safe to include
-in bug reports.
+See [Protocol Documentation](docs/PROTOCOL.md) for more information.
 
 ---
 
@@ -780,11 +309,21 @@ gmmff/
 │   └── gmmff.service       # systemd service unit
 ├── docs/
 │   ├── ARCHITECTURE.md     # signaling server architecture deep-dive
+│   ├── BUILD.md            # how to build gmmff from source
+│   ├── CLI.md              # cli usage and examples
+│   ├── CMDS.md             # all flags and env variables used here
+│   ├── INSTALL.md          # installation guide (generic)
+│   ├── LOCAL.md            # gmmff local usage document
 │   ├── NGINX.md            # nginx reverse proxy setup guide
-│   └── SYSTEMD.md          # dedicated system user + systemd setup guide
+│   ├── PROTOCOL.md         # wire protocol
+│   ├── SECURITY.md         # shows and explains each step used to secure communications
+│   ├── SYSTEMD.md          # dedicated system user + systemd setup guide
+│   ├── TURN.md             # flags to use STUN and TURN servers with gmmff
+│   └── WASM.md             # how to use the wasm webclient
 ├── Dockerfile
 ├── docker-compose.yml
 ├── go.mod
+├── go.sum
 └── README.md
 ```
 
@@ -825,8 +364,6 @@ gmmff/
 - **Trusted local CA** — one-time CA install for iOS Safari support in `gmmff local`
 - **Quantum-safe encryption** — post-quantum algorithms with elliptic-curve fallback
 
----
-
 ### Probably won't do
 
 - wasm webclient: window slider (defaults to 2, 1–16 range)
@@ -845,6 +382,7 @@ gmmff/
 - [X] [webwormhole](https://github.com/saljam/webwormhole) by [@saljam](https://github.com/saljam)
 - [X] [FilePizza](https://github.com/kern/filepizza) by [@kern](https://github.com/kern) and [@neerajbaid](https://github.com/neerajbaid)
 
+---
 
 ## License
 

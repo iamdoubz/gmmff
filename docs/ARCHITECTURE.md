@@ -1,4 +1,8 @@
-# gmmff — Signaling Server Architecture
+<p align="center">
+  <img src="imgs/architecture.png" alt="A diagram explaining the high level design of gmmff">
+</p>
+
+# Signaling Server Architecture
 
 ## Overview
 
@@ -8,7 +12,7 @@ horizontally-scalable WebSocket broker.  Its single responsibility is
 exchange the messages needed to establish a direct WebRTC connection.
 
 Once the WebRTC data channel is open, the signaling server is completely
-out of the loop.  File data never passes through it.
+out of the loop. File data never passes through it.
 
 ---
 
