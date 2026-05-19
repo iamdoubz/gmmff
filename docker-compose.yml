@@ -16,11 +16,7 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 5
-    # Redis is NOT exposed to the host network — only gmmff can reach it.
-    # Expose 6379 here only for local debugging (remove in production).
-    ports:
-      - "127.0.0.1:6379:6379"
+      retries: 3
   gmmff:
     image: ghcr.io/iamdoubz/gmmff:latest
     container_name: gmmff
@@ -37,7 +33,7 @@ services:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
       interval: 10s
       timeout: 3s
-      retries: 3
+      retries: 1
       start_period: 5s
 
 volumes:

@@ -56,7 +56,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
 
 # ── Stage 3: minimal runtime ──────────────────────────────────────────────────
 # alpine instead of scratch so wget is available for the Docker healthcheck.
-FROM alpine:3.20
+FROM alpine:3.23
 
 # ca-certificates for outbound TLS (Redis TLS, TURN ephemeral credentials).
 RUN apk add --no-cache ca-certificates wget shadow
