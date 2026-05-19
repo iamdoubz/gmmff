@@ -1,7 +1,7 @@
 # ── Stage 1: build Wasm ───────────────────────────────────────────────────────
 # Wasm must be built before the main binary because internal/localmode/embed.go
 # uses //go:embed and requires internal/localmode/static/ to exist at compile time.
-FROM golang:1.26-alpine AS wasm-builder
+FROM golang:1.23-alpine AS wasm-builder
 
 RUN apk add --no-cache ca-certificates git
 
@@ -25,7 +25,7 @@ RUN mkdir -p internal/localmode/static && \
     cp -rf web/static/. internal/localmode/static/
 
 # ── Stage 2: build the server binary ──────────────────────────────────────────
-FROM golang:1.26-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 # TARGETARCH is set automatically by Docker Buildx for multi-platform builds.
 ARG TARGETARCH
@@ -55,17 +55,43 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     -o /bin/gmmff ./cmd/gmmff
 
 # ── Stage 3: minimal runtime ──────────────────────────────────────────────────
-FROM scratch
+# alpine instead of scratch so wget is available for the Docker healthcheck.
+FROM alpine:3.20
 
-# Import TLS root CAs from the builder.
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+# ca-certificates for outbound TLS (Redis TLS, TURN ephemeral credentials).
+RUN apk add --no-cache ca-certificates wget shadow
 
-# Copy the binary.
+# Copy the server binary.
 COPY --from=builder /bin/gmmff /gmmff
 
-# Non-root UID/GID (scratch has no /etc/passwd — declare numerically).
-USER 65534:65534
+# Copy the browser UI so gmmff serve --web /web/static serves it.
+COPY --from=wasm-builder /src/web/static /web/static
+
+# Entrypoint script: applies PUID/PGID at container start then exec's gmmff.
+COPY --chmod=755 <<'EOF' /entrypoint.sh
+#!/bin/sh
+set -e
+
+PUID=${PUID:-10001}
+PGID=${PGID:-10001}
+
+# Create group if it doesn't exist with the requested GID.
+if ! getent group gmmff > /dev/null 2>&1; then
+  groupadd -g "${PGID}" gmmff
+fi
+
+# Create user if it doesn't exist with the requested UID.
+if ! getent passwd gmmff > /dev/null 2>&1; then
+  useradd -u "${PUID}" -g gmmff -s /sbin/nologin -M gmmff
+fi
+
+echo "Running as uid=${PUID} gid=${PGID}"
+exec su-exec gmmff "$@"
+EOF
+
+RUN apk add --no-cache su-exec
 
 EXPOSE 8080
 
-ENTRYPOINT ["/gmmff", "serve"]
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/gmmff", "serve", "--web /web/static"]
