@@ -35,11 +35,11 @@ const lastProgress = {
 function normaliseServerURL(url) {
   return url.replace(/\/\/localhost([:/#?]|$)/, '//127.0.0.1$1');
 }
-let i18n   = {};
-let cancel        = null; // function set by Wasm to cancel active transfer
-let myName    = 'Me';        // my own display name (set from name field)
-let peerNames = new Map();   // peerIndex (1-based) → display name
-let peerCount = 0;           // number of peers joined so far (for auto-naming)
+let i18n      = {};
+let cancel    = null; // function set by Wasm to cancel active transfer
+let myName    = 'Participant'; // my own display name (set from name field)
+let peerNames = new Map(); // peerIndex (1-based) → display name
+let peerCount = 0; // number of peers joined so far (for auto-naming)
 
 // NAME_PREFIX is a sentinel prepended to name-announcement messages.
 // It lets the receiver distinguish a name announcement from a chat message.
