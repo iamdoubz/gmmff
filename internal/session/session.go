@@ -328,9 +328,19 @@ func (s *Session) wirePeer(p *peerConn) {
 	})
 	p.controlDC.OnClose(func() {
 		s.peersMu.Lock()
+		// Check if this peer was already removed by TagParticipantLeave.
+		found := false
 		newPeers := s.peers[:0]
 		for _, pp := range s.peers {
-			if pp.peerID != p.peerID { newPeers = append(newPeers, pp) }
+			if pp.peerID != p.peerID {
+				newPeers = append(newPeers, pp)
+			} else {
+				found = true
+			}
+		}
+		if !found {
+			s.peersMu.Unlock()
+			return // already handled by TagParticipantLeave
 		}
 		s.peers = newPeers
 		s.peerCount = max(1, s.peerCount-1)
@@ -351,7 +361,6 @@ func (s *Session) wirePeer(p *peerConn) {
 			s.emit(Event{Type: EventPeerLeft, From: p.peerID, Message: leaveMsg, PeerCount: s.peerCount, MaxPeers: s.MaxPeers})
 			// Broadcast updated count and leave announcement to remaining peers.
 			s.broadcastPeerCount(s.peerCount, s.MaxPeers)
-			// Send a leave notice to all remaining peers as a system message.
 			leaveFrame := transfer.BuildRelayedMessageFrame("__system__", "\x01leave:"+leaveMsg)
 			s.peersMu.RLock()
 			for _, pp := range s.peers {
@@ -453,8 +462,33 @@ func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 		s.cancel()
 
 	case transfer.TagParticipantLeave:
-		s.emit(Event{Type: EventPeerLeft, Message: "Participant left the session."})
-		// Session continues — don't cancel.
+		// Look up the leaving peer's name from the roster.
+		s.rosterMu.Lock()
+		leavingName := s.roster[src.peerID]
+		delete(s.roster, src.peerID)
+		s.rosterMu.Unlock()
+		if leavingName == "" {
+			leavingName = "A participant"
+		}
+		leaveMsg := leavingName + " left the session."
+		// Remove the peer from our list and update count.
+		s.peersMu.Lock()
+		newPeers := s.peers[:0]
+		for _, pp := range s.peers {
+			if pp.peerID != src.peerID { newPeers = append(newPeers, pp) }
+		}
+		s.peers = newPeers
+		s.peerCount = max(1, s.peerCount-1)
+		s.peersMu.Unlock()
+		s.emit(Event{Type: EventPeerLeft, From: src.peerID, Message: leaveMsg, PeerCount: s.peerCount, MaxPeers: s.MaxPeers})
+		// Notify remaining peers of the leave and updated count.
+		s.broadcastPeerCount(s.peerCount, s.MaxPeers)
+		leaveFrame := transfer.BuildRelayedMessageFrame("__system__", "\x01leave:"+leaveMsg)
+		s.peersMu.RLock()
+		for _, pp := range s.peers {
+			_ = pp.controlDC.Send(leaveFrame)
+		}
+		s.peersMu.RUnlock()
 
 	case transfer.TagSessionReady:
 		// Remote is ready — nothing to do here, used for handshake confirmation.
