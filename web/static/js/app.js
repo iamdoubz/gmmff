@@ -656,13 +656,12 @@ window.uiFilesInboundStarted = function(label, total) {
 window.uiFilesMessage = function(from, text) {
   if (text.startsWith(ROSTER_PREFIX)) {
     // Roster broadcast from initiator — populate all peer names at once.
-    // Format: \x01roster:peerID=Name,self=InitiatorName,...
+    // Format: \x01roster:initiator=FFName,peerID=MobName,...
     const entries = text.slice(ROSTER_PREFIX.length).split(',');
     entries.forEach(entry => {
       const eq = entry.indexOf('=');
       if (eq === -1) return;
-      // 'self' maps to '' — the initiator's from ID as seen by non-initiators.
-      const pid  = entry.slice(0, eq) === 'self' ? '' : entry.slice(0, eq);
+      const pid  = entry.slice(0, eq); // 'initiator' or a UUID
       const name = entry.slice(eq + 1).trim() || null;
       if (!peerNames.has(pid)) {
         peerNames.set(pid, name || 'Participant');

@@ -245,7 +245,7 @@ func (s *Session) SendMessage(text string) error {
 		if s.roster == nil {
 			s.roster = make(map[string]string)
 		}
-		s.roster["self"] = name
+		s.roster["initiator"] = name
 		s.rosterMu.Unlock()
 	}
 	var lastErr error
@@ -368,7 +368,7 @@ func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 			Message: msg,
 			From:    src.peerID,
 		})
-		// Star topology: relay to all other peers.
+		// Star topology: relay to all other peers with the sender's ID embedded.
 		if s.isInitiator {
 			s.peersMu.RLock()
 			others := make([]*peerConn, 0, len(s.peers))
@@ -379,21 +379,17 @@ func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 			}
 			s.peersMu.RUnlock()
 			for _, p := range others {
-				_ = p.controlDC.Send(data)
+				_ = p.controlDC.Send(transfer.BuildRelayedMessageFrame(src.peerID, msg))
 			}
 
-			// When a name announcement arrives from a new peer, send that peer
-			// a roster of all other known names, and send the new peer's name
-			// to all existing peers so their UIs update.
+			// When a name announcement arrives, update the roster and send it to the new peer.
 			if strings.HasPrefix(msg, "\x01name:") {
-				// Store the new peer's name in our own roster map.
 				newName := strings.TrimPrefix(msg, "\x01name:")
 				s.rosterMu.Lock()
 				if s.roster == nil {
 					s.roster = make(map[string]string)
 				}
 				s.roster[src.peerID] = newName
-				// Build a roster message for all known peers (excluding the new one).
 				var parts []string
 				for pid, name := range s.roster {
 					if pid != src.peerID {
@@ -403,11 +399,19 @@ func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 				s.rosterMu.Unlock()
 				if len(parts) > 0 {
 					rosterMsg := "\x01roster:" + strings.Join(parts, ",")
-					rosterFrame := transfer.BuildMessageFrame(rosterMsg)
-					_ = src.controlDC.Send(rosterFrame)
+					_ = src.controlDC.Send(transfer.BuildMessageFrame(rosterMsg))
 				}
 			}
 		}
+
+	case transfer.TagRelayedMessage:
+		// Message relayed by the initiator — original sender ID is embedded.
+		senderID, msg := transfer.ParseRelayedMessageFrame(data)
+		s.emit(Event{
+			Type:    EventMessage,
+			Message: msg,
+			From:    senderID,
+		})
 
 	case transfer.TagPeerCount:
 		// Non-initiator peers receive this when the initiator broadcasts a count update.
