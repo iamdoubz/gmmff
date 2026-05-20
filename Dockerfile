@@ -30,6 +30,9 @@ FROM golang:1.26-alpine AS builder
 # TARGETARCH is set automatically by Docker Buildx for multi-platform builds.
 ARG TARGETARCH
 ARG TARGETOS=linux
+ARG BUILD_DATE
+ARG APP_VERSION
+ARG APP_COMMIT
 
 RUN apk add --no-cache ca-certificates git
 
@@ -49,9 +52,9 @@ COPY --from=wasm-builder /src/internal/localmode/static/  ./internal/localmode/s
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build \
     -ldflags="-s -w \
-      -X main.version=$(git describe --tags --always --dirty 2>/dev/null || echo dev) \
-      -X main.commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown) \
-      -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      -X main.version=${APP_VERSION} \
+      -X main.commit=${APP_COMMIT} \
+      -X main.date=${BUILD_DATE}" \
     -o /bin/gmmff ./cmd/gmmff
 
 # ── Stage 3: minimal runtime ──────────────────────────────────────────────────
@@ -92,10 +95,6 @@ EOF
 RUN apk add --no-cache su-exec
 
 EXPOSE 8080
-
-ARG BUILD_DATE
-ARG APP_VERSION
-ARG APP_COMMIT
 
 # OCI labels for image metadata
 LABEL description="Fast, secure, private, simple open source file transfer and messaging application" \
