@@ -112,29 +112,38 @@ function applyUIConfig(cfg, allLangs) {
   } else {
     // ICE panel visible — check individual STUN/TURN controls.
     if (cfg.allow_stun === false) {
-      const stunSection = document.getElementById('stun-section');
-      if (stunSection) stunSection.style.display = 'none';
+      const btn = document.getElementById('ice-stun-add-btn');
+      if (btn) btn.closest('.ice-section').style.display = 'none';
     }
     if (cfg.allow_turn === false) {
-      const turnSection = document.getElementById('turn-section');
-      if (turnSection) turnSection.style.display = 'none';
+      const btn = document.getElementById('ice-turn-add-btn');
+      if (btn) btn.closest('.ice-section').style.display = 'none';
     }
   }
 
   // ── Share link + QR code ──────────────────────────────────────────────────
   if (cfg.show_share_link === false) {
-    document.querySelectorAll('.share-link-btn, .share-copy-btn, #files-share-url, #chat-share-url')
-      .forEach(el => el.style.display = 'none');
+    ['files-share-link', 'chat-share-link'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
   }
   if (cfg.show_qr_code === false) {
-    document.querySelectorAll('.qr-btn, .qr-container, #files-qr-container, #chat-qr-container')
-      .forEach(el => el.style.display = 'none');
+    ['files-qr-toggle', 'files-qr-container', 'chat-qr-toggle', 'chat-qr-container'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
   }
 
   // ── Custom server field ───────────────────────────────────────────────────
   if (cfg.allow_custom_server === false) {
-    document.querySelectorAll('.server-field, #files-server-field, #chat-server-field')
-      .forEach(el => el.style.display = 'none');
+    ['files-server', 'chat-server'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) {
+        const field = input.closest('.field');
+        if (field) field.style.display = 'none';
+      }
+    });
   }
 
   // ── Max peers slider ──────────────────────────────────────────────────────
