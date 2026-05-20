@@ -98,5 +98,7 @@
   "join_name_label": "Ditt namn",
   "join_name_optional": "(valfritt)",
   "join_name_placeholder": "t.ex. Alice",
-  "join_connecting": "Ansluter…"
+  "join_connecting": "Ansluter…",
+  "weird_heading": "Din miljö ser… konstig ut.",
+  "weird_body": "Serveradministratören har inaktiverat flikarna Filer och Chatt. Det finns inget att göra här, men åtminstone är anslutningen krypterad."
 }

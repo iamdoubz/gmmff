@@ -98,5 +98,7 @@
   "join_name_label": "Votre nom",
   "join_name_optional": "(optionnel)",
   "join_name_placeholder": "ex. Alice",
-  "join_connecting": "Connexion…"
+  "join_connecting": "Connexion…",
+  "weird_heading": "Votre environnement semble… bizarre.",
+  "weird_body": "L'administrateur du serveur a désactivé les onglets Fichiers et Chat. Il n'y a rien à faire ici, mais au moins la connexion est chiffrée."
 }

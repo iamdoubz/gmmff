@@ -98,5 +98,7 @@
   "join_name_label": "Nama Anda",
   "join_name_optional": "(opsional)",
   "join_name_placeholder": "mis. Budi",
-  "join_connecting": "Menghubungkan…"
+  "join_connecting": "Menghubungkan…",
+  "weird_heading": "Lingkungan Anda terlihat… aneh.",
+  "weird_body": "Administrator server telah menonaktifkan tab File dan Chat. Tidak ada yang bisa dilakukan di sini, tapi setidaknya koneksinya terenkripsi."
 }

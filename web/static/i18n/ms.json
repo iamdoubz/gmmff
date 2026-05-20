@@ -98,5 +98,7 @@
   "join_name_label": "Nama anda",
   "join_name_optional": "(pilihan)",
   "join_name_placeholder": "cth. Ali",
-  "join_connecting": "Menyambung…"
+  "join_connecting": "Menyambung…",
+  "weird_heading": "Persekitaran anda kelihatan… pelik.",
+  "weird_body": "Pentadbir pelayan telah melumpuhkan tab Fail dan Chat. Tiada apa yang boleh dilakukan di sini, tetapi sekurang-kurangnya sambungan adalah disulitkan."
 }

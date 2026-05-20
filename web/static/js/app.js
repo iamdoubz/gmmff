@@ -8,6 +8,8 @@ const WASM_URL       = 'gmmff.wasm';
 // ── State ────────────────────────────────────────────────────────────────────
 let currentLang    = 'en';
 let availableLangs = [];
+let filteredLangs  = []; // subset of availableLangs after server config applied
+let uiConfig       = {}; // feature flags from /config.json
 
 // Track the last known progress values for each panel so uiDone can
 // snapshot them for the completion summary line.
@@ -46,18 +48,133 @@ const NAME_PREFIX = '\x01name:';
 // ── Boot sequence ─────────────────────────────────────────────────────────────
 async function boot() {
   try {
-    const [theme, langs] = await Promise.all([
+    const [theme, langs, cfg] = await Promise.all([
       fetch(THEME_URL).then(r => r.json()),
       fetch(LANGUAGES_URL).then(r => r.json()),
+      fetch('/config.json').then(r => r.json()).catch(() => ({})),
     ]);
     applyTheme(theme);
-    availableLangs = langs;
-    currentLang = detectLanguage(langs);
+    applyUIConfig(cfg, langs);
+    availableLangs = filteredLangs;
+    currentLang = detectLanguage(filteredLangs);
     await switchLanguage(currentLang);
     await loadWasm();
     hideLoading();
   } catch (err) {
     showFatalError(err);
+  }
+}
+
+// ── UI Config (feature flags from /config.json) ───────────────────────────────
+
+// applyUIConfig reads the server-provided feature flags and adjusts the DOM.
+// Called once during boot before the loading overlay is removed.
+function applyUIConfig(cfg, allLangs) {
+  uiConfig = cfg;
+
+  // ── Tab visibility ────────────────────────────────────────────────────────
+  const showFiles = cfg.show_files !== false;
+  const showChat  = cfg.show_chat  !== false;
+
+  const tabFiles  = document.getElementById('tab-files');
+  const tabChat   = document.getElementById('tab-chat');
+  const panelFiles = document.getElementById('panel-files');
+  const panelChat  = document.getElementById('panel-chat');
+
+  if (!showFiles) {
+    if (tabFiles)  tabFiles.style.display  = 'none';
+    if (panelFiles) panelFiles.style.display = 'none';
+  }
+  if (!showChat) {
+    if (tabChat)  tabChat.style.display  = 'none';
+    if (panelChat) panelChat.style.display = 'none';
+  }
+
+  // Both tabs hidden — show the "weird" message.
+  if (!showFiles && !showChat) {
+    const body = document.getElementById('main-content') || document.body;
+    const msg  = document.createElement('div');
+    msg.id = 'weird-message';
+    msg.style.cssText = 'text-align:center;padding:3rem 1rem;max-width:480px;margin:0 auto';
+    msg.innerHTML = `
+      <p style="font-size:2rem;margin-bottom:0.5rem">😶</p>
+      <h2 data-i18n="weird_heading">Your environment looks… weird.</h2>
+      <p data-i18n="weird_body">Both the Files and Chat tabs have been disabled by your server
+      administrator. There's nothing to do here, but at least the connection is encrypted.</p>`;
+    body.prepend(msg);
+  }
+
+  // ── ICE settings panel ────────────────────────────────────────────────────
+  const showICE = cfg.show_ice_settings !== false;
+  if (!showICE) {
+    const icePanel = document.getElementById('ice-settings');
+    if (icePanel) icePanel.style.display = 'none';
+  } else {
+    // ICE panel visible — check individual STUN/TURN controls.
+    if (cfg.allow_stun === false) {
+      const stunSection = document.getElementById('stun-section');
+      if (stunSection) stunSection.style.display = 'none';
+    }
+    if (cfg.allow_turn === false) {
+      const turnSection = document.getElementById('turn-section');
+      if (turnSection) turnSection.style.display = 'none';
+    }
+  }
+
+  // ── Share link + QR code ──────────────────────────────────────────────────
+  if (cfg.show_share_link === false) {
+    document.querySelectorAll('.share-link-btn, .share-copy-btn, #files-share-url, #chat-share-url')
+      .forEach(el => el.style.display = 'none');
+  }
+  if (cfg.show_qr_code === false) {
+    document.querySelectorAll('.qr-btn, .qr-container, #files-qr-container, #chat-qr-container')
+      .forEach(el => el.style.display = 'none');
+  }
+
+  // ── Custom server field ───────────────────────────────────────────────────
+  if (cfg.allow_custom_server === false) {
+    document.querySelectorAll('.server-field, #files-server-field, #chat-server-field')
+      .forEach(el => el.style.display = 'none');
+  }
+
+  // ── Max peers slider ──────────────────────────────────────────────────────
+  const showPeers = cfg.show_peers_limit !== false;
+  const maxPeers  = typeof cfg.max_peers_limit === 'number' ? cfg.max_peers_limit : 10;
+  const peerSlider = document.getElementById('files-max-peers');
+  const peerField  = peerSlider?.closest('.field');
+  if (!showPeers && peerField) {
+    peerField.style.display = 'none';
+  }
+  if (peerSlider) {
+    peerSlider.max   = String(maxPeers);
+    // Clamp current value if it exceeds new max.
+    if (parseInt(peerSlider.value) > maxPeers) {
+      peerSlider.value = String(maxPeers);
+      const label = document.getElementById('files-max-peers-value');
+      if (label) label.textContent = String(maxPeers);
+    }
+  }
+
+  // ── MOTD ──────────────────────────────────────────────────────────────────
+  if (cfg.motd && cfg.motd.trim() !== '') {
+    const banner = document.createElement('div');
+    banner.id = 'motd-banner';
+    banner.style.cssText =
+      'background:var(--color-warning,#f59e0b);color:#000;padding:0.5rem 1rem;' +
+      'text-align:center;font-size:var(--font-size-sm);font-weight:var(--font-weight-medium)';
+    banner.textContent = cfg.motd;
+    document.body.prepend(banner);
+  }
+
+  // ── Language filtering ────────────────────────────────────────────────────
+  // If allowed_langs is null/empty, use all. Otherwise filter to the list.
+  if (Array.isArray(cfg.allowed_langs) && cfg.allowed_langs.length > 0) {
+    const allowed = new Set(cfg.allowed_langs);
+    filteredLangs = allLangs.filter(l => allowed.has(l.code));
+    // Fallback to English if the filtered list doesn't include it.
+    if (filteredLangs.length === 0) filteredLangs = allLangs.filter(l => l.code === 'en');
+  } else {
+    filteredLangs = allLangs;
   }
 }
 

@@ -98,5 +98,7 @@
   "join_name_label": "Your name",
   "join_name_optional": "(optional)",
   "join_name_placeholder": "e.g. Alice",
-  "join_connecting": "Connecting…"
+  "join_connecting": "Connecting…",
+  "weird_heading": "Your environment looks… weird.",
+  "weird_body": "Both the Files and Chat tabs have been disabled by your server administrator. There's nothing to do here, but at least the connection is encrypted."
 }

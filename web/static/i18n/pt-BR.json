@@ -98,5 +98,7 @@
   "join_name_label": "Seu nome",
   "join_name_optional": "(opcional)",
   "join_name_placeholder": "ex. Alice",
-  "join_connecting": "Conectando…"
+  "join_connecting": "Conectando…",
+  "weird_heading": "Seu ambiente parece… estranho.",
+  "weird_body": "O administrador do servidor desativou as abas Arquivos e Chat. Não há nada para fazer aqui, mas pelo menos a conexão é criptografada."
 }

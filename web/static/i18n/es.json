@@ -98,5 +98,7 @@
   "join_name_label": "Tu nombre",
   "join_name_optional": "(opcional)",
   "join_name_placeholder": "p.ej. Alice",
-  "join_connecting": "Conectando…"
+  "join_connecting": "Conectando…",
+  "weird_heading": "Tu entorno parece… raro.",
+  "weird_body": "El administrador del servidor ha desactivado las pestañas Archivos y Chat. No hay nada que hacer aquí, pero al menos la conexión está cifrada."
 }

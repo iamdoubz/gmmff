@@ -98,5 +98,7 @@
   "join_name_label": "اسمك",
   "join_name_optional": "(اختياري)",
   "join_name_placeholder": "مثال: أحمد",
-  "join_connecting": "جارٍ الاتصال…"
+  "join_connecting": "جارٍ الاتصال…",
+  "weird_heading": "بيئتك تبدو… غريبة.",
+  "weird_body": "قام مسؤول الخادم بتعطيل علامتَي تبويب الملفات والدردشة. لا يوجد ما يمكن فعله هنا، لكن على الأقل الاتصال مشفّر."
 }
