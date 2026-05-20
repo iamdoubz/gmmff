@@ -335,13 +335,29 @@ func (s *Session) wirePeer(p *peerConn) {
 		s.peers = newPeers
 		s.peerCount = max(1, s.peerCount-1)
 		s.peersMu.Unlock()
+		// Look up the leaving peer's name from the roster.
+		s.rosterMu.Lock()
+		leavingName := s.roster[p.peerID]
+		delete(s.roster, p.peerID)
+		s.rosterMu.Unlock()
+		if leavingName == "" {
+			leavingName = "A participant"
+		}
+		leaveMsg := leavingName + " left the session."
 		if len(s.peers) == 0 {
 			s.emit(Event{Type: EventSessionClosed, Message: "All peers disconnected."})
 			s.cancel()
 		} else {
-			s.emit(Event{Type: EventPeerLeft, From: p.peerID, Message: "A participant left.", PeerCount: s.peerCount, MaxPeers: s.MaxPeers})
-			// Notify remaining peers of the updated count.
+			s.emit(Event{Type: EventPeerLeft, From: p.peerID, Message: leaveMsg, PeerCount: s.peerCount, MaxPeers: s.MaxPeers})
+			// Broadcast updated count and leave announcement to remaining peers.
 			s.broadcastPeerCount(s.peerCount, s.MaxPeers)
+			// Send a leave notice to all remaining peers as a system message.
+			leaveFrame := transfer.BuildRelayedMessageFrame("__system__", "\x01leave:"+leaveMsg)
+			s.peersMu.RLock()
+			for _, pp := range s.peers {
+				_ = pp.controlDC.Send(leaveFrame)
+			}
+			s.peersMu.RUnlock()
 		}
 	})
 	p.pc.OnDataChannel(func(dc *webrtc.DataChannel) {
@@ -407,6 +423,13 @@ func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 	case transfer.TagRelayedMessage:
 		// Message relayed by the initiator — original sender ID is embedded.
 		senderID, msg := transfer.ParseRelayedMessageFrame(data)
+		if senderID == "__system__" && strings.HasPrefix(msg, "\x01leave:") {
+			// Peer-left notification broadcast by the initiator.
+			leaveMsg := strings.TrimPrefix(msg, "\x01leave:")
+			s.peerCount = max(1, s.peerCount-1)
+			s.emit(Event{Type: EventPeerLeft, Message: leaveMsg, PeerCount: s.peerCount, MaxPeers: s.MaxPeers})
+			return
+		}
 		s.emit(Event{
 			Type:    EventMessage,
 			Message: msg,
@@ -414,11 +437,14 @@ func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 		})
 
 	case transfer.TagPeerCount:
-		// Non-initiator peers receive this when the initiator broadcasts a count update.
+		// Initiator broadcasts the current count whenever peers join or leave.
+		// Update locally and emit so the UI counter refreshes.
 		peerCount, maxPeers := transfer.ParsePeerCountFrame(data)
 		if peerCount > 0 {
 			s.peerCount = peerCount
 			s.MaxPeers  = maxPeers
+			// Emit PeerJoined purely to trigger a UI count refresh.
+			// The leave/join system messages handle the text notification separately.
 			s.emit(Event{Type: EventPeerJoined, PeerCount: peerCount, MaxPeers: maxPeers})
 		}
 
