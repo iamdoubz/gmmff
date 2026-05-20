@@ -72,6 +72,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          annotation: index:org.opencontainers.image.description="Fast, secure, private, simple open source file transfer and messaging application"
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=Fast, secure, private, simple open source file transfer and messaging application
