@@ -50,13 +50,14 @@ type Server struct {
 	staticFS      fs.FS    // embedded fs.FS; non-nil overrides webDir
 	cspReportOnly bool     // use CSP-Report-Only instead of enforcing
 	localMode     bool     // offline-safe CSP, no external origins
+	uiConfig      UIConfig // feature flags served via /config.json
 }
 
 // NewServer constructs a Server and registers all routes.
 // webDir is the path to the web/static directory.  When non-empty the
 // server mounts a file server at / that serves the browser UI.  When
 // empty a plain HTML landing page is shown instead.
-func NewServer(b *Broker, st store.SlotStore, webDir string, cspReportOnly bool) *Server {
+func NewServer(b *Broker, st store.SlotStore, webDir string, cspReportOnly bool, uiCfg UIConfig) *Server {
 	// Register the .wasm MIME type in case the OS doesn't have it.
 	_ = mime.AddExtensionType(".wasm", "application/wasm")
 	s := &Server{
@@ -66,6 +67,7 @@ func NewServer(b *Broker, st store.SlotStore, webDir string, cspReportOnly bool)
 		start:  time.Now(),
 		webDir:        webDir,
 		cspReportOnly: cspReportOnly,
+		uiConfig:      uiCfg,
 	}
 	s.routes()
 	return s
@@ -85,6 +87,7 @@ func NewServerWithFS(b *Broker, st store.SlotStore, staticFS fs.FS, cspReportOnl
 		staticFS:      staticFS,
 		cspReportOnly: true, // always report-only in local mode — never block
 		localMode:     true,
+		uiConfig:      DefaultUIConfig(),
 	}
 	s.routes()
 	return s
@@ -107,6 +110,7 @@ func (s *Server) routes() {
 	r.Get("/healthz", s.handleLiveness)
 	r.Get("/readyz", s.handleReadiness)
 	r.Get("/metrics", s.handleMetrics)
+	r.Get("/config.json", s.handleUIConfig)
 
 	if s.staticFS != nil {
 		// Serve from embedded fs.FS (local mode).
@@ -266,3 +270,13 @@ const indexHTML = `<!DOCTYPE html>
   </ul>
 </body>
 </html>`
+
+// handleUIConfig serves GET /config.json — the browser reads this on boot to
+// apply feature flags. Public endpoint; contains no secrets.
+func (s *Server) handleUIConfig(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	if err := json.NewEncoder(w).Encode(s.uiConfig); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}
+}

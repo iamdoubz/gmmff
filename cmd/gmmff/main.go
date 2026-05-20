@@ -166,7 +166,7 @@ func runServe(_ *cobra.Command, _ []string) error {
 	if serveCfg.cspReportOnly {
 		l().Warn().Msg("⚠  CSP report-only mode enabled — Content-Security-Policy is NOT enforced; do NOT use in production")
 	}
-	srv := broker.NewServer(b, st, serveCfg.webDir, serveCfg.cspReportOnly)
+	srv := broker.NewServer(b, st, serveCfg.webDir, serveCfg.cspReportOnly, broker.UIConfigFromEnv())
 	httpServer := &http.Server{
 		Addr:         serveCfg.addr,
 		Handler:      srv.Handler(),
