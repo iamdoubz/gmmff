@@ -95,7 +95,7 @@ EXPOSE 8080
 
 # OCI labels for image metadata
 LABEL description="Fast, secure, private, simple open source file transfer and messaging application" \
-      maintainer="iamdoubz <https://github.com/iamdoubz>" \
+      maintainer="iamdoubz <4871781+iamdoubz@users.noreply.github.com>" \
       org.opencontainers.image.description="Fast, secure, private, simple open source file transfer and messaging application" \
       org.opencontainers.image.authors="iamdoubz" \
       org.opencontainers.image.title="Fast, secure, private, simple open source file transfer and messaging application" \
