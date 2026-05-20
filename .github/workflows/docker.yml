@@ -59,6 +59,10 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=raw,value=latest,enable={{is_default_branch}}
+          build-args: |
+            BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            APP_VERSION={{version}}
+            APP_COMMIT=${{ github.sha }}
 
       - name: Build and push
         uses: docker/build-push-action@v5
