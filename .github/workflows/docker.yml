@@ -1,10 +1,9 @@
 name: Docker
 
 on:
-  push:
-    tags:
-      - 'v*'          # publish on version tags: v1.0.0, v1.2.3, etc.
-  workflow_dispatch:  # allow manual trigger from GitHub UI
+  release:
+    types: [published] # publish on version tags: v1.0.0, v1.2.3, etc.
+  workflow_dispatch:   # allow manual trigger from GitHub UI
 
 env:
   REGISTRY: ghcr.io
