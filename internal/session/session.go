@@ -114,6 +114,9 @@ type Session struct {
 	// Maintained by the initiator to relay names to newly joining peers.
 	roster   map[string]string
 	rosterMu sync.Mutex
+
+	// recvMu serializes inbound transfers (one at a time).
+	recvMu sync.Mutex
 	// recvWg tracks in-flight receive goroutines.
 	recvWg sync.WaitGroup
 }
