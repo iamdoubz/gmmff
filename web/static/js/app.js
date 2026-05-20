@@ -81,13 +81,25 @@ function applyUIConfig(cfg, allLangs) {
   const panelFiles = document.getElementById('panel-files');
   const panelChat  = document.getElementById('panel-chat');
 
+  const tabElements = document.getElementsByClassName('tabs');
+
   if (!showFiles) {
     if (tabFiles)  tabFiles.style.display  = 'none';
     if (panelFiles) panelFiles.style.display = 'none';
+    if (tabElements) {
+      document.querySelectorAll('.tabs').forEach(el => {
+        el.style.gridTemplateColumns = "1fr";
+      });
+    }
   }
   if (!showChat) {
     if (tabChat)  tabChat.style.display  = 'none';
     if (panelChat) panelChat.style.display = 'none';
+    if (tabElements) {
+      document.querySelectorAll('.tabs').forEach(el => {
+        el.style.gridTemplateColumns = "1fr";
+      });
+    }
   }
 
   // Both tabs hidden — show the "weird" message.

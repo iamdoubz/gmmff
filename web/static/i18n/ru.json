@@ -93,7 +93,7 @@
   "share_hide_qr": "Скрыть QR-код",
   "share_qr_hint": "Отсканируйте для входа",
   "files_max_peers_label": "Макс. участников:",
-  "files_max_peers_hint": "2 = двунаправленный. 3–10 = инициатор отправляет всем.",
+  "files_max_peers_hint": "2 = двунаправленный. 3+ = инициатор отправляет всем.",
   "session_ended": "Сессия завершена",
   "join_name_label": "Ваше имя",
   "join_name_optional": "(необязательно)",

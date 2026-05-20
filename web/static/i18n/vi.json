@@ -93,7 +93,7 @@
   "share_hide_qr": "Ẩn mã QR",
   "share_qr_hint": "Quét để tham gia",
   "files_max_peers_label": "Số người tối đa:",
-  "files_max_peers_hint": "2 = hai chiều. 3–10 = người khởi tạo gửi cho tất cả.",
+  "files_max_peers_hint": "2 = hai chiều. 3+ = người khởi tạo gửi cho tất cả.",
   "session_ended": "Phiên đã kết thúc",
   "join_name_label": "Tên của bạn",
   "join_name_optional": "(tùy chọn)",

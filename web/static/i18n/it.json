@@ -93,7 +93,7 @@
   "share_hide_qr": "Nascondi QR code",
   "share_qr_hint": "Scansiona per unirti",
   "files_max_peers_label": "Max partecipanti:",
-  "files_max_peers_hint": "2 = bidirezionale. 3–10 = l'iniziatore invia a tutti.",
+  "files_max_peers_hint": "2 = bidirezionale. 3+ = l’iniziatore invia a tutti.",
   "session_ended": "Sessione terminata",
   "join_name_label": "Il tuo nome",
   "join_name_optional": "(opzionale)",

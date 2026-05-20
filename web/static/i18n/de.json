@@ -93,7 +93,7 @@
   "share_hide_qr": "QR-Code ausblenden",
   "share_qr_hint": "Zum Beitreten scannen",
   "files_max_peers_label": "Max. Teilnehmer:",
-  "files_max_peers_hint": "2 = bidirektional. 3–10 = Initiator sendet an alle.",
+  "files_max_peers_hint": "2 = bidirektional. 3+ = Initiator sendet an alle.",
   "session_ended": "Sitzung beendet",
   "join_name_label": "Ihr Name",
   "join_name_optional": "(optional)",

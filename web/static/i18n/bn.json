@@ -93,7 +93,7 @@
   "share_hide_qr": "QR কোড লুকান",
   "share_qr_hint": "যোগ দিতে স্ক্যান করুন",
   "files_max_peers_label": "সর্বোচ্চ অংশগ্রহণকারী:",
-  "files_max_peers_hint": "২ = দ্বিমুখী। ৩–১০ = উদ্যোক্তা সবাইকে পাঠান।",
+  "files_max_peers_hint": "২ = দ্বিমুখী। ৩+ = উদ্যোক্তা সবাইকে পাঠান।",
   "session_ended": "সেশন শেষ হয়েছে",
   "join_name_label": "আপনার নাম",
   "join_name_optional": "(ঐচ্ছিক)",
