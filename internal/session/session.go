@@ -165,6 +165,8 @@ func (s *Session) AddPeer(peerID string, pc *webrtc.PeerConnection, controlDC *w
 	// Wire the new peer's data channel into the session.
 	s.wirePeer(pc2)
 	s.emit(Event{Type: EventPeerJoined, PeerCount: peerCount, MaxPeers: maxPeers})
+	// Broadcast the new count to all existing peers so their UIs update.
+	s.broadcastPeerCount(peerCount, maxPeers)
 }
 
 // PeerCount returns the current connected peer count.
@@ -320,6 +322,8 @@ func (s *Session) wirePeer(p *peerConn) {
 			s.cancel()
 		} else {
 			s.emit(Event{Type: EventPeerLeft, Message: "A participant left.", PeerCount: s.peerCount, MaxPeers: s.MaxPeers})
+			// Notify remaining peers of the updated count.
+			s.broadcastPeerCount(s.peerCount, s.MaxPeers)
 		}
 	})
 	p.pc.OnDataChannel(func(dc *webrtc.DataChannel) {
@@ -359,6 +363,15 @@ func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 			}
 		}
 
+	case transfer.TagPeerCount:
+		// Non-initiator peers receive this when the initiator broadcasts a count update.
+		peerCount, maxPeers := transfer.ParsePeerCountFrame(data)
+		if peerCount > 0 {
+			s.peerCount = peerCount
+			s.MaxPeers  = maxPeers
+			s.emit(Event{Type: EventPeerJoined, PeerCount: peerCount, MaxPeers: maxPeers})
+		}
+
 	case transfer.TagSessionClose, transfer.TagCancelled:
 		s.emit(Event{Type: EventSessionClosed, Message: "Session ended by Participant."})
 		s.cancel()
@@ -369,6 +382,17 @@ func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 
 	case transfer.TagSessionReady:
 		// Remote is ready — nothing to do here, used for handshake confirmation.
+	}
+}
+
+// broadcastPeerCount sends the current peer count to all connected peers.
+// Called by the initiator when peers join or leave, so non-initiator UIs update.
+func (s *Session) broadcastPeerCount(peerCount, maxPeers int) {
+	frame := transfer.BuildPeerCountFrame(peerCount, maxPeers)
+	s.peersMu.RLock()
+	defer s.peersMu.RUnlock()
+	for _, p := range s.peers {
+		_ = p.controlDC.Send(frame)
 	}
 }
 

@@ -35,11 +35,11 @@ const lastProgress = {
 function normaliseServerURL(url) {
   return url.replace(/\/\/localhost([:/#?]|$)/, '//127.0.0.1$1');
 }
-let i18n      = {};
-let cancel    = null; // function set by Wasm to cancel active transfer
-let myName    = 'Participant'; // my own display name (set from name field)
-let peerNames = new Map(); // peerIndex (1-based) → display name
-let peerCount = 0; // number of peers joined so far (for auto-naming)
+let i18n   = {};
+let cancel        = null; // function set by Wasm to cancel active transfer
+let myName    = '';          // own display name — empty means use default 'Me' locally
+let peerNames = new Map();   // peerIndex (1-based) → display name
+let peerCount = 0;           // number of peers joined so far (for auto-naming)
 
 // NAME_PREFIX is a sentinel prepended to name-announcement messages.
 // It lets the receiver distinguish a name announcement from a chat message.
@@ -87,8 +87,8 @@ function applyUIConfig(cfg, allLangs) {
     if (tabFiles)  tabFiles.style.display  = 'none';
     if (panelFiles) panelFiles.style.display = 'none';
     if (tabElements) {
-      document.querySelectorAll('.tabs').forEach(el => {
-        el.style.gridTemplateColumns = "1fr";
+      document.querySelectorAll('.tabs').forEach(te => {
+        te.style.gridTemplateColumns = "1fr";
       });
     }
   }
@@ -96,8 +96,8 @@ function applyUIConfig(cfg, allLangs) {
     if (tabChat)  tabChat.style.display  = 'none';
     if (panelChat) panelChat.style.display = 'none';
     if (tabElements) {
-      document.querySelectorAll('.tabs').forEach(el => {
-        el.style.gridTemplateColumns = "1fr";
+      document.querySelectorAll('.tabs').forEach(te => {
+        te.style.gridTemplateColumns = "1fr";
       });
     }
   }
@@ -457,6 +457,9 @@ document.getElementById('files-create-btn')?.addEventListener('click', () => {
   const maxPeers = parseInt(document.getElementById('files-max-peers')?.value || '2', 10);
   const myNameVal = document.getElementById('files-my-name')?.value.trim();
   if (myNameVal) myName = myNameVal;
+  // Disable button immediately to prevent double-click.
+  const createBtn = document.getElementById('files-create-btn');
+  if (createBtn) { createBtn.disabled = true; createBtn.textContent = t('create_creating') || 'Creating…'; }
   if (typeof window.gmmffCreateSession === 'function') {
     window.gmmffCreateSession(server, maxPeers, buildIceConfig());
   }
@@ -529,7 +532,7 @@ function sendFilesMessage() {
   const text  = input?.value.trim();
   if (!text) return;
   if (typeof window.gmmffSessionSendMessage === 'function') window.gmmffSessionSendMessage(text);
-  appendFilesMessage('me', myName, text);
+  appendFilesMessage('me', myName || 'Me', text);
   input.value = '';
   input.focus();
 }
@@ -594,9 +597,10 @@ window.uiFilesSessionReady = function(isInitiator, peerCount, maxPeers) {
     window.uiFilesPeerCount(peerCount, maxPeers);
   }
   // Announce our name to the other side.
+  // Send empty string if no name set — receiver will use 'Participant N'.
   setTimeout(() => {
     if (typeof window.gmmffSessionSendMessage === 'function') {
-      window.gmmffSessionSendMessage(NAME_PREFIX + myName);
+      window.gmmffSessionSendMessage(NAME_PREFIX + (myName || ''));
     }
   }, 300);
   document.getElementById('files-messages').innerHTML = '';
@@ -689,7 +693,9 @@ window.uiFilesSessionClosed = function(msg) {
 };
 
 window.uiFilesError = function(msg) {
-  // Re-enable join button so the user can retry.
+  // Re-enable create and join buttons so the user can retry.
+  const createBtn = document.getElementById('files-create-btn');
+  if (createBtn) { createBtn.disabled = false; createBtn.textContent = t('files_create_btn') || 'Start session'; }
   const joinBtn = document.getElementById('files-join-btn');
   if (joinBtn) { joinBtn.disabled = false; joinBtn.textContent = t('chat_join_btn') || 'Join'; }
   const errEl = document.getElementById('files-error');
@@ -889,7 +895,7 @@ function sendChatMessage() {
     return;
   }
   if (typeof window.gmmffChatSend === 'function') window.gmmffChatSend(text);
-  appendChatBubble('me', myName, text);
+  appendChatBubble('me', myName || 'Me', text);
   input.value = '';
   input.focus();
 }

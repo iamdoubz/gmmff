@@ -100,5 +100,6 @@
   "join_name_placeholder": "ex. Alice",
   "join_connecting": "A ligar…",
   "weird_heading": "O seu ambiente parece… estranho.",
-  "weird_body": "O administrador do servidor desativou as abas Ficheiros e Chat. Não há nada para fazer aqui, mas pelo menos a ligação está encriptada."
+  "weird_body": "O administrador do servidor desativou as abas Ficheiros e Chat. Não há nada para fazer aqui, mas pelo menos a ligação está encriptada.",
+  "create_creating": "A criar…"
 }

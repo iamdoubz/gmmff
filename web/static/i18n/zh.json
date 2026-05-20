@@ -100,5 +100,6 @@
   "join_name_placeholder": "例如：小明",
   "join_connecting": "连接中…",
   "weird_heading": "您的环境看起来…有些奇怪。",
-  "weird_body": "服务器管理员已禁用文件和聊天选项卡。这里没什么可做的，但至少连接是加密的。"
+  "weird_body": "服务器管理员已禁用文件和聊天选项卡。这里没什么可做的，但至少连接是加密的。",
+  "create_creating": "创建中…"
 }

@@ -79,6 +79,7 @@ const (
 	TagTransferAnnounce  byte = 0x0D // sender is about to open a new data channel
 	TagTransferAccepted  byte = 0x0E // receiver is ready for the announced channel
 	TagSessionClose      byte = 0x0F // initiator ends the session for everyone
+	TagPeerCount         byte = 0x10 // initiator broadcasts current peer count to all peers
 )
 
 // SessionType identifies what kind of session a slot holds.
@@ -709,6 +710,20 @@ func BuildTransferAcceptedFrame(label string) []byte {
 
 // BuildSessionCloseFrame ends the session for all participants.
 func BuildSessionCloseFrame() []byte { return []byte{TagSessionClose} }
+
+// BuildPeerCountFrame encodes a TagPeerCount frame: [tag][count][maxPeers].
+func BuildPeerCountFrame(peerCount, maxPeers int) []byte {
+	return []byte{TagPeerCount, byte(peerCount), byte(maxPeers)}
+}
+
+// ParsePeerCountFrame decodes a TagPeerCount frame into (count, maxPeers).
+// Returns (0, 0) if the frame is malformed.
+func ParsePeerCountFrame(frame []byte) (int, int) {
+	if len(frame) < 3 || frame[0] != TagPeerCount {
+		return 0, 0
+	}
+	return int(frame[1]), int(frame[2])
+}
 
 // BuildCancelledFrame builds a TagCancelled frame.
 func BuildCancelledFrame() []byte {

@@ -100,5 +100,6 @@
   "join_name_placeholder": "hal. Juan",
   "join_connecting": "Kumokonekta…",
   "weird_heading": "Mukhang… kakaiba ang iyong kapaligiran.",
-  "weird_body": "Ang administrator ng server ay nag-disable ng mga tab na Files at Chat. Wala nang magagawa dito, pero hindi bababa ang koneksyon ay naka-encrypt."
+  "weird_body": "Ang administrator ng server ay nag-disable ng mga tab na Files at Chat. Wala nang magagawa dito, pero hindi bababa ang koneksyon ay naka-encrypt.",
+  "create_creating": "Gumagawa…"
 }

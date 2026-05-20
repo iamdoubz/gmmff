@@ -100,5 +100,6 @@
   "join_name_placeholder": "es. Alice",
   "join_connecting": "Connessione…",
   "weird_heading": "Il tuo ambiente sembra… strano.",
-  "weird_body": "L'amministratore del server ha disabilitato le schede File e Chat. Non c'è nulla da fare qui, ma almeno la connessione è cifrata."
+  "weird_body": "L'amministratore del server ha disabilitato le schede File e Chat. Non c'è nulla da fare qui, ma almeno la connessione è cifrata.",
+  "create_creating": "Creazione…"
 }

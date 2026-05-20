@@ -100,5 +100,6 @@
   "join_name_placeholder": "np. Anna",
   "join_connecting": "Łączenie…",
   "weird_heading": "Twoje środowisko wygląda… dziwnie.",
-  "weird_body": "Administrator serwera wyłączył karty Pliki i Czat. Nie ma tu nic do roboty, ale przynajmniej połączenie jest zaszyfrowane."
+  "weird_body": "Administrator serwera wyłączył karty Pliki i Czat. Nie ma tu nic do roboty, ale przynajmniej połączenie jest zaszyfrowane.",
+  "create_creating": "Tworzenie…"
 }

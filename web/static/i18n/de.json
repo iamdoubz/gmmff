@@ -100,5 +100,6 @@
   "join_name_placeholder": "z.B. Alice",
   "join_connecting": "Verbinde…",
   "weird_heading": "Ihre Umgebung sieht… seltsam aus.",
-  "weird_body": "Der Serveradministrator hat die Tabs Dateien und Chat deaktiviert. Hier gibt es nichts zu tun, aber die Verbindung ist immerhin verschlüsselt."
+  "weird_body": "Der Serveradministrator hat die Tabs Dateien und Chat deaktiviert. Hier gibt es nichts zu tun, aber die Verbindung ist immerhin verschlüsselt.",
+  "create_creating": "Erstelle…"
 }

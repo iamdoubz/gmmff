@@ -100,5 +100,6 @@
   "join_name_placeholder": "esim. Matti",
   "join_connecting": "Yhdistetään…",
   "weird_heading": "Ympäristösi näyttää… oudolta.",
-  "weird_body": "Palvelimen ylläpitäjä on poistanut Tiedostot- ja Chat-välilehdet käytöstä. Täällä ei ole mitään tekemistä, mutta ainakin yhteys on salattu."
+  "weird_body": "Palvelimen ylläpitäjä on poistanut Tiedostot- ja Chat-välilehdet käytöstä. Täällä ei ole mitään tekemistä, mutta ainakin yhteys on salattu.",
+  "create_creating": "Luodaan…"
 }

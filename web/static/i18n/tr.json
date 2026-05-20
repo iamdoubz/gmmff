@@ -100,5 +100,6 @@
   "join_name_placeholder": "örn. Ahmet",
   "join_connecting": "Bağlanıyor…",
   "weird_heading": "Ortamınız… tuhaf görünüyor.",
-  "weird_body": "Sunucu yöneticisi Dosyalar ve Sohbet sekmelerini devre dışı bıraktı. Burada yapacak bir şey yok, ama en azından bağlantı şifreli."
+  "weird_body": "Sunucu yöneticisi Dosyalar ve Sohbet sekmelerini devre dışı bıraktı. Burada yapacak bir şey yok, ama en azından bağlantı şifreli.",
+  "create_creating": "Oluşturuluyor…"
 }

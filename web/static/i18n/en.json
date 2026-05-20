@@ -100,5 +100,6 @@
   "join_name_placeholder": "e.g. Alice",
   "join_connecting": "Connecting…",
   "weird_heading": "Your environment looks… weird.",
-  "weird_body": "Both the Files and Chat tabs have been disabled by your server administrator. There's nothing to do here, but at least the connection is encrypted."
+  "weird_body": "Both the Files and Chat tabs have been disabled by your server administrator. There's nothing to do here, but at least the connection is encrypted.",
+  "create_creating": "Creating…"
 }

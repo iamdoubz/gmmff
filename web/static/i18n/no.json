@@ -100,5 +100,6 @@
   "join_name_placeholder": "f.eks. Kari",
   "join_connecting": "Kobler til…",
   "weird_heading": "Miljøet ditt ser… rart ut.",
-  "weird_body": "Serveradministratoren har deaktivert fanene Filer og Chat. Det er ingenting å gjøre her, men forbindelsen er i det minste kryptert."
+  "weird_body": "Serveradministratoren har deaktivert fanene Filer og Chat. Det er ingenting å gjøre her, men forbindelsen er i det minste kryptert.",
+  "create_creating": "Oppretter…"
 }

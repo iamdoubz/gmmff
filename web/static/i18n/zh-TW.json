@@ -100,5 +100,6 @@
   "join_name_placeholder": "例如：小明",
   "join_connecting": "連線中…",
   "weird_heading": "您的環境看起來…有些奇怪。",
-  "weird_body": "伺服器管理員已停用檔案和聊天標籤。這裡沒什麼可做的，但至少連線是加密的。"
+  "weird_body": "伺服器管理員已停用檔案和聊天標籤。這裡沒什麼可做的，但至少連線是加密的。",
+  "create_creating": "建立中…"
 }

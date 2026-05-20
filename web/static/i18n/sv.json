@@ -100,5 +100,6 @@
   "join_name_placeholder": "t.ex. Alice",
   "join_connecting": "Ansluter…",
   "weird_heading": "Din miljö ser… konstig ut.",
-  "weird_body": "Serveradministratören har inaktiverat flikarna Filer och Chatt. Det finns inget att göra här, men åtminstone är anslutningen krypterad."
+  "weird_body": "Serveradministratören har inaktiverat flikarna Filer och Chatt. Det finns inget att göra här, men åtminstone är anslutningen krypterad.",
+  "create_creating": "Skapar…"
 }
