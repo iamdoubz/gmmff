@@ -8,6 +8,8 @@ const WASM_URL       = 'gmmff.wasm';
 // ── State ────────────────────────────────────────────────────────────────────
 let currentLang    = 'en';
 let availableLangs = [];
+let filteredLangs  = []; // subset of availableLangs after server config applied
+let uiConfig       = {}; // feature flags from /config.json
 
 // Track the last known progress values for each panel so uiDone can
 // snapshot them for the completion summary line.
@@ -35,29 +37,166 @@ function normaliseServerURL(url) {
 }
 let i18n   = {};
 let cancel        = null; // function set by Wasm to cancel active transfer
-let myName    = 'Me';        // my own display name (set from name field)
+let myName    = '';          // own display name — empty means use default 'Me' locally
 let peerNames = new Map();   // peerIndex (1-based) → display name
 let peerCount = 0;           // number of peers joined so far (for auto-naming)
 
 // NAME_PREFIX is a sentinel prepended to name-announcement messages.
 // It lets the receiver distinguish a name announcement from a chat message.
-const NAME_PREFIX = '\x01name:';
+const NAME_PREFIX   = '\x01name:';
+const ROSTER_PREFIX = '\x01roster:';
 
 // ── Boot sequence ─────────────────────────────────────────────────────────────
 async function boot() {
   try {
-    const [theme, langs] = await Promise.all([
+    const [theme, langs, cfg] = await Promise.all([
       fetch(THEME_URL).then(r => r.json()),
       fetch(LANGUAGES_URL).then(r => r.json()),
+      fetch('/config.json').then(r => r.json()).catch(() => ({})),
     ]);
     applyTheme(theme);
-    availableLangs = langs;
-    currentLang = detectLanguage(langs);
+    applyUIConfig(cfg, langs);
+    availableLangs = filteredLangs;
+    currentLang = detectLanguage(filteredLangs);
     await switchLanguage(currentLang);
     await loadWasm();
     hideLoading();
   } catch (err) {
     showFatalError(err);
+  }
+}
+
+// ── UI Config (feature flags from /config.json) ───────────────────────────────
+
+// applyUIConfig reads the server-provided feature flags and adjusts the DOM.
+// Called once during boot before the loading overlay is removed.
+function applyUIConfig(cfg, allLangs) {
+  uiConfig = cfg;
+
+  // ── Tab visibility ────────────────────────────────────────────────────────
+  const showFiles = cfg.show_files !== false;
+  const showChat  = cfg.show_chat  !== false;
+
+  const tabFiles  = document.getElementById('tab-files');
+  const tabChat   = document.getElementById('tab-chat');
+  const panelFiles = document.getElementById('panel-files');
+  const panelChat  = document.getElementById('panel-chat');
+
+  const tabElements = document.getElementsByClassName('tabs');
+
+  if (!showFiles) {
+    if (tabFiles)  tabFiles.style.display  = 'none';
+    if (panelFiles) panelFiles.style.display = 'none';
+    if (tabElements) {
+      document.querySelectorAll('.tabs').forEach(te => {
+        te.style.gridTemplateColumns = "1fr";
+      });
+    }
+  }
+  if (!showChat) {
+    if (tabChat)  tabChat.style.display  = 'none';
+    if (panelChat) panelChat.style.display = 'none';
+    if (tabElements) {
+      document.querySelectorAll('.tabs').forEach(te => {
+        te.style.gridTemplateColumns = "1fr";
+      });
+    }
+  }
+
+  // Both tabs hidden — show the "weird" message.
+  if (!showFiles && !showChat) {
+    const body = document.getElementById('main-content') || document.body;
+    const msg  = document.createElement('div');
+    msg.id = 'weird-message';
+    msg.style.cssText = 'text-align:center;padding:3rem 1rem;max-width:480px;margin:0 auto';
+    msg.innerHTML = `
+      <p style="font-size:2rem;margin-bottom:0.5rem">😶</p>
+      <h2 data-i18n="weird_heading">Your environment looks… weird.</h2>
+      <p data-i18n="weird_body">Both the Files and Chat tabs have been disabled by your server
+      administrator. There's nothing to do here, but at least the connection is encrypted.</p>`;
+    body.prepend(msg);
+  }
+
+  // ── ICE settings panel ────────────────────────────────────────────────────
+  const showICE = cfg.show_ice_settings !== false;
+  if (!showICE) {
+    const icePanel = document.getElementById('ice-settings');
+    if (icePanel) icePanel.style.display = 'none';
+  } else {
+    // ICE panel visible — check individual STUN/TURN controls.
+    if (cfg.allow_stun === false) {
+      const btn = document.getElementById('ice-stun-add-btn');
+      if (btn) btn.closest('.ice-section').style.display = 'none';
+    }
+    if (cfg.allow_turn === false) {
+      const btn = document.getElementById('ice-turn-add-btn');
+      if (btn) btn.closest('.ice-section').style.display = 'none';
+    }
+  }
+
+  // ── Share link + QR code ──────────────────────────────────────────────────
+  if (cfg.show_share_link === false) {
+    ['files-share-link', 'chat-share-link'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+  }
+  if (cfg.show_qr_code === false) {
+    ['files-qr-toggle', 'files-qr-container', 'chat-qr-toggle', 'chat-qr-container'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+  }
+
+  // ── Custom server field ───────────────────────────────────────────────────
+  if (cfg.allow_custom_server === false) {
+    ['files-server', 'chat-server'].forEach(id => {
+      const input = document.getElementById(id);
+      if (input) {
+        const field = input.closest('.field');
+        if (field) field.style.display = 'none';
+      }
+    });
+  }
+
+  // ── Max peers slider ──────────────────────────────────────────────────────
+  const showPeers = cfg.show_peers_limit !== false;
+  const maxPeers  = typeof cfg.max_peers_limit === 'number' ? cfg.max_peers_limit : 10;
+  const peerSlider = document.getElementById('files-max-peers');
+  const peerField  = peerSlider?.closest('.field');
+  if (!showPeers && peerField) {
+    peerField.style.display = 'none';
+  }
+  if (peerSlider) {
+    peerSlider.max   = String(maxPeers);
+    // Clamp current value if it exceeds new max.
+    if (parseInt(peerSlider.value) > maxPeers) {
+      peerSlider.value = String(maxPeers);
+      const label = document.getElementById('files-max-peers-value');
+      if (label) label.textContent = String(maxPeers);
+    }
+  }
+
+  // ── MOTD ──────────────────────────────────────────────────────────────────
+  if (cfg.motd && cfg.motd.trim() !== '') {
+    const banner = document.createElement('div');
+    banner.id = 'motd-banner';
+    banner.style.cssText =
+      'background:var(--color-warning,#f59e0b);color:#000;padding:0.5rem 1rem;' +
+      'text-align:center;font-size:var(--font-size-sm);font-weight:var(--font-weight-medium)';
+    banner.textContent = cfg.motd;
+    document.body.prepend(banner);
+  }
+
+  // ── Language filtering ────────────────────────────────────────────────────
+  // If allowed_langs is null/empty, use all. Otherwise filter to the list.
+  if (Array.isArray(cfg.allowed_langs) && cfg.allowed_langs.length > 0) {
+    const allowed = new Set(cfg.allowed_langs);
+    filteredLangs = allLangs.filter(l => allowed.has(l.code));
+    // Fallback to English if the filtered list doesn't include it.
+    if (filteredLangs.length === 0) filteredLangs = allLangs.filter(l => l.code === 'en');
+  } else {
+    filteredLangs = allLangs;
   }
 }
 
@@ -319,6 +458,9 @@ document.getElementById('files-create-btn')?.addEventListener('click', () => {
   const maxPeers = parseInt(document.getElementById('files-max-peers')?.value || '2', 10);
   const myNameVal = document.getElementById('files-my-name')?.value.trim();
   if (myNameVal) myName = myNameVal;
+  // Disable button immediately to prevent double-click.
+  const createBtn = document.getElementById('files-create-btn');
+  if (createBtn) { createBtn.disabled = true; createBtn.textContent = t('create_creating') || 'Creating…'; }
   if (typeof window.gmmffCreateSession === 'function') {
     window.gmmffCreateSession(server, maxPeers, buildIceConfig());
   }
@@ -391,7 +533,7 @@ function sendFilesMessage() {
   const text  = input?.value.trim();
   if (!text) return;
   if (typeof window.gmmffSessionSendMessage === 'function') window.gmmffSessionSendMessage(text);
-  appendFilesMessage('me', myName, text);
+  appendFilesMessage('me', myName || 'Me', text);
   input.value = '';
   input.focus();
 }
@@ -456,9 +598,10 @@ window.uiFilesSessionReady = function(isInitiator, peerCount, maxPeers) {
     window.uiFilesPeerCount(peerCount, maxPeers);
   }
   // Announce our name to the other side.
+  // Send empty string if no name set — receiver will use 'Participant N'.
   setTimeout(() => {
     if (typeof window.gmmffSessionSendMessage === 'function') {
-      window.gmmffSessionSendMessage(NAME_PREFIX + myName);
+      window.gmmffSessionSendMessage(NAME_PREFIX + (myName || ''));
     }
   }, 300);
   document.getElementById('files-messages').innerHTML = '';
@@ -511,16 +654,39 @@ window.uiFilesInboundStarted = function(label, total) {
 };
 
 window.uiFilesMessage = function(from, text) {
-  if (text.startsWith(NAME_PREFIX)) {
-    // Name announcement — record the name for this peer, don't display as message.
-    peerCount++;
-    const announcedName = text.slice(NAME_PREFIX.length).trim() || ('Participant ' + peerCount);
-    peerNames.set(peerCount, announcedName);
-    appendFilesSystem(announcedName + ' joined.');
+  if (text.startsWith(ROSTER_PREFIX)) {
+    // Roster broadcast from initiator — populate all peer names at once.
+    // Format: \x01roster:initiator=FFName,peerID=MobName,...
+    const entries = text.slice(ROSTER_PREFIX.length).split(',');
+    entries.forEach(entry => {
+      const eq = entry.indexOf('=');
+      if (eq === -1) return;
+      const pid  = entry.slice(0, eq); // 'initiator' or a UUID
+      const name = entry.slice(eq + 1).trim() || null;
+      if (!peerNames.has(pid)) {
+        peerNames.set(pid, name || 'Participant');
+      }
+    });
     return;
   }
-  // Use the most recently announced peer name, falling back to Participant N.
-  const label = peerNames.size > 0 ? peerNames.get(peerNames.size) || ('Participant ' + peerNames.size) : 'Participant';
+  if (text.startsWith(NAME_PREFIX)) {
+    // Name announcement — record name keyed by peer ID (from).
+    const announcedName = text.slice(NAME_PREFIX.length).trim();
+    if (from && announcedName) {
+      peerNames.set(from, announcedName);
+      appendFilesSystem(announcedName + ' joined.');
+    } else if (from) {
+      // No name set — assign a numbered fallback.
+      const n = peerNames.size + 1;
+      peerNames.set(from, 'Participant ' + n);
+      appendFilesSystem('Participant ' + n + ' joined.');
+    }
+    return;
+  }
+  // Look up the sender by peer ID; fall back to Participant if unknown.
+  const label = (from && peerNames.has(from))
+    ? peerNames.get(from)
+    : 'Participant';
   appendFilesMessage('them', label, text);
 };
 
@@ -531,8 +697,11 @@ window.uiFilesPeerCount = function(peerCount, maxPeers) {
   el.classList.toggle('hidden', peerCount <= 0 || maxPeers <= 0);
 };
 
-window.uiFilesParticipantLeft = function(msg) {
-  const label = peerNames.size > 0 ? (peerNames.get(peerNames.size) || 'Participant') : 'Participant';
+window.uiFilesParticipantLeft = function(msg, from) {
+  const label = (from && peerNames.has(from))
+    ? peerNames.get(from)
+    : (peerNames.size > 0 ? [...peerNames.values()].at(-1) : 'Participant');
+  if (from) peerNames.delete(from);
   appendFilesSystem(msg || (label + ' left.'));
 };
 
@@ -551,7 +720,9 @@ window.uiFilesSessionClosed = function(msg) {
 };
 
 window.uiFilesError = function(msg) {
-  // Re-enable join button so the user can retry.
+  // Re-enable create and join buttons so the user can retry.
+  const createBtn = document.getElementById('files-create-btn');
+  if (createBtn) { createBtn.disabled = false; createBtn.textContent = t('files_create_btn') || 'Start session'; }
   const joinBtn = document.getElementById('files-join-btn');
   if (joinBtn) { joinBtn.disabled = false; joinBtn.textContent = t('chat_join_btn') || 'Join'; }
   const errEl = document.getElementById('files-error');
@@ -751,7 +922,7 @@ function sendChatMessage() {
     return;
   }
   if (typeof window.gmmffChatSend === 'function') window.gmmffChatSend(text);
-  appendChatBubble('me', myName, text);
+  appendChatBubble('me', myName || 'Me', text);
   input.value = '';
   input.focus();
 }

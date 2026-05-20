@@ -79,6 +79,8 @@ const (
 	TagTransferAnnounce  byte = 0x0D // sender is about to open a new data channel
 	TagTransferAccepted  byte = 0x0E // receiver is ready for the announced channel
 	TagSessionClose      byte = 0x0F // initiator ends the session for everyone
+	TagPeerCount         byte = 0x10 // initiator broadcasts current peer count to all peers
+	TagRelayedMessage    byte = 0x11 // initiator relays a message preserving original sender ID
 )
 
 // SessionType identifies what kind of session a slot holds.
@@ -709,6 +711,47 @@ func BuildTransferAcceptedFrame(label string) []byte {
 
 // BuildSessionCloseFrame ends the session for all participants.
 func BuildSessionCloseFrame() []byte { return []byte{TagSessionClose} }
+
+// BuildRelayedMessageFrame encodes a TagRelayedMessage frame:
+// [tag][1-byte senderID len][senderID][message text]
+// Used by the initiator to relay messages from one peer to others while
+// preserving the original sender's identity.
+func BuildRelayedMessageFrame(senderID, text string) []byte {
+	sid := []byte(senderID)
+	if len(sid) > 255 {
+		sid = sid[:255]
+	}
+	frame := make([]byte, 1+1+len(sid)+len(text))
+	frame[0] = TagRelayedMessage
+	frame[1] = byte(len(sid))
+	copy(frame[2:], sid)
+	copy(frame[2+len(sid):], text)
+	return frame
+}
+
+// ParseRelayedMessageFrame decodes a TagRelayedMessage frame into (senderID, text).
+func ParseRelayedMessageFrame(frame []byte) (senderID, text string) {
+	if len(frame) < 2 || frame[0] != TagRelayedMessage {
+		return "", ""
+	}
+	sidLen := int(frame[1])
+	if len(frame) < 2+sidLen {
+		return "", ""
+	}
+	return string(frame[2 : 2+sidLen]), string(frame[2+sidLen:])
+}
+func BuildPeerCountFrame(peerCount, maxPeers int) []byte {
+	return []byte{TagPeerCount, byte(peerCount), byte(maxPeers)}
+}
+
+// ParsePeerCountFrame decodes a TagPeerCount frame into (count, maxPeers).
+// Returns (0, 0) if the frame is malformed.
+func ParsePeerCountFrame(frame []byte) (int, int) {
+	if len(frame) < 3 || frame[0] != TagPeerCount {
+		return 0, 0
+	}
+	return int(frame[1]), int(frame[2])
+}
 
 // BuildCancelledFrame builds a TagCancelled frame.
 func BuildCancelledFrame() []byte {

@@ -93,10 +93,13 @@
   "share_hide_qr": "QR कोड लपवा",
   "share_qr_hint": "सहभागी होण्यासाठी स्कॅन करा",
   "files_max_peers_label": "कमाल सहभागी:",
-  "files_max_peers_hint": "२ = द्विदिशात्मक. ३–१० = प्रवर्तक सर्वांना पाठवतो.",
+  "files_max_peers_hint": "২ = द्विदिशात्मक. ৩+ = प्रवर्तक सर्वांना पाठवतो.",
   "session_ended": "सत्र संपले",
   "join_name_label": "तुमचे नाव",
   "join_name_optional": "(पर्यायी)",
   "join_name_placeholder": "उदा. राज",
-  "join_connecting": "कनेक्ट होत आहे…"
+  "join_connecting": "कनेक्ट होत आहे…",
+  "weird_heading": "तुमचे वातावरण… विचित्र दिसत आहे.",
+  "weird_body": "सर्व्हर प्रशासकाने फाइल्स आणि चॅट टॅब अक्षम केले आहेत. येथे करण्यासारखे काही नाही, परंतु किमान कनेक्शन एन्क्रिप्टेड आहे.",
+  "create_creating": "तयार करतोय…"
 }

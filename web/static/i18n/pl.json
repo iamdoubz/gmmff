@@ -93,10 +93,13 @@
   "share_hide_qr": "Ukryj kod QR",
   "share_qr_hint": "Zeskanuj, aby dołączyć",
   "files_max_peers_label": "Maks. uczestników:",
-  "files_max_peers_hint": "2 = dwukierunkowy. 3–10 = inicjator wysyła do wszystkich.",
+  "files_max_peers_hint": "2 = dwukierunkowy. 3+ = inicjator wysyła do wszystkich.",
   "session_ended": "Sesja zakończona",
   "join_name_label": "Twoje imię",
   "join_name_optional": "(opcjonalnie)",
   "join_name_placeholder": "np. Anna",
-  "join_connecting": "Łączenie…"
+  "join_connecting": "Łączenie…",
+  "weird_heading": "Twoje środowisko wygląda… dziwnie.",
+  "weird_body": "Administrator serwera wyłączył karty Pliki i Czat. Nie ma tu nic do roboty, ale przynajmniej połączenie jest zaszyfrowane.",
+  "create_creating": "Tworzenie…"
 }

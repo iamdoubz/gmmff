@@ -516,7 +516,7 @@ func runWasmSession(_ context.Context, sess *session.Session) {
 func dispatchSessionEvent(ev session.Event) {
 	switch ev.Type {
 	case session.EventMessage:
-		js.Global().Call("uiFilesMessage", "Participant", ev.Message)
+		js.Global().Call("uiFilesMessage", ev.From, ev.Message)
 	case session.EventTransferStarted:
 		js.Global().Call("uiFilesInboundStarted", ev.Label, ev.Total)
 	case session.EventTransferProgress:
@@ -535,7 +535,7 @@ func dispatchSessionEvent(ev session.Event) {
 	case session.EventPeerJoined:
 		js.Global().Call("uiFilesPeerCount", ev.PeerCount, ev.MaxPeers)
 	case session.EventPeerLeft:
-		js.Global().Call("uiFilesParticipantLeft", ev.Message)
+		js.Global().Call("uiFilesParticipantLeft", ev.Message, ev.From)
 		js.Global().Call("uiFilesPeerCount", ev.PeerCount, ev.MaxPeers)
 	case session.EventSessionClosed:
 		js.Global().Call("uiFilesSessionClosed", ev.Message)

@@ -93,10 +93,13 @@
   "share_hide_qr": "Dölj QR-kod",
   "share_qr_hint": "Skanna för att gå med",
   "files_max_peers_label": "Max deltagare:",
-  "files_max_peers_hint": "2 = dubbelriktad. 3–10 = initieraren skickar till alla.",
+  "files_max_peers_hint": "2 = tvåvägs. 3+ = initieraren skickar till alla.",
   "session_ended": "Session avslutad",
   "join_name_label": "Ditt namn",
   "join_name_optional": "(valfritt)",
   "join_name_placeholder": "t.ex. Alice",
-  "join_connecting": "Ansluter…"
+  "join_connecting": "Ansluter…",
+  "weird_heading": "Din miljö ser… konstig ut.",
+  "weird_body": "Serveradministratören har inaktiverat flikarna Filer och Chatt. Det finns inget att göra här, men åtminstone är anslutningen krypterad.",
+  "create_creating": "Skapar…"
 }

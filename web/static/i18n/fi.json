@@ -93,10 +93,13 @@
   "share_hide_qr": "Piilota QR-koodi",
   "share_qr_hint": "Skannaa liittyäksesi",
   "files_max_peers_label": "Enimmäisosallistujamäärä:",
-  "files_max_peers_hint": "2 = kaksisuuntainen. 3–10 = aloittaja lähettää kaikille.",
+  "files_max_peers_hint": "2 = kaksisuuntainen. 3+ = aloittaja lähettää kaikille.",
   "session_ended": "Istunto päättyi",
   "join_name_label": "Nimesi",
   "join_name_optional": "(valinnainen)",
   "join_name_placeholder": "esim. Matti",
-  "join_connecting": "Yhdistetään…"
+  "join_connecting": "Yhdistetään…",
+  "weird_heading": "Ympäristösi näyttää… oudolta.",
+  "weird_body": "Palvelimen ylläpitäjä on poistanut Tiedostot- ja Chat-välilehdet käytöstä. Täällä ei ole mitään tekemistä, mutta ainakin yhteys on salattu.",
+  "create_creating": "Luodaan…"
 }

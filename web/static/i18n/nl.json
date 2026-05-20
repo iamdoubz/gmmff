@@ -93,10 +93,13 @@
   "share_hide_qr": "QR-code verbergen",
   "share_qr_hint": "Scan om deel te nemen",
   "files_max_peers_label": "Max. deelnemers:",
-  "files_max_peers_hint": "2 = bidirectioneel. 3–10 = initiator stuurt naar allen.",
+  "files_max_peers_hint": "2 = bidirectioneel. 3+ = initiator stuurt naar allen.",
   "session_ended": "Sessie beëindigd",
   "join_name_label": "Uw naam",
   "join_name_optional": "(optioneel)",
   "join_name_placeholder": "bijv. Jan",
-  "join_connecting": "Verbinden…"
+  "join_connecting": "Verbinden…",
+  "weird_heading": "Uw omgeving ziet er… vreemd uit.",
+  "weird_body": "De serverbeheerder heeft de tabbladen Bestanden en Chat uitgeschakeld. Er valt hier niets te doen, maar de verbinding is tenminste versleuteld.",
+  "create_creating": "Aanmaken…"
 }

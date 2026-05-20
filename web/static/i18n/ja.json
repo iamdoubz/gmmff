@@ -93,10 +93,13 @@
   "share_hide_qr": "QR コードを非表示",
   "share_qr_hint": "スキャンして参加",
   "files_max_peers_label": "最大参加者数：",
-  "files_max_peers_hint": "2 = 双方向。3〜10 = 開始者が全員に送信。",
+  "files_max_peers_hint": "2 = 双方向。3+ = 開始者が全員に送信。",
   "session_ended": "セッションが終了しました",
   "join_name_label": "あなたの名前",
   "join_name_optional": "(任意)",
   "join_name_placeholder": "例：山田",
-  "join_connecting": "接続中…"
+  "join_connecting": "接続中…",
+  "weird_heading": "環境が…おかしいですね。",
+  "weird_body": "サーバー管理者がファイルタブとチャットタブを無効にしています。ここでできることは何もありませんが、少なくとも接続は暗号化されています。",
+  "create_creating": "作成中…"
 }

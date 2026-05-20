@@ -93,10 +93,13 @@
   "share_hide_qr": "QR-Code ausblenden",
   "share_qr_hint": "Zum Beitreten scannen",
   "files_max_peers_label": "Max. Teilnehmer:",
-  "files_max_peers_hint": "2 = bidirektional. 3–10 = Initiator sendet an alle.",
+  "files_max_peers_hint": "2 = bidirektional. 3+ = Initiator sendet an alle.",
   "session_ended": "Sitzung beendet",
   "join_name_label": "Ihr Name",
   "join_name_optional": "(optional)",
   "join_name_placeholder": "z.B. Alice",
-  "join_connecting": "Verbinde…"
+  "join_connecting": "Verbinde…",
+  "weird_heading": "Ihre Umgebung sieht… seltsam aus.",
+  "weird_body": "Der Serveradministrator hat die Tabs Dateien und Chat deaktiviert. Hier gibt es nichts zu tun, aber die Verbindung ist immerhin verschlüsselt.",
+  "create_creating": "Erstelle…"
 }

@@ -93,10 +93,13 @@
   "share_hide_qr": "隐藏二维码",
   "share_qr_hint": "扫码加入",
   "files_max_peers_label": "最大参与人数：",
-  "files_max_peers_hint": "2 = 双向。3–10 = 发起者向所有人发送。",
+  "files_max_peers_hint": "2 = 双向。3+ = 发起者向所有人发送。",
   "session_ended": "会话已结束",
   "join_name_label": "您的姓名",
   "join_name_optional": "（可选）",
   "join_name_placeholder": "例如：小明",
-  "join_connecting": "连接中…"
+  "join_connecting": "连接中…",
+  "weird_heading": "您的环境看起来…有些奇怪。",
+  "weird_body": "服务器管理员已禁用文件和聊天选项卡。这里没什么可做的，但至少连接是加密的。",
+  "create_creating": "创建中…"
 }

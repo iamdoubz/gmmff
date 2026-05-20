@@ -93,10 +93,13 @@
   "share_hide_qr": "Ocultar código QR",
   "share_qr_hint": "Escanea para unirte",
   "files_max_peers_label": "Máx. participantes:",
-  "files_max_peers_hint": "2 = bidireccional. 3–10 = el iniciador envía a todos.",
+  "files_max_peers_hint": "2 = bidireccional. 3+ = el iniciador envía a todos.",
   "session_ended": "Sesión terminada",
   "join_name_label": "Tu nombre",
   "join_name_optional": "(opcional)",
   "join_name_placeholder": "p.ej. Alice",
-  "join_connecting": "Conectando…"
+  "join_connecting": "Conectando…",
+  "weird_heading": "Tu entorno parece… raro.",
+  "weird_body": "El administrador del servidor ha desactivado las pestañas Archivos y Chat. No hay nada que hacer aquí, pero al menos la conexión está cifrada.",
+  "create_creating": "Creando…"
 }

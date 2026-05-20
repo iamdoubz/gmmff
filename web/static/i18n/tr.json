@@ -93,10 +93,13 @@
   "share_hide_qr": "QR kodu gizle",
   "share_qr_hint": "Katılmak için tara",
   "files_max_peers_label": "Maks. katılımcı:",
-  "files_max_peers_hint": "2 = çift yönlü. 3–10 = başlatıcı herkese gönderir.",
+  "files_max_peers_hint": "2 = çift yönlü. 3+ = başlatıcı herkese gönderir.",
   "session_ended": "Oturum sona erdi",
   "join_name_label": "Adınız",
   "join_name_optional": "(isteğe bağlı)",
   "join_name_placeholder": "örn. Ahmet",
-  "join_connecting": "Bağlanıyor…"
+  "join_connecting": "Bağlanıyor…",
+  "weird_heading": "Ortamınız… tuhaf görünüyor.",
+  "weird_body": "Sunucu yöneticisi Dosyalar ve Sohbet sekmelerini devre dışı bıraktı. Burada yapacak bir şey yok, ama en azından bağlantı şifreli.",
+  "create_creating": "Oluşturuluyor…"
 }

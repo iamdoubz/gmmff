@@ -93,10 +93,13 @@
   "share_hide_qr": "Sembunyikan kod QR",
   "share_qr_hint": "Imbas untuk menyertai",
   "files_max_peers_label": "Maks. peserta:",
-  "files_max_peers_hint": "2 = dua hala. 3–10 = pemula menghantar kepada semua.",
+  "files_max_peers_hint": "2 = dua hala. 3+ = pemula menghantar kepada semua.",
   "session_ended": "Sesi telah tamat",
   "join_name_label": "Nama anda",
   "join_name_optional": "(pilihan)",
   "join_name_placeholder": "cth. Ali",
-  "join_connecting": "Menyambung…"
+  "join_connecting": "Menyambung…",
+  "weird_heading": "Persekitaran anda kelihatan… pelik.",
+  "weird_body": "Pentadbir pelayan telah melumpuhkan tab Fail dan Chat. Tiada apa yang boleh dilakukan di sini, tetapi sekurang-kurangnya sambungan adalah disulitkan.",
+  "create_creating": "Mencipta…"
 }

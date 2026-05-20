@@ -93,10 +93,13 @@
   "share_hide_qr": "Masquer le QR code",
   "share_qr_hint": "Scanner pour rejoindre",
   "files_max_peers_label": "Participants max :",
-  "files_max_peers_hint": "2 = bidirectionnel. 3–10 = l'initiateur envoie à tous.",
+  "files_max_peers_hint": "2 = bidirectionnel. 3+ = l’initiateur envoie à tous.",
   "session_ended": "Session terminée",
   "join_name_label": "Votre nom",
   "join_name_optional": "(optionnel)",
   "join_name_placeholder": "ex. Alice",
-  "join_connecting": "Connexion…"
+  "join_connecting": "Connexion…",
+  "weird_heading": "Votre environnement semble… bizarre.",
+  "weird_body": "L'administrateur du serveur a désactivé les onglets Fichiers et Chat. Il n'y a rien à faire ici, mais au moins la connexion est chiffrée.",
+  "create_creating": "Création…"
 }

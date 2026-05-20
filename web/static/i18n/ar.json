@@ -93,10 +93,13 @@
   "share_hide_qr": "إخفاء رمز QR",
   "share_qr_hint": "امسح للانضمام",
   "files_max_peers_label": "الحد الأقصى للمشاركين:",
-  "files_max_peers_hint": "2 = ثنائي الاتجاه. 3-10 = المُبادِر يرسل للجميع.",
+  "files_max_peers_hint": "2 = ثنائي الاتجاه. 3+ = المُبادِر يرسل للجميع.",
   "session_ended": "انتهت الجلسة",
   "join_name_label": "اسمك",
   "join_name_optional": "(اختياري)",
   "join_name_placeholder": "مثال: أحمد",
-  "join_connecting": "جارٍ الاتصال…"
+  "join_connecting": "جارٍ الاتصال…",
+  "weird_heading": "بيئتك تبدو… غريبة.",
+  "weird_body": "قام مسؤول الخادم بتعطيل علامتَي تبويب الملفات والدردشة. لا يوجد ما يمكن فعله هنا، لكن على الأقل الاتصال مشفّر.",
+  "create_creating": "جارٍ الإنشاء…"
 }

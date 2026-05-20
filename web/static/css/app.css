@@ -516,6 +516,17 @@
       cursor: pointer;
     }
     .field-hint { color: var(--color-text-muted); margin-top: 2px; }
+    .field-label-row {
+      display: flex;
+      align-items: baseline;
+      gap: var(--spacing-xs, 4px);
+      margin-bottom: var(--spacing-xs, 4px);
+    }
+    .field-label-value {
+      font-weight: var(--font-weight-semibold, 600);
+      color: var(--color-accent);
+      min-width: 1.5ch;
+    }
 
     /* ── Peer count display ─────────────────────────────────────────────── */
     .files-status-group {

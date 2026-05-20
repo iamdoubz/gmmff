@@ -93,10 +93,13 @@
   "share_hide_qr": "Skjul QR-kode",
   "share_qr_hint": "Skann for å bli med",
   "files_max_peers_label": "Maks deltakere:",
-  "files_max_peers_hint": "2 = toveis. 3–10 = initiator sender til alle.",
+  "files_max_peers_hint": "2 = toveis. 3+ = initiator sender til alle.",
   "session_ended": "Økt avsluttet",
   "join_name_label": "Ditt navn",
   "join_name_optional": "(valgfritt)",
   "join_name_placeholder": "f.eks. Kari",
-  "join_connecting": "Kobler til…"
+  "join_connecting": "Kobler til…",
+  "weird_heading": "Miljøet ditt ser… rart ut.",
+  "weird_body": "Serveradministratoren har deaktivert fanene Filer og Chat. Det er ingenting å gjøre her, men forbindelsen er i det minste kryptert.",
+  "create_creating": "Oppretter…"
 }

@@ -93,10 +93,13 @@
   "share_hide_qr": "QR کوڈ چھپائیں",
   "share_qr_hint": "شامل ہونے کے لیے اسکین کریں",
   "files_max_peers_label": "زیادہ سے زیادہ شرکاء:",
-  "files_max_peers_hint": "۲ = دو طرفہ۔ ۳–۱۰ = آغاز کرنے والا سب کو بھیجتا ہے۔",
+  "files_max_peers_hint": "۲ = دو طرفہ۔ ۳+ = آغاز کرنے والا سب کو بھیجتا ہے۔",
   "session_ended": "سیشن ختم ہو گیا",
   "join_name_label": "آپ کا نام",
   "join_name_optional": "(اختیاری)",
   "join_name_placeholder": "مثلاً احمد",
-  "join_connecting": "کنکشن ہو رہا ہے…"
+  "join_connecting": "کنکشن ہو رہا ہے…",
+  "weird_heading": "آپ کا ماحول… عجیب لگ رہا ہے۔",
+  "weird_body": "سرور ایڈمنسٹریٹر نے فائلز اور چیٹ ٹیبز کو غیر فعال کر دیا ہے۔ یہاں کرنے کو کچھ نہیں ہے، لیکن کم از کم کنکشن انکرپٹڈ ہے۔",
+  "create_creating": "بنایا جا رہا ہے…"
 }

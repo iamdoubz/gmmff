@@ -93,10 +93,13 @@
   "share_hide_qr": "Hide QR code",
   "share_qr_hint": "Scan to join",
   "files_max_peers_label": "Max participants:",
-  "files_max_peers_hint": "2 = bidirectional. 3–10 = initiator sends to all.",
+  "files_max_peers_hint": "2 = bidirectional. 3+ = initiator sends to all.",
   "session_ended": "Session ended",
   "join_name_label": "Your name",
   "join_name_optional": "(optional)",
   "join_name_placeholder": "e.g. Alice",
-  "join_connecting": "Connecting…"
+  "join_connecting": "Connecting…",
+  "weird_heading": "Your environment looks… weird.",
+  "weird_body": "Both the Files and Chat tabs have been disabled by your server administrator. There's nothing to do here, but at least the connection is encrypted.",
+  "create_creating": "Creating…"
 }

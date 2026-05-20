@@ -93,10 +93,13 @@
   "share_hide_qr": "QR कोड छुपाएं",
   "share_qr_hint": "जुड़ने के लिए स्कैन करें",
   "files_max_peers_label": "अधिकतम प्रतिभागी:",
-  "files_max_peers_hint": "2 = द्विदिशात्मक। 3–10 = आरंभकर्ता सभी को भेजता है।",
+  "files_max_peers_hint": "2 = द्विदिशात्मक। 3+ = आरंभकर्ता सभी को भेजता है।",
   "session_ended": "सत्र समाप्त हो गया",
   "join_name_label": "आपका नाम",
   "join_name_optional": "(वैकल्पिक)",
   "join_name_placeholder": "जैसे Alice",
-  "join_connecting": "कनेक्ट हो रहा है…"
+  "join_connecting": "कनेक्ट हो रहा है…",
+  "weird_heading": "आपका वातावरण… अजीब लग रहा है।",
+  "weird_body": "सर्वर व्यवस्थापक ने फ़ाइलें और चैट टैब अक्षम कर दिए हैं। यहाँ करने के लिए कुछ नहीं है, लेकिन कम से कम कनेक्शन एन्क्रिप्टेड है।",
+  "create_creating": "बनाया जा रहा है…"
 }

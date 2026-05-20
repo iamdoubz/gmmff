@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -47,6 +48,7 @@ type transferRequest struct {
 type Event struct {
 	Type    EventType
 	Message string          // EventMessage: text; EventTransferDone: filename; EventError: error text
+	From    string          // EventMessage: sender peer ID (empty = initiator sent it)
 	Data    []byte          // EventTransferDone: file bytes (Wasm only, nil on CLI)
 	Path    string          // EventTransferDone: saved path (CLI only)
 	Total   int64           // EventTransferStarted: file size
@@ -108,6 +110,11 @@ type Session struct {
 	// Sig is the signaling client — kept open until the session ends.
 	Sig interface{ Close() }
 
+	// roster tracks announced peer names: peerID → name.
+	// Maintained by the initiator to relay names to newly joining peers.
+	roster   map[string]string
+	rosterMu sync.Mutex
+
 	// recvMu serializes inbound transfers (one at a time).
 	recvMu sync.Mutex
 	// recvWg tracks in-flight receive goroutines.
@@ -165,6 +172,8 @@ func (s *Session) AddPeer(peerID string, pc *webrtc.PeerConnection, controlDC *w
 	// Wire the new peer's data channel into the session.
 	s.wirePeer(pc2)
 	s.emit(Event{Type: EventPeerJoined, PeerCount: peerCount, MaxPeers: maxPeers})
+	// Broadcast the new count to all existing peers so their UIs update.
+	s.broadcastPeerCount(peerCount, maxPeers)
 }
 
 // PeerCount returns the current connected peer count.
@@ -228,6 +237,17 @@ func (s *Session) SendBytes(fileName string, data []byte, message string, onProg
 // SendMessage broadcasts a text message to all connected peers.
 func (s *Session) SendMessage(text string) error {
 	s.resetIdle()
+	// If this is a name announcement from the initiator, store it in the roster
+	// so it can be included in roster broadcasts to late-joining peers.
+	if s.isInitiator && strings.HasPrefix(text, "\x01name:") {
+		name := strings.TrimPrefix(text, "\x01name:")
+		s.rosterMu.Lock()
+		if s.roster == nil {
+			s.roster = make(map[string]string)
+		}
+		s.roster["initiator"] = name
+		s.rosterMu.Unlock()
+	}
 	var lastErr error
 	for _, dc := range s.controlChannels() {
 		if err := dc.Send(transfer.BuildMessageFrame(text)); err != nil {
@@ -308,18 +328,45 @@ func (s *Session) wirePeer(p *peerConn) {
 	})
 	p.controlDC.OnClose(func() {
 		s.peersMu.Lock()
+		// Check if this peer was already removed by TagParticipantLeave.
+		found := false
 		newPeers := s.peers[:0]
 		for _, pp := range s.peers {
-			if pp.peerID != p.peerID { newPeers = append(newPeers, pp) }
+			if pp.peerID != p.peerID {
+				newPeers = append(newPeers, pp)
+			} else {
+				found = true
+			}
+		}
+		if !found {
+			s.peersMu.Unlock()
+			return // already handled by TagParticipantLeave
 		}
 		s.peers = newPeers
 		s.peerCount = max(1, s.peerCount-1)
 		s.peersMu.Unlock()
+		// Look up the leaving peer's name from the roster.
+		s.rosterMu.Lock()
+		leavingName := s.roster[p.peerID]
+		delete(s.roster, p.peerID)
+		s.rosterMu.Unlock()
+		if leavingName == "" {
+			leavingName = "A participant"
+		}
+		leaveMsg := leavingName + " left the session."
 		if len(s.peers) == 0 {
 			s.emit(Event{Type: EventSessionClosed, Message: "All peers disconnected."})
 			s.cancel()
 		} else {
-			s.emit(Event{Type: EventPeerLeft, Message: "A participant left.", PeerCount: s.peerCount, MaxPeers: s.MaxPeers})
+			s.emit(Event{Type: EventPeerLeft, From: p.peerID, Message: leaveMsg, PeerCount: s.peerCount, MaxPeers: s.MaxPeers})
+			// Broadcast updated count and leave announcement to remaining peers.
+			s.broadcastPeerCount(s.peerCount, s.MaxPeers)
+			leaveFrame := transfer.BuildRelayedMessageFrame("__system__", "\x01leave:"+leaveMsg)
+			s.peersMu.RLock()
+			for _, pp := range s.peers {
+				_ = pp.controlDC.Send(leaveFrame)
+			}
+			s.peersMu.RUnlock()
 		}
 	})
 	p.pc.OnDataChannel(func(dc *webrtc.DataChannel) {
@@ -340,11 +387,13 @@ func max(a, b int) int {
 func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 	switch data[0] {
 	case transfer.TagMessage:
+		msg := transfer.ParseMessageFrame(data)
 		s.emit(Event{
 			Type:    EventMessage,
-			Message: transfer.ParseMessageFrame(data),
+			Message: msg,
+			From:    src.peerID,
 		})
-		// Star topology: if we are the initiator (hub), relay to all other peers.
+		// Star topology: relay to all other peers with the sender's ID embedded.
 		if s.isInitiator {
 			s.peersMu.RLock()
 			others := make([]*peerConn, 0, len(s.peers))
@@ -355,8 +404,57 @@ func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 			}
 			s.peersMu.RUnlock()
 			for _, p := range others {
-				_ = p.controlDC.Send(data)
+				_ = p.controlDC.Send(transfer.BuildRelayedMessageFrame(src.peerID, msg))
 			}
+
+			// When a name announcement arrives, update the roster and send it to the new peer.
+			if strings.HasPrefix(msg, "\x01name:") {
+				newName := strings.TrimPrefix(msg, "\x01name:")
+				s.rosterMu.Lock()
+				if s.roster == nil {
+					s.roster = make(map[string]string)
+				}
+				s.roster[src.peerID] = newName
+				var parts []string
+				for pid, name := range s.roster {
+					if pid != src.peerID {
+						parts = append(parts, pid+"="+name)
+					}
+				}
+				s.rosterMu.Unlock()
+				if len(parts) > 0 {
+					rosterMsg := "\x01roster:" + strings.Join(parts, ",")
+					_ = src.controlDC.Send(transfer.BuildMessageFrame(rosterMsg))
+				}
+			}
+		}
+
+	case transfer.TagRelayedMessage:
+		// Message relayed by the initiator — original sender ID is embedded.
+		senderID, msg := transfer.ParseRelayedMessageFrame(data)
+		if senderID == "__system__" && strings.HasPrefix(msg, "\x01leave:") {
+			// Peer-left notification broadcast by the initiator.
+			leaveMsg := strings.TrimPrefix(msg, "\x01leave:")
+			s.peerCount = max(1, s.peerCount-1)
+			s.emit(Event{Type: EventPeerLeft, Message: leaveMsg, PeerCount: s.peerCount, MaxPeers: s.MaxPeers})
+			return
+		}
+		s.emit(Event{
+			Type:    EventMessage,
+			Message: msg,
+			From:    senderID,
+		})
+
+	case transfer.TagPeerCount:
+		// Initiator broadcasts the current count whenever peers join or leave.
+		// Update locally and emit so the UI counter refreshes.
+		peerCount, maxPeers := transfer.ParsePeerCountFrame(data)
+		if peerCount > 0 {
+			s.peerCount = peerCount
+			s.MaxPeers  = maxPeers
+			// Emit PeerJoined purely to trigger a UI count refresh.
+			// The leave/join system messages handle the text notification separately.
+			s.emit(Event{Type: EventPeerJoined, PeerCount: peerCount, MaxPeers: maxPeers})
 		}
 
 	case transfer.TagSessionClose, transfer.TagCancelled:
@@ -364,11 +462,47 @@ func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 		s.cancel()
 
 	case transfer.TagParticipantLeave:
-		s.emit(Event{Type: EventPeerLeft, Message: "Participant left the session."})
-		// Session continues — don't cancel.
+		// Look up the leaving peer's name from the roster.
+		s.rosterMu.Lock()
+		leavingName := s.roster[src.peerID]
+		delete(s.roster, src.peerID)
+		s.rosterMu.Unlock()
+		if leavingName == "" {
+			leavingName = "A participant"
+		}
+		leaveMsg := leavingName + " left the session."
+		// Remove the peer from our list and update count.
+		s.peersMu.Lock()
+		newPeers := s.peers[:0]
+		for _, pp := range s.peers {
+			if pp.peerID != src.peerID { newPeers = append(newPeers, pp) }
+		}
+		s.peers = newPeers
+		s.peerCount = max(1, s.peerCount-1)
+		s.peersMu.Unlock()
+		s.emit(Event{Type: EventPeerLeft, From: src.peerID, Message: leaveMsg, PeerCount: s.peerCount, MaxPeers: s.MaxPeers})
+		// Notify remaining peers of the leave and updated count.
+		s.broadcastPeerCount(s.peerCount, s.MaxPeers)
+		leaveFrame := transfer.BuildRelayedMessageFrame("__system__", "\x01leave:"+leaveMsg)
+		s.peersMu.RLock()
+		for _, pp := range s.peers {
+			_ = pp.controlDC.Send(leaveFrame)
+		}
+		s.peersMu.RUnlock()
 
 	case transfer.TagSessionReady:
 		// Remote is ready — nothing to do here, used for handshake confirmation.
+	}
+}
+
+// broadcastPeerCount sends the current peer count to all connected peers.
+// Called by the initiator when peers join or leave, so non-initiator UIs update.
+func (s *Session) broadcastPeerCount(peerCount, maxPeers int) {
+	frame := transfer.BuildPeerCountFrame(peerCount, maxPeers)
+	s.peersMu.RLock()
+	defer s.peersMu.RUnlock()
+	for _, p := range s.peers {
+		_ = p.controlDC.Send(frame)
 	}
 }
 
