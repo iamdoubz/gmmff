@@ -93,5 +93,19 @@ RUN apk add --no-cache su-exec
 
 EXPOSE 8080
 
+# OCI labels for image metadata
+LABEL description="Fast, secure, private, simple open source file transfer and messaging application" \
+      maintainer="iamdoubz <https://github.com/iamdoubz>" \
+      org.opencontainers.image.description="Fast, secure, private, simple open source file transfer and messaging application" \
+      org.opencontainers.image.authors="iamdoubz" \
+      org.opencontainers.image.title="Fast, secure, private, simple open source file transfer and messaging application" \
+      org.opencontainers.image.source="https://github.com/iamdoubz/gmmff" \
+      org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+      org.opencontainers.image.documentation="https://github.com/iamdoubz/gmmff/blob/main/README.md" \
+      org.opencontainers.image.licenses="MIT License" \
+      org.opencontainers.image.url="https://gmmff.404.mn" \
+      org.opencontainers.image.version=$(git describe --tags --always --dirty 2>/dev/null || echo dev) \
+      org.opencontainers.image.revision=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/gmmff", "serve", "--web", "/web/static"]
