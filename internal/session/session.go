@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -47,6 +48,7 @@ type transferRequest struct {
 type Event struct {
 	Type    EventType
 	Message string          // EventMessage: text; EventTransferDone: filename; EventError: error text
+	From    string          // EventMessage: sender peer ID (empty = initiator sent it)
 	Data    []byte          // EventTransferDone: file bytes (Wasm only, nil on CLI)
 	Path    string          // EventTransferDone: saved path (CLI only)
 	Total   int64           // EventTransferStarted: file size
@@ -108,8 +110,10 @@ type Session struct {
 	// Sig is the signaling client — kept open until the session ends.
 	Sig interface{ Close() }
 
-	// recvMu serializes inbound transfers (one at a time).
-	recvMu sync.Mutex
+	// roster tracks announced peer names: peerID → name.
+	// Maintained by the initiator to relay names to newly joining peers.
+	roster   map[string]string
+	rosterMu sync.Mutex
 	// recvWg tracks in-flight receive goroutines.
 	recvWg sync.WaitGroup
 }
@@ -230,6 +234,17 @@ func (s *Session) SendBytes(fileName string, data []byte, message string, onProg
 // SendMessage broadcasts a text message to all connected peers.
 func (s *Session) SendMessage(text string) error {
 	s.resetIdle()
+	// If this is a name announcement from the initiator, store it in the roster
+	// so it can be included in roster broadcasts to late-joining peers.
+	if s.isInitiator && strings.HasPrefix(text, "\x01name:") {
+		name := strings.TrimPrefix(text, "\x01name:")
+		s.rosterMu.Lock()
+		if s.roster == nil {
+			s.roster = make(map[string]string)
+		}
+		s.roster["self"] = name
+		s.rosterMu.Unlock()
+	}
 	var lastErr error
 	for _, dc := range s.controlChannels() {
 		if err := dc.Send(transfer.BuildMessageFrame(text)); err != nil {
@@ -321,7 +336,7 @@ func (s *Session) wirePeer(p *peerConn) {
 			s.emit(Event{Type: EventSessionClosed, Message: "All peers disconnected."})
 			s.cancel()
 		} else {
-			s.emit(Event{Type: EventPeerLeft, Message: "A participant left.", PeerCount: s.peerCount, MaxPeers: s.MaxPeers})
+			s.emit(Event{Type: EventPeerLeft, From: p.peerID, Message: "A participant left.", PeerCount: s.peerCount, MaxPeers: s.MaxPeers})
 			// Notify remaining peers of the updated count.
 			s.broadcastPeerCount(s.peerCount, s.MaxPeers)
 		}
@@ -344,11 +359,13 @@ func max(a, b int) int {
 func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 	switch data[0] {
 	case transfer.TagMessage:
+		msg := transfer.ParseMessageFrame(data)
 		s.emit(Event{
 			Type:    EventMessage,
-			Message: transfer.ParseMessageFrame(data),
+			Message: msg,
+			From:    src.peerID,
 		})
-		// Star topology: if we are the initiator (hub), relay to all other peers.
+		// Star topology: relay to all other peers.
 		if s.isInitiator {
 			s.peersMu.RLock()
 			others := make([]*peerConn, 0, len(s.peers))
@@ -360,6 +377,32 @@ func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 			s.peersMu.RUnlock()
 			for _, p := range others {
 				_ = p.controlDC.Send(data)
+			}
+
+			// When a name announcement arrives from a new peer, send that peer
+			// a roster of all other known names, and send the new peer's name
+			// to all existing peers so their UIs update.
+			if strings.HasPrefix(msg, "\x01name:") {
+				// Store the new peer's name in our own roster map.
+				newName := strings.TrimPrefix(msg, "\x01name:")
+				s.rosterMu.Lock()
+				if s.roster == nil {
+					s.roster = make(map[string]string)
+				}
+				s.roster[src.peerID] = newName
+				// Build a roster message for all known peers (excluding the new one).
+				var parts []string
+				for pid, name := range s.roster {
+					if pid != src.peerID {
+						parts = append(parts, pid+"="+name)
+					}
+				}
+				s.rosterMu.Unlock()
+				if len(parts) > 0 {
+					rosterMsg := "\x01roster:" + strings.Join(parts, ",")
+					rosterFrame := transfer.BuildMessageFrame(rosterMsg)
+					_ = src.controlDC.Send(rosterFrame)
+				}
 			}
 		}
 

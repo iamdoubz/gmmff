@@ -43,7 +43,8 @@ let peerCount = 0;           // number of peers joined so far (for auto-naming)
 
 // NAME_PREFIX is a sentinel prepended to name-announcement messages.
 // It lets the receiver distinguish a name announcement from a chat message.
-const NAME_PREFIX = '\x01name:';
+const NAME_PREFIX   = '\x01name:';
+const ROSTER_PREFIX = '\x01roster:';
 
 // ── Boot sequence ─────────────────────────────────────────────────────────────
 async function boot() {
@@ -653,16 +654,40 @@ window.uiFilesInboundStarted = function(label, total) {
 };
 
 window.uiFilesMessage = function(from, text) {
-  if (text.startsWith(NAME_PREFIX)) {
-    // Name announcement — record the name for this peer, don't display as message.
-    peerCount++;
-    const announcedName = text.slice(NAME_PREFIX.length).trim() || ('Participant ' + peerCount);
-    peerNames.set(peerCount, announcedName);
-    appendFilesSystem(announcedName + ' joined.');
+  if (text.startsWith(ROSTER_PREFIX)) {
+    // Roster broadcast from initiator — populate all peer names at once.
+    // Format: \x01roster:peerID=Name,self=InitiatorName,...
+    const entries = text.slice(ROSTER_PREFIX.length).split(',');
+    entries.forEach(entry => {
+      const eq = entry.indexOf('=');
+      if (eq === -1) return;
+      // 'self' maps to '' — the initiator's from ID as seen by non-initiators.
+      const pid  = entry.slice(0, eq) === 'self' ? '' : entry.slice(0, eq);
+      const name = entry.slice(eq + 1).trim() || null;
+      if (!peerNames.has(pid)) {
+        peerNames.set(pid, name || 'Participant');
+      }
+    });
     return;
   }
-  // Use the most recently announced peer name, falling back to Participant N.
-  const label = peerNames.size > 0 ? peerNames.get(peerNames.size) || ('Participant ' + peerNames.size) : 'Participant';
+  if (text.startsWith(NAME_PREFIX)) {
+    // Name announcement — record name keyed by peer ID (from).
+    const announcedName = text.slice(NAME_PREFIX.length).trim();
+    if (from && announcedName) {
+      peerNames.set(from, announcedName);
+      appendFilesSystem(announcedName + ' joined.');
+    } else if (from) {
+      // No name set — assign a numbered fallback.
+      const n = peerNames.size + 1;
+      peerNames.set(from, 'Participant ' + n);
+      appendFilesSystem('Participant ' + n + ' joined.');
+    }
+    return;
+  }
+  // Look up the sender by peer ID; fall back to Participant if unknown.
+  const label = (from && peerNames.has(from))
+    ? peerNames.get(from)
+    : 'Participant';
   appendFilesMessage('them', label, text);
 };
 
@@ -673,8 +698,11 @@ window.uiFilesPeerCount = function(peerCount, maxPeers) {
   el.classList.toggle('hidden', peerCount <= 0 || maxPeers <= 0);
 };
 
-window.uiFilesParticipantLeft = function(msg) {
-  const label = peerNames.size > 0 ? (peerNames.get(peerNames.size) || 'Participant') : 'Participant';
+window.uiFilesParticipantLeft = function(msg, from) {
+  const label = (from && peerNames.has(from))
+    ? peerNames.get(from)
+    : (peerNames.size > 0 ? [...peerNames.values()].at(-1) : 'Participant');
+  if (from) peerNames.delete(from);
   appendFilesSystem(msg || (label + ' left.'));
 };
 
