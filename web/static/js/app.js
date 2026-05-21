@@ -121,7 +121,7 @@ function applyUIConfig(cfg, allLangs) {
   const showICE = cfg.show_ice_settings !== false;
   if (!showICE) {
     const icePanel = document.getElementById('ice-settings');
-    if (icePanel) icePanel.style.display = 'none';
+    if (icePanel) icePanel.classList.add('ice-hidden');
   } else {
     // ICE panel visible — check individual STUN/TURN controls.
     if (cfg.allow_stun === false) {
@@ -391,7 +391,13 @@ document.querySelectorAll('.tab').forEach(btn => {
     const ctrl    = btn.getAttribute('aria-controls');
     const iceEl   = document.getElementById('ice-settings');
     const showICE = uiConfig.show_ice_settings !== false;
-    if (iceEl) iceEl.style.display = (showICE && ctrl !== 'panel-schedule') ? '' : 'none';
+    if (iceEl) {
+      if (showICE && ctrl !== 'panel-schedule') {
+        iceEl.classList.remove('ice-hidden');
+      } else {
+        iceEl.classList.add('ice-hidden');
+      }
+    }
     // Pre-fill server fields when switching tabs.
     if (ctrl === 'panel-chat') {
       const sf = document.getElementById('chat-server');
@@ -1399,20 +1405,13 @@ function bindScheduleEvents() {
 
 // ── Tab activation ────────────────────────────────────────────────────────────
 function schedShowTab() {
-  // Deactivate other tabs.
-  document.querySelectorAll('.tab').forEach(t => {
-    t.setAttribute('aria-selected', 'false');
-  });
-  document.querySelectorAll('.panel').forEach(p => {
-    p.classList.remove('active');
-    p.classList.add('hidden');
-  });
+  // Deactivate other tabs — same pattern as the main tab handler.
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', 'false'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-schedule').setAttribute('aria-selected', 'true');
-  document.getElementById('panel-schedule').classList.remove('hidden');
   document.getElementById('panel-schedule').classList.add('active');
   // Hide ICE settings — not relevant for schedule transfers.
-  const iceEl = document.getElementById('ice-settings');
-  if (iceEl) iceEl.style.display = 'none';
+  document.getElementById('ice-settings')?.classList.add('ice-hidden');
 
   // Check auth status.
   schedCheckAuth();

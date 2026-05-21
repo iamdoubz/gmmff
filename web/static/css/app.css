@@ -349,6 +349,7 @@
     /* ── Panel visibility ───────────────────────────────────────────────── */
     .panel { display: none; }
     .panel.active { display: flex; flex-direction: column; gap: var(--spacing-md); }
+    .ice-hidden { display: none !important; }
 
     /* ── Footer ─────────────────────────────────────────────────────────── */
     .footer {
