@@ -356,7 +356,9 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', 'false'));
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     btn.setAttribute('aria-selected', 'true');
-    document.getElementById(btn.getAttribute('aria-controls')).classList.add('active');
+    const targetPanel = document.getElementById(btn.getAttribute('aria-controls'));
+    targetPanel?.classList.remove('hidden');
+    targetPanel?.classList.add('active');
     // Show ICE settings only on Files and Chat tabs.
     const ctrl    = btn.getAttribute('aria-controls');
     const iceEl   = document.getElementById('ice-settings');
