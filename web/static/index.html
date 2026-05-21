@@ -94,6 +94,8 @@
             data-i18n="nav_files">Files</button>
     <button class="tab" role="tab" id="tab-chat" aria-selected="false" aria-controls="panel-chat"
             data-i18n="nav_chat">Chat</button>
+    <button class="tab hidden" role="tab" id="tab-schedule" aria-selected="false" aria-controls="panel-schedule"
+            data-i18n="nav_schedule">Schedule</button>
   </nav>
 
   <!-- ── ICE SETTINGS (shared, collapsible) ─────────────────────────── -->
@@ -342,7 +344,134 @@
 
   </section>
 
-  <!-- Footer -->
+  <!-- ── SCHEDULE PANEL ───────────────────────────────────────────────── -->
+  <section class="panel hidden" id="panel-schedule" role="tabpanel" aria-labelledby="tab-schedule">
+
+    <!-- Password gate (shown when server requires password and IP is not allowed) -->
+    <div class="card" id="schedule-password-gate" style="display:none">
+      <h2 data-i18n="schedule_password_heading">Upload Password Required</h2>
+      <div class="field">
+        <label for="schedule-password-input" data-i18n="schedule_password_label">Password</label>
+        <input type="password" id="schedule-password-input" autocomplete="current-password"
+               data-i18n-placeholder="schedule_password_placeholder">
+      </div>
+      <p class="status" id="schedule-password-error" role="alert"></p>
+      <button class="btn-primary" id="schedule-password-btn" data-i18n="schedule_password_btn">Continue</button>
+    </div>
+
+    <!-- Landing: Create or Join -->
+    <div class="card" id="schedule-landing">
+      <h2 data-i18n="schedule_heading">Scheduled Transfer</h2>
+      <p data-i18n="schedule_instruction">Upload an encrypted file to the server, then share the download link.</p>
+      <div class="schedule-action-row">
+        <button class="btn-primary" id="schedule-create-btn" data-i18n="schedule_create_btn">Create</button>
+        <button class="btn-ghost"   id="schedule-join-btn"   data-i18n="schedule_join_btn">Join</button>
+      </div>
+    </div>
+
+    <!-- Create: file picker + TTL + upload progress -->
+    <div class="card hidden" id="schedule-create">
+      <h2 data-i18n="schedule_create_heading">Upload a file</h2>
+
+      <div class="field">
+        <label data-i18n="schedule_file_label">File</label>
+        <div class="file-row">
+          <button class="btn-ghost" id="schedule-file-btn" data-i18n="send_choose_file">Choose file</button>
+          <button class="btn-ghost" id="schedule-folder-btn" data-i18n="send_choose_folder">Choose folder</button>
+          <span id="schedule-file-name" class="file-name" data-i18n="send_no_file">No file chosen</span>
+        </div>
+        <input type="file"   id="schedule-file-input"   class="hidden" aria-hidden="true">
+        <input type="file"   id="schedule-folder-input" class="hidden" aria-hidden="true" webkitdirectory>
+      </div>
+
+      <div class="field">
+        <label for="schedule-ttl" data-i18n="schedule_ttl_label">Valid for</label>
+        <select id="schedule-ttl" class="select-input"></select>
+        <p class="field-hint" id="schedule-expires-hint"></p>
+      </div>
+
+      <div class="field">
+        <div class="field-label-row">
+          <label for="schedule-max-dl" data-i18n="schedule_max_dl_label">Max downloads</label>
+          <span class="field-hint" data-i18n="schedule_max_dl_hint">(0 = unlimited)</span>
+        </div>
+        <input type="number" id="schedule-max-dl" min="0" value="1" class="input-sm">
+      </div>
+
+      <p class="status" id="schedule-create-error" role="alert"></p>
+      <button class="btn-primary" id="schedule-upload-btn" data-i18n="schedule_upload_btn">Upload</button>
+      <button class="btn-ghost"   id="schedule-create-back-btn" data-i18n="chat_back_btn">Back</button>
+
+      <!-- Upload progress -->
+      <div id="schedule-progress" class="hidden">
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="schedule-progress-fill"></div>
+        </div>
+        <div class="schedule-progress-stats">
+          <span id="schedule-progress-pct">0%</span>
+          <span id="schedule-progress-speed"></span>
+          <span id="schedule-progress-eta"></span>
+          <span id="schedule-progress-bytes"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload success: share links -->
+    <div class="card hidden" id="schedule-success">
+      <h2 data-i18n="schedule_success_heading">Upload complete!</h2>
+      <p class="status" id="schedule-expires-label"></p>
+
+      <div class="field">
+        <label data-i18n="schedule_share_url_label">Share URL (includes decrypt key)</label>
+        <div class="share-row">
+          <input type="text" id="schedule-share-url" readonly class="share-url-input">
+          <button class="btn-ghost" id="schedule-copy-url-btn" data-i18n="share_copy_url">Copy</button>
+        </div>
+      </div>
+
+      <div class="field" id="schedule-qr-field">
+        <button class="btn-ghost" id="schedule-qr-toggle" data-i18n="share_show_qr">Show QR</button>
+        <div id="schedule-qr-container" class="hidden qr-wrap"></div>
+      </div>
+
+      <div class="field">
+        <label data-i18n="schedule_delete_label">Delete link</label>
+        <div class="share-row">
+          <input type="text" id="schedule-delete-url" readonly class="share-url-input">
+          <button class="btn-ghost" id="schedule-copy-delete-btn" data-i18n="share_copy_url">Copy</button>
+        </div>
+      </div>
+
+      <button class="btn-ghost" id="schedule-success-back-btn" data-i18n="schedule_upload_another">Upload another</button>
+    </div>
+
+    <!-- Join: paste URL or key, then download -->
+    <div class="card hidden" id="schedule-join">
+      <h2 data-i18n="schedule_join_heading">Download a file</h2>
+      <div class="field">
+        <label for="schedule-join-url" data-i18n="schedule_join_url_label">Paste the share URL</label>
+        <input type="text" id="schedule-join-url" autocomplete="off" autocorrect="off"
+               autocapitalize="none" spellcheck="false"
+               data-i18n-placeholder="schedule_join_url_placeholder">
+      </div>
+      <p class="status" id="schedule-join-error" role="alert"></p>
+      <button class="btn-primary" id="schedule-download-btn" data-i18n="schedule_download_btn">Download &amp; Decrypt</button>
+      <button class="btn-ghost"   id="schedule-join-back-btn" data-i18n="chat_back_btn">Back</button>
+
+      <!-- Download progress -->
+      <div id="schedule-dl-progress" class="hidden">
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="schedule-dl-progress-fill"></div>
+        </div>
+        <div class="schedule-progress-stats">
+          <span id="schedule-dl-progress-pct">0%</span>
+          <span id="schedule-dl-progress-speed"></span>
+          <span id="schedule-dl-progress-bytes"></span>
+        </div>
+      </div>
+    </div>
+
+  </section>
   <footer class="footer">
     <a href="https://github.com/iamdoubz/gmmff" target="_blank" rel="noopener noreferrer"
        data-i18n="footer_source">Source code</a>
