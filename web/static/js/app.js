@@ -107,7 +107,17 @@ function applyUIConfig(cfg, allLangs) {
     body.prepend(msg);
   }
 
-  // ── ICE settings panel ────────────────────────────────────────────────────
+  // ── Tab grid width ────────────────────────────────────────────────────────
+  // Count visible tabs and set grid columns so they fill the space evenly.
+  const visibleTabs = [
+    showFiles,
+    showChat,
+    cfg.show_schedule === true,
+  ].filter(Boolean).length;
+  const cols = Array(visibleTabs).fill('1fr').join(' ');
+  document.querySelectorAll('.tabs').forEach(te => {
+    te.style.gridTemplateColumns = cols;
+  });
   const showICE = cfg.show_ice_settings !== false;
   if (!showICE) {
     const icePanel = document.getElementById('ice-settings');
