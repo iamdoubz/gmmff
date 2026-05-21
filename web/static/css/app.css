@@ -728,3 +728,79 @@
       clip: rect(0,0,0,0);
       white-space: nowrap;
     }
+
+    /* ── Schedule feature ───────────────────────────────────────────────── */
+    .schedule-action-row {
+      display: flex;
+      gap: var(--spacing-sm);
+      margin-top: var(--spacing-md);
+    }
+    .schedule-action-row .btn-primary,
+    .schedule-action-row .btn-ghost {
+      flex: 1;
+    }
+    .schedule-progress-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+      margin-top: var(--spacing-xs);
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+    }
+    .progress-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: var(--color-border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: var(--spacing-sm);
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--color-accent);
+      border-radius: 3px;
+      transition: width 0.2s ease;
+      width: 0%;
+    }
+    .share-url-input {
+      flex: 1;
+      min-width: 0;
+      background: var(--color-input-bg);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      font-size: var(--font-size-sm);
+      font-family: monospace;
+    }
+    .share-row {
+      display: flex;
+      gap: var(--spacing-xs);
+      align-items: stretch;
+      margin-top: var(--spacing-xs);
+    }
+    .input-sm {
+      width: 80px;
+      background: var(--color-input-bg);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      font-size: var(--font-size-sm);
+    }
+    .select-input {
+      width: 100%;
+      background: var(--color-input-bg);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      font-size: var(--font-size-base);
+      margin-top: var(--spacing-xs);
+    }
+    .qr-wrap {
+      margin-top: var(--spacing-sm);
+      display: flex;
+      justify-content: center;
+    }
