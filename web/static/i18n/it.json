@@ -109,7 +109,6 @@
   "schedule_join_btn": "Join",
   "schedule_create_heading": "Upload a file",
   "schedule_file_label": "File",
-  "schedule_ttl_label": "Valid for",
   "schedule_max_dl_label": "Max downloads",
   "schedule_max_dl_hint": "(0 = unlimited)",
   "schedule_upload_btn": "Upload",
@@ -135,5 +134,6 @@
   "schedule_invalid_url_key": "Invalid share URL — missing decryption key.",
   "schedule_invalid_key": "Invalid decryption key format.",
   "schedule_deleted": "File deleted successfully.",
-  "schedule_delete_failed": "Could not delete file."
+  "schedule_delete_failed": "Could not delete file.",
+  "schedule_ttl_label": "Valido per"
 }

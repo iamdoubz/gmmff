@@ -1323,7 +1323,7 @@ function schedInit(cfg) {
         li.role = 'option';
         li.className = 'custom-select__item' + (i === 0 ? ' selected' : '');
         li.dataset.value = o.seconds;
-        li.textContent = t('schedule_ttl_' + o.label.replace(/ /g,'_')) || o.label;
+        li.textContent = o.label;
         li.addEventListener('click', () => {
           list.querySelectorAll('.custom-select__item').forEach(el => el.classList.remove('selected'));
           li.classList.add('selected');
