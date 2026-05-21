@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/iamdoubz/gmmff/internal/broker"
+	"github.com/iamdoubz/gmmff/internal/schedule"
 	applog "github.com/iamdoubz/gmmff/internal/log"
 	"github.com/iamdoubz/gmmff/internal/peer"
 	"github.com/iamdoubz/gmmff/internal/store"
@@ -162,16 +163,34 @@ func runServe(_ *cobra.Command, _ []string) error {
 	// ── Broker ────────────────────────────────────────────────────────────────
 	b := broker.New(st)
 
+	// ── Schedule feature ──────────────────────────────────────────────────────
+	uiCfg := broker.UIConfigFromEnv()
+	schedCfg, err := schedule.ConfigFromEnv()
+	if err != nil {
+		return fmt.Errorf("schedule config: %w", err)
+	}
+	uiCfg.ShowSchedule = schedCfg.Enabled
+
 	// ── HTTP server ───────────────────────────────────────────────────────────
 	if serveCfg.cspReportOnly {
 		l().Warn().Msg("⚠  CSP report-only mode enabled — Content-Security-Policy is NOT enforced; do NOT use in production")
 	}
-	srv := broker.NewServer(b, st, serveCfg.webDir, serveCfg.cspReportOnly, broker.UIConfigFromEnv())
+	srv := broker.NewServer(b, st, serveCfg.webDir, serveCfg.cspReportOnly, uiCfg)
+
+	if schedCfg.Enabled {
+		sh, err := schedule.NewHandler(&schedCfg)
+		if err != nil {
+			return fmt.Errorf("schedule handler: %w", err)
+		}
+		srv.SetScheduleHandler(sh)
+		l().Info().Str("dir", schedCfg.Dir).Msg("schedule feature enabled")
+	}
+
 	httpServer := &http.Server{
 		Addr:         serveCfg.addr,
 		Handler:      srv.Handler(),
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		WriteTimeout: 0, // disabled — chunked uploads can be slow
 		IdleTimeout:  120 * time.Second,
 	}
 
@@ -182,6 +201,16 @@ func runServe(_ *cobra.Command, _ []string) error {
 
 	// Run hub in background.
 	go b.Run(ctx)
+
+	// Start schedule cleanup goroutine if configured.
+	if schedCfg.Enabled && schedCfg.CleanupInterval != "" {
+		cleanStore, _ := schedule.NewStore(&schedCfg)
+		if err := schedule.StartCleanup(ctx, cleanStore, schedCfg.CleanupInterval); err != nil {
+			l().Warn().Err(err).Msg("schedule cleanup: invalid cron expression, background cleanup disabled")
+		} else {
+			l().Info().Str("interval", schedCfg.CleanupInterval).Msg("schedule cleanup goroutine started")
+		}
+	}
 
 	// Start HTTP listener.
 	errCh := make(chan error, 1)

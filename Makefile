@@ -1,4 +1,4 @@
-.PHONY: build local run-server create join chat dev test test-cover lint tidy docker up down clean wasm wasm-serve help
+.PHONY: build local run-server create join chat dev test test-cover lint tidy docker up down clean wasm wasm-serve cleanup help
 
 BINARY    := gmmff
 CMD       := ./cmd/gmmff
@@ -20,7 +20,7 @@ WASM_EXEC_SRC    := $(shell \
 		echo "$$(go env GOROOT)/misc/wasm/wasm_exec.js"; \
 	fi)
 
-## build: compile the binary (builds Wasm first so embed works)
+## build: compile the binary (builds Wasm first, then copies assets for embed)
 build: wasm
 	mkdir -p internal/localmode/static
 	cp -rf web/static/. internal/localmode/static/
@@ -100,6 +100,10 @@ wasm-serve: wasm
 ## clean: remove build artifacts
 clean:
 	rm -rf bin/ coverage.out coverage.html web/static/gmmff.wasm web/static/wasm_exec.js
+
+## cleanup: remove expired schedule uploads (suitable for cron)
+cleanup: build
+	./bin/$(BINARY) cleanup
 
 ## help: show this help
 help:

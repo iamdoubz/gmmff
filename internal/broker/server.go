@@ -51,6 +51,7 @@ type Server struct {
 	cspReportOnly bool     // use CSP-Report-Only instead of enforcing
 	localMode     bool     // offline-safe CSP, no external origins
 	uiConfig      UIConfig // feature flags served via /config.json
+	scheduleHandler interface{ Mount(chi.Router) } // nil when schedule is disabled
 }
 
 // NewServer constructs a Server and registers all routes.
@@ -111,6 +112,11 @@ func (s *Server) routes() {
 	r.Get("/readyz", s.handleReadiness)
 	r.Get("/metrics", s.handleMetrics)
 	r.Get("/config.json", s.handleUIConfig)
+
+	// Schedule feature — mounted only when enabled.
+	if s.scheduleHandler != nil {
+		s.scheduleHandler.Mount(r)
+	}
 
 	if s.staticFS != nil {
 		// Serve from embedded fs.FS (local mode).
@@ -279,4 +285,12 @@ func (s *Server) handleUIConfig(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(s.uiConfig); err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
+}
+
+// SetScheduleHandler attaches the schedule feature handler.
+// Must be called before any requests are served.
+func (s *Server) SetScheduleHandler(h interface{ Mount(chi.Router) }) {
+	s.scheduleHandler = h
+	// Re-register routes so the schedule endpoints are included.
+	s.routes()
 }
