@@ -386,7 +386,14 @@
 
       <div class="field">
         <label for="schedule-ttl" data-i18n="schedule_ttl_label">Valid for</label>
-        <select id="schedule-ttl" class="select-input"></select>
+        <div class="custom-select" id="schedule-ttl-wrap">
+          <button type="button" class="custom-select__btn" id="schedule-ttl-btn" aria-haspopup="listbox" aria-expanded="false">
+            <span id="schedule-ttl-label">—</span>
+            <svg class="custom-select__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <ul class="custom-select__list" id="schedule-ttl-list" role="listbox" aria-label="Valid for"></ul>
+        </div>
+        <input type="hidden" id="schedule-ttl">
         <p class="field-hint" id="schedule-expires-hint"></p>
       </div>
 

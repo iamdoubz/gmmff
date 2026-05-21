@@ -387,8 +387,12 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     btn.setAttribute('aria-selected', 'true');
     document.getElementById(btn.getAttribute('aria-controls')).classList.add('active');
+    // Show ICE settings only on Files and Chat tabs.
+    const ctrl    = btn.getAttribute('aria-controls');
+    const iceEl   = document.getElementById('ice-settings');
+    const showICE = uiConfig.show_ice_settings !== false;
+    if (iceEl) iceEl.style.display = (showICE && ctrl !== 'panel-schedule') ? '' : 'none';
     // Pre-fill server fields when switching tabs.
-    const ctrl = btn.getAttribute('aria-controls');
     if (ctrl === 'panel-chat') {
       const sf = document.getElementById('chat-server');
       if (sf && !sf.value) sf.value = normaliseServerURL(location.origin.replace(/^http/, 'ws') + '/ws');
@@ -1308,16 +1312,35 @@ function schedInit(cfg) {
     .then(r => r.json())
     .then(opts => {
       schedTTLOptions = opts;
-      const sel = document.getElementById('schedule-ttl');
-      if (!sel) return;
-      sel.innerHTML = '';
-      opts.forEach(o => {
-        const opt = document.createElement('option');
-        opt.value       = o.seconds;
-        opt.textContent = t('schedule_ttl_' + o.label.replace(/ /g,'_')) || o.label;
-        sel.appendChild(opt);
+      const list    = document.getElementById('schedule-ttl-list');
+      const hidden  = document.getElementById('schedule-ttl');
+      const btnLabel = document.getElementById('schedule-ttl-label');
+      if (!list || !hidden || !btnLabel) return;
+
+      list.innerHTML = '';
+      opts.forEach((o, i) => {
+        const li = document.createElement('li');
+        li.role = 'option';
+        li.className = 'custom-select__item' + (i === 0 ? ' selected' : '');
+        li.dataset.value = o.seconds;
+        li.textContent = t('schedule_ttl_' + o.label.replace(/ /g,'_')) || o.label;
+        li.addEventListener('click', () => {
+          list.querySelectorAll('.custom-select__item').forEach(el => el.classList.remove('selected'));
+          li.classList.add('selected');
+          hidden.value    = o.seconds;
+          btnLabel.textContent = li.textContent;
+          schedCloseDropdown();
+          schedUpdateExpiresHint();
+        });
+        list.appendChild(li);
       });
-      schedUpdateExpiresHint();
+
+      // Set initial value.
+      if (opts.length > 0) {
+        hidden.value      = opts[0].seconds;
+        btnLabel.textContent = list.querySelector('.custom-select__item')?.textContent || opts[0].label;
+        schedUpdateExpiresHint();
+      }
     })
     .catch(() => {});
 
@@ -1348,8 +1371,11 @@ function bindScheduleEvents() {
   document.getElementById('schedule-file-input')?.addEventListener('change',   schedFileChosen);
   document.getElementById('schedule-folder-input')?.addEventListener('change', schedFileChosen);
 
-  // TTL dropdown.
-  document.getElementById('schedule-ttl')?.addEventListener('change', schedUpdateExpiresHint);
+  // TTL custom dropdown toggle.
+  document.getElementById('schedule-ttl-btn')?.addEventListener('click', schedToggleDropdown);
+  document.addEventListener('click', e => {
+    if (!document.getElementById('schedule-ttl-wrap')?.contains(e.target)) schedCloseDropdown();
+  });
 
   // Upload.
   document.getElementById('schedule-upload-btn')?.addEventListener('click', schedStartUpload);
@@ -1384,6 +1410,9 @@ function schedShowTab() {
   document.getElementById('tab-schedule').setAttribute('aria-selected', 'true');
   document.getElementById('panel-schedule').classList.remove('hidden');
   document.getElementById('panel-schedule').classList.add('active');
+  // Hide ICE settings — not relevant for schedule transfers.
+  const iceEl = document.getElementById('ice-settings');
+  if (iceEl) iceEl.style.display = 'none';
 
   // Check auth status.
   schedCheckAuth();
@@ -2015,6 +2044,23 @@ function hexToBuf(hex) {
 
 function schedFetch(url, opts) {
   return fetch(url, opts);
+}
+
+function schedToggleDropdown() {
+  const wrap = document.getElementById('schedule-ttl-wrap');
+  const btn  = document.getElementById('schedule-ttl-btn');
+  const list = document.getElementById('schedule-ttl-list');
+  if (!wrap) return;
+  const open = wrap.classList.toggle('open');
+  btn?.setAttribute('aria-expanded', String(open));
+  if (open) list?.querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
+}
+
+function schedCloseDropdown() {
+  const wrap = document.getElementById('schedule-ttl-wrap');
+  const btn  = document.getElementById('schedule-ttl-btn');
+  wrap?.classList.remove('open');
+  btn?.setAttribute('aria-expanded', 'false');
 }
 
 function schedCopyField(id) {
