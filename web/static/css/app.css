@@ -116,7 +116,7 @@
     /* ── Tab bar ────────────────────────────────────────────────────────── */
     .tabs {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: var(--tabs-columns, 1fr 1fr);
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
@@ -876,5 +876,25 @@
     }
     .custom-select__item.selected {
       color: var(--color-accent);
+      font-weight: var(--font-weight-medium);
+    }
+
+    /* ── Dynamic UI elements (created by applyUIConfig) ────────────────── */
+    .weird-message {
+      text-align: center;
+      padding: 3rem 1rem;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    .weird-emoji {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    .motd-banner {
+      background: var(--color-warning, #f59e0b);
+      color: #000;
+      padding: 0.5rem 1rem;
+      text-align: center;
+      font-size: var(--font-size-sm);
       font-weight: var(--font-weight-medium);
     }

@@ -79,28 +79,23 @@ function applyUIConfig(cfg, allLangs) {
   const showFiles = cfg.show_files !== false;
   const showChat  = cfg.show_chat  !== false;
 
-  const tabFiles  = document.getElementById('tab-files');
-  const tabChat   = document.getElementById('tab-chat');
-  const panelFiles = document.getElementById('panel-files');
-  const panelChat  = document.getElementById('panel-chat');
-
   if (!showFiles) {
-    if (tabFiles)  tabFiles.style.display  = 'none';
-    if (panelFiles) panelFiles.style.display = 'none';
+    document.getElementById('tab-files')?.classList.add('hidden');
+    document.getElementById('panel-files')?.classList.add('hidden');
   }
   if (!showChat) {
-    if (tabChat)  tabChat.style.display  = 'none';
-    if (panelChat) panelChat.style.display = 'none';
+    document.getElementById('tab-chat')?.classList.add('hidden');
+    document.getElementById('panel-chat')?.classList.add('hidden');
   }
 
   // Both tabs hidden — show the "weird" message.
   if (!showFiles && !showChat) {
     const body = document.getElementById('main-content') || document.body;
     const msg  = document.createElement('div');
-    msg.id = 'weird-message';
-    msg.style.cssText = 'text-align:center;padding:3rem 1rem;max-width:480px;margin:0 auto';
+    msg.id        = 'weird-message';
+    msg.className = 'weird-message';
     msg.innerHTML = `
-      <p style="font-size:2rem;margin-bottom:0.5rem">😶</p>
+      <p class="weird-emoji">😶</p>
       <h2 data-i18n="weird_heading">Your environment looks… weird.</h2>
       <p data-i18n="weird_body">Both the Files and Chat tabs have been disabled by your server
       administrator. There's nothing to do here, but at least the connection is encrypted.</p>`;
@@ -108,68 +103,47 @@ function applyUIConfig(cfg, allLangs) {
   }
 
   // ── Tab grid width ────────────────────────────────────────────────────────
-  // Count visible tabs and set grid columns so they fill the space evenly.
-  const visibleTabs = [
-    showFiles,
-    showChat,
-    cfg.show_schedule === true,
-  ].filter(Boolean).length;
+  const visibleTabs = [showFiles, showChat, cfg.show_schedule === true].filter(Boolean).length;
   const cols = Array(visibleTabs).fill('1fr').join(' ');
-  document.querySelectorAll('.tabs').forEach(te => {
-    te.style.gridTemplateColumns = cols;
-  });
+  // Set a CSS custom property on :root — avoids style-src-attr CSP restriction.
+  document.documentElement.style.setProperty('--tabs-columns', cols);
+
+  // ── ICE settings panel ────────────────────────────────────────────────────
   const showICE = cfg.show_ice_settings !== false;
   if (!showICE) {
-    const icePanel = document.getElementById('ice-settings');
-    if (icePanel) icePanel.classList.add('ice-hidden');
+    document.getElementById('ice-settings')?.classList.add('ice-hidden');
   } else {
-    // ICE panel visible — check individual STUN/TURN controls.
     if (cfg.allow_stun === false) {
-      const btn = document.getElementById('ice-stun-add-btn');
-      if (btn) btn.closest('.ice-section').style.display = 'none';
+      document.getElementById('ice-stun-add-btn')?.closest('.ice-section')?.classList.add('hidden');
     }
     if (cfg.allow_turn === false) {
-      const btn = document.getElementById('ice-turn-add-btn');
-      if (btn) btn.closest('.ice-section').style.display = 'none';
+      document.getElementById('ice-turn-add-btn')?.closest('.ice-section')?.classList.add('hidden');
     }
   }
 
   // ── Share link + QR code ──────────────────────────────────────────────────
   if (cfg.show_share_link === false) {
-    ['files-share-link', 'chat-share-link'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    });
+    ['files-share-link', 'chat-share-link'].forEach(id =>
+      document.getElementById(id)?.classList.add('hidden'));
   }
   if (cfg.show_qr_code === false) {
-    ['files-qr-toggle', 'files-qr-container', 'chat-qr-toggle', 'chat-qr-container'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    });
+    ['files-qr-toggle', 'files-qr-container', 'chat-qr-toggle', 'chat-qr-container'].forEach(id =>
+      document.getElementById(id)?.classList.add('hidden'));
   }
 
   // ── Custom server field ───────────────────────────────────────────────────
   if (cfg.allow_custom_server === false) {
-    ['files-server', 'chat-server'].forEach(id => {
-      const input = document.getElementById(id);
-      if (input) {
-        const field = input.closest('.field');
-        if (field) field.style.display = 'none';
-      }
-    });
+    ['files-server', 'chat-server'].forEach(id =>
+      document.getElementById(id)?.closest('.field')?.classList.add('hidden'));
   }
 
   // ── Max peers slider ──────────────────────────────────────────────────────
-  const showPeers = cfg.show_peers_limit !== false;
-  const maxPeers  = typeof cfg.max_peers_limit === 'number' ? cfg.max_peers_limit : 10;
+  const showPeers  = cfg.show_peers_limit !== false;
+  const maxPeers   = typeof cfg.max_peers_limit === 'number' ? cfg.max_peers_limit : 10;
   const peerSlider = document.getElementById('files-max-peers');
-  const peerField  = peerSlider?.closest('.field');
-  if (!showPeers && peerField) {
-    peerField.style.display = 'none';
-  }
+  if (!showPeers) peerSlider?.closest('.field')?.classList.add('hidden');
   if (peerSlider) {
-    peerSlider.max   = String(maxPeers);
-    // Clamp current value if it exceeds new max.
+    peerSlider.max = String(maxPeers);
     if (parseInt(peerSlider.value) > maxPeers) {
       peerSlider.value = String(maxPeers);
       const label = document.getElementById('files-max-peers-value');
@@ -180,20 +154,16 @@ function applyUIConfig(cfg, allLangs) {
   // ── MOTD ──────────────────────────────────────────────────────────────────
   if (cfg.motd && cfg.motd.trim() !== '') {
     const banner = document.createElement('div');
-    banner.id = 'motd-banner';
-    banner.style.cssText =
-      'background:var(--color-warning,#f59e0b);color:#000;padding:0.5rem 1rem;' +
-      'text-align:center;font-size:var(--font-size-sm);font-weight:var(--font-weight-medium)';
+    banner.id        = 'motd-banner';
+    banner.className = 'motd-banner';
     banner.textContent = cfg.motd;
     document.body.prepend(banner);
   }
 
   // ── Language filtering ────────────────────────────────────────────────────
-  // If allowed_langs is null/empty, use all. Otherwise filter to the list.
   if (Array.isArray(cfg.allowed_langs) && cfg.allowed_langs.length > 0) {
     const allowed = new Set(cfg.allowed_langs);
     filteredLangs = allLangs.filter(l => allowed.has(l.code));
-    // Fallback to English if the filtered list doesn't include it.
     if (filteredLangs.length === 0) filteredLangs = allLangs.filter(l => l.code === 'en');
   } else {
     filteredLangs = allLangs;
@@ -1234,12 +1204,9 @@ function checkURLParams() {
 
   // Hide Chat tab and ICE settings in local mode (Files only, no external servers).
   if (isLocal) {
-    const chatTab    = document.getElementById('tab-chat');
-    const chatPanel  = document.getElementById('panel-chat');
-    const icePanel   = document.getElementById('ice-settings');
-    if (chatTab)   chatTab.style.display   = 'none';
-    if (chatPanel) chatPanel.style.display = 'none';
-    if (icePanel)  icePanel.style.display  = 'none';
+    document.getElementById('tab-chat')?.classList.add('hidden');
+    document.getElementById('panel-chat')?.classList.add('hidden');
+    document.getElementById('ice-settings')?.classList.add('ice-hidden');
     document.getElementById('tab-files')?.click();
   }
 
@@ -1423,14 +1390,9 @@ function schedCheckAuth() {
     .then(r => r.json())
     .then(data => {
       if (data.needs_password) {
-        document.getElementById('schedule-password-gate').style.display = '';
-        document.getElementById('schedule-landing').style.display = 'none';
         schedSetState('password');
       } else {
-        document.getElementById('schedule-password-gate').style.display = 'none';
-        document.getElementById('schedule-landing').style.display = '';
         schedSetState('landing');
-        // Check URL params for auto-join.
         schedAutoFillFromURL();
       }
     })
@@ -1453,8 +1415,6 @@ function schedPasswordSubmit() {
     } else {
       // Password accepted — we don't actually need this init slot, but we confirmed auth.
       schedPassword = pw;
-      document.getElementById('schedule-password-gate').style.display = 'none';
-      document.getElementById('schedule-landing').style.display = '';
       schedSetState('landing');
     }
   }).catch(() => {
@@ -1466,20 +1426,19 @@ function schedPasswordSubmit() {
 function schedSetState(state) {
   schedState = state;
   const ids = {
-    landing: 'schedule-landing',
-    create:  'schedule-create',
-    success: 'schedule-success',
-    join:    'schedule-join',
-    password:'schedule-password-gate',
+    landing:  'schedule-landing',
+    create:   'schedule-create',
+    success:  'schedule-success',
+    join:     'schedule-join',
+    password: 'schedule-password-gate',
   };
   Object.entries(ids).forEach(([s, id]) => {
     const el = document.getElementById(id);
     if (!el) return;
     if (s === state) {
-      el.style.display = '';
       el.classList.remove('hidden');
     } else {
-      el.style.display = 'none';
+      el.classList.add('hidden');
     }
   });
 }
