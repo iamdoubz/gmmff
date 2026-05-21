@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,9 +42,10 @@ type FileMeta struct {
 }
 
 const (
-	// ChunkSize is the plaintext bytes per chunk. 2 MiB is a safe balance
-	// between memory usage and overhead.
-	ChunkSize = 2 * 1024 * 1024 // 2 MiB
+	// ChunkSize is the plaintext bytes per chunk. 256 KiB balances encryption
+	// latency on mobile CPUs against HTTP round-trip overhead. The old 2 MiB
+	// value caused ~50-150ms stalls per chunk on mid-range phones.
+	ChunkSize = 256 * 1024 // 256 KiB
 
 	// NonceSize is the AES-GCM nonce length in bytes.
 	NonceSize = 12

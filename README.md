@@ -170,6 +170,142 @@ in the browser — one codebase, two delivery targets.
 
 ---
 
+## Schedule — server-side encrypted transfers
+
+The **Schedule** tab enables asynchronous file delivery: you upload an encrypted
+file to the server and share a link.  The recipient downloads and decrypts it
+later — no simultaneous connection required.
+
+**The server never sees plaintext.** The file is encrypted in the browser using
+AES-256-GCM before a single byte leaves your device.  The decryption key lives
+only in the URL fragment (`#key=…`), which browsers never send to the server,
+so it cannot appear in access logs even if the server is compromised.
+
+### How it works
+
+**Uploading (Create)**
+
+1. Browser generates a random 256-bit AES-GCM key via `crypto.getRandomValues`
+2. The file is encrypted in 2 MB chunks — each chunk gets a unique nonce derived from `[4-byte chunk index || 8 random bytes]`
+3. The filename is also encrypted with the same key before being sent
+4. Encrypted chunks are uploaded sequentially with real-time progress (speed, ETA, bytes transferred)
+5. A SHA-256 hash of the full ciphertext is computed in the browser and sent to the server for integrity verification
+6. On completion the server returns a `file_id`; the browser constructs the share URL:
+   `https://host/?type=schedule&id={file_id}#key={hex_key}`
+7. The upload screen shows the share URL, a QR code, a direct download link, and a private delete link
+
+**Downloading (Join)**
+
+1. Recipient opens the share URL — the browser extracts `file_id` from `?id=` and the key from `#key=`
+2. Ciphertext is fetched from the server
+3. Each chunk is decrypted in the browser using the key from the fragment
+4. The original file is reassembled and a browser download is triggered automatically
+5. For `?dl=1` in the URL, the download starts without any button click — useful for sharing links that work like a direct download
+
+Multiple files follow the same logic as the P2P transfer: they are zipped in
+the browser before encryption, so the recipient always receives a single file.
+
+### Enabling Schedule
+
+Schedule is **disabled by default**.  Enable it in your env file:
+
+```bash
+GMMFF_SHOW_SCHEDULE=true
+GMMFF_SCHEDULE_DIR=./data/schedule   # storage root; pending/ and complete/ created automatically
+```
+
+### Nginx configuration
+
+Two additional location blocks are needed (see `configs/gmmff.conf` for the
+full example):
+
+```nginx
+# Auth endpoint — needs real client IP for access control
+location = /api/schedule/auth {
+    proxy_pass         http://gmmff_backend;
+    proxy_http_version 1.1;
+    proxy_set_header   Host             $host;
+    proxy_set_header   X-Real-IP        $remote_addr;
+    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+    proxy_read_timeout 10s;
+    proxy_send_timeout 10s;
+}
+
+# Upload endpoints — needs IP + large body + long timeout for big files
+location /api/schedule/upload {
+    proxy_pass         http://gmmff_backend;
+    proxy_http_version 1.1;
+    proxy_set_header   Host             $host;
+    proxy_set_header   X-Real-IP        $remote_addr;
+    proxy_set_header   X-Forwarded-For  $proxy_add_x_forwarded_for;
+    proxy_buffering    off;
+    proxy_read_timeout 1200s;
+    proxy_send_timeout 1200s;
+    client_max_body_size 1025M;   # must exceed GMMFF_SCHEDULE_MAX_SIZE
+}
+```
+
+### Schedule environment variables
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `GMMFF_SHOW_SCHEDULE` | `false` | Show the Schedule tab; also gates the upload API |
+| `GMMFF_SCHEDULE_DIR` | `./data/schedule` | Storage root; `pending/` and `complete/` created automatically |
+| `GMMFF_SCHEDULE_MAX_SIZE` | `1gb` | Maximum upload size (`gb`/`mb`/`kb` suffix supported) |
+| `GMMFF_SCHEDULE_MAX_DOWNLOADS` | `1` | Server cap on downloads per file; `0` = unlimited |
+| `GMMFF_SCHEDULE_UPLOAD_IP` | — | Comma-separated IPs/CIDRs allowed to upload without a password |
+| `GMMFF_SCHEDULE_PASSWORD` | — | Required upload password (bypassed if caller's IP is in `UPLOAD_IP`) |
+| `GMMFF_SCHEDULE_DOWNLOAD_IP` | `0.0.0.0` | Comma-separated IPs/CIDRs allowed to download; `0.0.0.0` = anyone |
+| `GMMFF_SCHEDULE_CLEANUP_INTERVAL` | — | Crontab-format background cleanup schedule, e.g. `*/30 * * * *` |
+| `GMMFF_TTL_SETTINGS` | `1h,8h,1 day,3 days,7 days,30 days` | Comma-separated TTL options shown in the upload dropdown |
+
+### Access control
+
+The Schedule tab enforces upload access before a file is selected:
+
+- **IP in `GMMFF_SCHEDULE_UPLOAD_IP`** → upload allowed immediately, no password
+- **IP not in list, password set** → browser prompts for the upload password before proceeding
+- **Neither set** → anyone can upload
+- **Download** → unrestricted by default; set `GMMFF_SCHEDULE_DOWNLOAD_IP` to restrict
+
+### Cleanup
+
+Expired files and stale incomplete uploads are removed by the cleanup service.
+Two modes are available:
+
+**Background goroutine** (runs inside `gmmff serve`):
+```bash
+GMMFF_SCHEDULE_CLEANUP_INTERVAL=*/30 * * * *
+```
+
+**One-shot via cron** (runs and exits — no server restart needed):
+```bash
+# /etc/cron.d/gmmff-cleanup
+*/30 * * * *  gmmff  /usr/local/bin/gmmff cleanup
+```
+
+The cleanup removes completed files past their expiry time, files that have
+reached their download limit, and pending uploads older than 24 hours.
+
+### Share URL format
+
+```
+# Standard share URL — recipient opens in browser
+https://host/?type=schedule&id={file_id}#key={hex_key}
+
+# Auto-download — browser decrypts and downloads immediately on open
+https://host/?type=schedule&id={file_id}&dl=1#key={hex_key}
+
+# Delete URL — only the uploader has this
+https://host/?type=schedule&id={file_id}&action=delete&dk={delete_key}
+```
+
+The decryption key is in the URL **fragment** (`#…`).  Fragments are never
+transmitted to the server — they exist only in the browser.  The delete key
+is a separate short token shown only to the uploader on the success screen.
+
+---
+
 ## Theming
 
 Copy `web/static/themes/default.json`, edit the values, and point the `THEME_URL`
@@ -196,10 +332,35 @@ No build step required.
 
 ## ICE settings
 
-A collapsible **ICE servers** panel sits below the tab bar, shared across all
+A collapsible **ICE servers** panel sits below the tab bar on the Files and Chat
 tabs. STUN servers you add are appended to the default. TURN servers use the
-same Option A format as the CLI (`turn:host:port?transport=udp&secret=s`).
+same format as the CLI (`turn:host:port?transport=udp&secret=s`).
 Settings persist in `localStorage` for 7 days.
+
+---
+
+## UI feature flags
+
+The browser UI behaviour is controlled by environment variables served via
+`GET /config.json`.  All default to the most permissive setting.
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `GMMFF_SHOW_FILES` | `true` | Show the Files tab |
+| `GMMFF_SHOW_CHAT` | `true` | Show the Chat tab |
+| `GMMFF_SHOW_SCHEDULE` | `false` | Show the Schedule tab |
+| `GMMFF_SHOW_ICE_SETTINGS` | `true` | Show the ICE settings panel |
+| `GMMFF_ALLOW_STUN` | `true` | Allow user modification of STUN servers |
+| `GMMFF_ALLOW_TURN` | `true` | Allow user modification of TURN servers |
+| `GMMFF_SHOW_SHARE_LINK` | `true` | Show copy-link / QR buttons on code screens |
+| `GMMFF_SHOW_QR_CODE` | `true` | Show QR codes on code screens |
+| `GMMFF_ALLOW_CUSTOM_SERVER` | `false` | Show the signaling server URL field |
+| `GMMFF_SHOW_PEERS_LIMIT` | `true` | Show the max-peers slider |
+| `GMMFF_MAX_PEERS_LIMIT` | `10` | Hard cap on the max-peers slider (2–10) |
+| `GMMFF_MAX_WINDOW` | `2` | Transfer sliding window size (server-enforced, 1–16) |
+| `GMMFF_MAX_CHUNK_SIZE` | `65526` | Transfer chunk size in bytes (server-enforced) |
+| `GMMFF_ALLOWED_LANGS` | `all` | Comma-separated language codes, or `all`; single code hides the picker |
+| `GMMFF_MOTD` | — | Message of the day shown as a banner at the top of the UI |
 
 ---
 
@@ -247,11 +408,18 @@ gmmff/
 │   ├── main.go             # Root command + serve subcommand + shared helpers
 │   ├── create.go           # gmmff create — starts file+message session, session REPL
 │   ├── chat.go             # gmmff chat — pure chat; gmmff join — joins any session
-│   └── local.go            # gmmff local — self-contained local-network mode
+│   ├── local.go            # gmmff local — self-contained local-network mode
+│   └── cleanup.go          # gmmff cleanup — remove expired schedule uploads (cron-friendly)
 ├── internal/
-│   ├── broker/             # WebSocket hub, message router, HTTP server
+│   ├── broker/             # WebSocket hub, message router, HTTP server, UI config
 │   │   ├── broker.go
-│   │   └── server.go
+│   │   ├── server.go
+│   │   └── uiconfig.go     # Feature flags served via /config.json
+│   ├── schedule/           # Server-side encrypted file storage (Schedule feature)
+│   │   ├── config.go       # Env parsing, TTL options, IP allowlists
+│   │   ├── store.go        # Pending/complete file lifecycle, chunk storage
+│   │   ├── handler.go      # HTTP handlers: /api/schedule/*
+│   │   └── cleanup.go      # Crontab parser, background cleanup goroutine
 │   ├── store/              # Redis + in-memory slot persistence
 │   │   └── store.go
 │   ├── slot/               # Slot domain model & state machine
@@ -262,64 +430,59 @@ gmmff/
 │   │   └── log.go
 │   ├── archive/            # On-the-fly zip for multi-file transfers
 │   │   └── archive.go
-│   ├── chat/               # Pure text chat session (CLI REPL + idle timer)
-│   │   └── session.go
-│   ├── pake/               # HKDF subkey derivation + SDP MAC signing
-│   │   └── session.go
 │   ├── peer/               # WebRTC + PAKE orchestration; StartSession/JoinSession
 │   │   └── peer.go
 │   ├── peerconfig/         # Shared Config type (avoids peer↔session import cycle)
 │   │   └── peerconfig.go
-│   ├── session/            # Bidirectional session coordinator (Option B architecture)
+│   ├── session/            # Bidirectional session coordinator
 │   │   └── session.go
 │   ├── signaling/          # WebSocket signaling client
-│   │   ├── client_native.go  # gorilla/websocket (CLI)
-│   │   ├── client_js.go      # browser native WebSocket (Wasm)
+│   │   ├── client_native.go
+│   │   ├── client_js.go
 │   │   └── b64.go
 │   ├── transfer/           # Binary chunk protocol (send + receive state machines)
 │   │   └── transfer.go
 │   ├── localmode/          # Self-contained local-network mode
-│   │   ├── embed.go        # //go:embed of web/static (built by make build)
-│   │   ├── tls.go          # Self-signed cert generation
-│   │   ├── mdns.go         # mDNS registration and peer discovery
-│   │   └── local.go        # Orchestrator: broker + web server + session REPL
+│   │   ├── embed.go
+│   │   ├── tls.go
+│   │   ├── mdns.go
+│   │   └── local.go
 │   └── turn/               # TURN URL parsing and ephemeral credential derivation
 │       └── turn.go
 ├── pkg/protocol/           # Wire message types (shared server/client)
 │   └── protocol.go
-├── web/                    # browser UI (Wasm)
+├── web/                    # Browser UI (Wasm + plain JS)
 │   ├── cmd/gmmff-wasm/     # Go→Wasm entry point (syscall/js bridge)
 │   │   └── main.go
-│   ├── static/             # served files
-│   │   ├── index.html      # mobile-first single-page UI (Files + Chat tabs)
-│   │   ├── css/
-│   │   │   └── app.css     # all styles (no inline CSS)
-│   │   ├── js/
-│   │   │   └── app.js      # all UI logic (no inline JS)
-│   │   ├── themes/
-│   │   │   └── default.json
-│   │   └── i18n/
-│   │       ├── languages.json
-│   │       ├── en.json
-│   │       └── ...         # es, fr, de, it, sv, pt-BR, pt-PT, ta, si
-│   └── server.go           # dev-only static file server
+│   └── static/             # Served files
+│       ├── index.html      # Single-page UI (Files + Chat + Schedule tabs)
+│       ├── css/
+│       │   └── app.css
+│       ├── js/
+│       │   └── app.js      # UI logic + Schedule IIFE module (AES-GCM crypto)
+│       ├── themes/
+│       │   └── default.json
+│       └── i18n/
+│           ├── languages.json
+│           ├── en.json
+│           └── ...         # 32 languages total
 ├── configs/
-│   ├── .env.example        # environment variable reference
+│   ├── .env.example        # All environment variable reference
 │   ├── gmmff.conf          # nginx reverse proxy configuration
 │   └── gmmff.service       # systemd service unit
 ├── docs/
-│   ├── ARCHITECTURE.md     # signaling server architecture deep-dive
-│   ├── BUILD.md            # how to build gmmff from source
-│   ├── CLI.md              # cli usage and examples
-│   ├── CMDS.md             # all flags and env variables used here
-│   ├── INSTALL.md          # installation guide (generic)
-│   ├── LOCAL.md            # gmmff local usage document
-│   ├── NGINX.md            # nginx reverse proxy setup guide
-│   ├── PROTOCOL.md         # wire protocol
-│   ├── SECURITY.md         # shows and explains each step used to secure communications
-│   ├── SYSTEMD.md          # dedicated system user + systemd setup guide
-│   ├── TURN.md             # flags to use STUN and TURN servers with gmmff
-│   └── WASM.md             # how to use the wasm webclient
+│   ├── ARCHITECTURE.md
+│   ├── BUILD.md
+│   ├── CLI.md
+│   ├── CMDS.md
+│   ├── INSTALL.md
+│   ├── LOCAL.md
+│   ├── NGINX.md
+│   ├── PROTOCOL.md
+│   ├── SECURITY.md
+│   ├── SYSTEMD.md
+│   ├── TURN.md
+│   └── WASM.md
 ├── Dockerfile
 ├── docker-compose.yml
 ├── go.mod
@@ -335,6 +498,7 @@ gmmff/
 
 - **Local-network mode** — `gmmff local` is a fully self-contained mode with embedded server, auto TLS, mDNS discovery, and QR code; no internet or external server required
 - **Multi-peer sessions** — `gmmff create --max-peers N` allows 2–10 participants; 2-peer sessions are bidirectional, 3–10 peer sessions broadcast from the initiator to all
+- **Display names** — initiator and joiners can set a name; names are announced to all peers on connect and shown as message labels throughout the session
 - **Signaling server** — Go, Redis-backed, privacy-safe structured logs, Docker-ready
 - **CPace PAKE** — zero-knowledge authentication; server stays blind to the shared secret
 - **SDP MAC binding** — HMAC-signed SDP with HKDF-derived subkeys; prevents MITM via signaling relay
@@ -349,20 +513,21 @@ gmmff/
 - **Configurable chunk size** — up to SCTP maximum 65526 bytes (`--chunk-size`)
 - **STUN multi-server** — append additional STUN servers via `--stun` (repeatable) or `GMMFF_STUN`
 - **TURN support** — long-term and ephemeral credentials, mixed auth types, transport hints, max 3 servers
-- **Browser UI (Wasm)** — same Go source compiled to WebAssembly; Files tab + Chat tab
+- **Browser UI (Wasm)** — same Go source compiled to WebAssembly; Files, Chat, and Schedule tabs
+- **Schedule tab** — browser-side AES-256-GCM encrypted uploads; server never sees plaintext; TTL, download limits, IP/password access control, QR codes, auto-download links, cleanup service
 - **Drag and drop** — drop files anywhere on the browser UI to queue them for sending
 - **32 languages** — English, Spanish, French, German, Italian, Swedish, Portuguese (BR/EU), Arabic, Bengali, Persian, Finnish, Hindi, Indonesian, Japanese, Korean, Marathi, Malay, Dutch, Norwegian, Polish, Russian, Thai, Filipino, Turkish, Ukrainian, Urdu, Vietnamese, Chinese (Simplified/Traditional), Tamil, Sinhala; language picker with 7-day persistence
 - **ICE settings panel** — configurable STUN/TURN in the browser UI, persisted 7 days
 - **Share links + QR codes** — shareable URLs and scannable QR codes on all code screens
-- **Display names** — both initiator and joiner can set a name; names are announced to peers on connect and used as message labels throughout the session
+- **UI feature flags** — 15 server-side feature flags served via `/config.json` control tab visibility, ICE settings, share links, QR codes, server field, peers slider, MOTD, and allowed languages
 
 ### Backlog
 
 - **Browser extension** — use your favourite browser to send/receive files
-- **Docker images** — pipeline to package, build, and publish Docker images
 - **More languages** — 32 languages shipped; contributions welcome
 - **Trusted local CA** — one-time CA install for iOS Safari support in `gmmff local`
 - **Quantum-safe encryption** — post-quantum algorithms with elliptic-curve fallback
+- **Schedule CLI** — `gmmff schedule download <url>` for terminal-based decryption and download
 
 ### Probably won't do
 
