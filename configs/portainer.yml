@@ -1,0 +1,40 @@
+services:
+  redis:
+    image: redis:8-alpine
+    container_name: gmmff-redis
+    mem_limit: 92M
+    restart: unless-stopped
+    command: >
+      redis-server
+        --save 60 1
+        --loglevel warning
+        --maxmemory 64mb
+        --maxmemory-policy allkeys-lru
+    volumes:
+      - ${CONFIG}/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+  gmmff:
+    image: ghcr.io/iamdoubz/gmmff:latest
+    container_name: gmmff
+    mem_limit: 64M
+    restart: unless-stopped
+    env_file:
+      - stack.env
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    volumes:
+      - ${CONFIG}/encrypted:/data/schedule/complete
+      - /dev/shm:/data/schedule/pending
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
