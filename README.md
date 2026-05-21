@@ -404,72 +404,73 @@ slot codes, or any data that could identify a transfer or a user.
 
 ```
 gmmff/
-├── cmd/gmmff/              # Binary entrypoint (Cobra CLI)
-│   ├── main.go             # Root command + serve subcommand + shared helpers
-│   ├── create.go           # gmmff create — starts file+message session, session REPL
-│   ├── chat.go             # gmmff chat — pure chat; gmmff join — joins any session
-│   ├── local.go            # gmmff local — self-contained local-network mode
-│   └── cleanup.go          # gmmff cleanup — remove expired schedule uploads (cron-friendly)
+├── cmd/gmmff/                # Binary entrypoint (Cobra CLI)
+│   ├── main.go               # Root command + serve subcommand + shared helpers
+│   ├── create.go             # gmmff create — starts file+message session, session REPL
+│   ├── chat.go               # gmmff chat — pure chat; gmmff join — joins any session
+│   ├── local.go              # gmmff local — self-contained local-network mode
+│   └── cleanup.go            # gmmff cleanup — remove expired schedule uploads (cron-friendly)
 ├── internal/
-│   ├── broker/             # WebSocket hub, message router, HTTP server, UI config
+│   ├── broker/               # WebSocket hub, message router, HTTP server, UI config
 │   │   ├── broker.go
 │   │   ├── server.go
-│   │   └── uiconfig.go     # Feature flags served via /config.json
-│   ├── schedule/           # Server-side encrypted file storage (Schedule feature)
-│   │   ├── config.go       # Env parsing, TTL options, IP allowlists
-│   │   ├── store.go        # Pending/complete file lifecycle, chunk storage
-│   │   ├── handler.go      # HTTP handlers: /api/schedule/*
-│   │   └── cleanup.go      # Crontab parser, background cleanup goroutine
-│   ├── store/              # Redis + in-memory slot persistence
+│   │   └── uiconfig.go       # Feature flags served via /config.json
+│   ├── schedule/             # Server-side encrypted file storage (Schedule feature)
+│   │   ├── config.go         # Env parsing, TTL options, IP allowlists
+│   │   ├── store.go          # Pending/complete file lifecycle, chunk storage
+│   │   ├── handler.go        # HTTP handlers: /api/schedule/*
+│   │   └── cleanup.go        # Crontab parser, background cleanup goroutine
+│   ├── store/                # Redis + in-memory slot persistence
 │   │   └── store.go
-│   ├── slot/               # Slot domain model & state machine
+│   ├── slot/                 # Slot domain model & state machine
 │   │   └── slot.go
-│   ├── crypto/             # Slot code generation (3-word passphrase)
+│   ├── crypto/               # Slot code generation (3-word passphrase)
 │   │   └── codegen.go
-│   ├── log/                # Privacy-safe structured logger
+│   ├── log/                  # Privacy-safe structured logger
 │   │   └── log.go
-│   ├── archive/            # On-the-fly zip for multi-file transfers
+│   ├── archive/              # On-the-fly zip for multi-file transfers
 │   │   └── archive.go
-│   ├── peer/               # WebRTC + PAKE orchestration; StartSession/JoinSession
+│   ├── peer/                 # WebRTC + PAKE orchestration; StartSession/JoinSession
 │   │   └── peer.go
-│   ├── peerconfig/         # Shared Config type (avoids peer↔session import cycle)
+│   ├── peerconfig/           # Shared Config type (avoids peer↔session import cycle)
 │   │   └── peerconfig.go
-│   ├── session/            # Bidirectional session coordinator
+│   ├── session/              # Bidirectional session coordinator
 │   │   └── session.go
-│   ├── signaling/          # WebSocket signaling client
+│   ├── signaling/            # WebSocket signaling client
 │   │   ├── client_native.go
 │   │   ├── client_js.go
 │   │   └── b64.go
-│   ├── transfer/           # Binary chunk protocol (send + receive state machines)
+│   ├── transfer/             # Binary chunk protocol (send + receive state machines)
 │   │   └── transfer.go
-│   ├── localmode/          # Self-contained local-network mode
+│   ├── localmode/            # Self-contained local-network mode
 │   │   ├── embed.go
 │   │   ├── tls.go
 │   │   ├── mdns.go
 │   │   └── local.go
-│   └── turn/               # TURN URL parsing and ephemeral credential derivation
+│   └── turn/                 # TURN URL parsing and ephemeral credential derivation
 │       └── turn.go
-├── pkg/protocol/           # Wire message types (shared server/client)
+├── pkg/protocol/             # Wire message types (shared server/client)
 │   └── protocol.go
-├── web/                    # Browser UI (Wasm + plain JS)
-│   ├── cmd/gmmff-wasm/     # Go→Wasm entry point (syscall/js bridge)
+├── web/                      # Browser UI (Wasm + plain JS)
+│   ├── cmd/gmmff-wasm/       # Go→Wasm entry point (syscall/js bridge)
 │   │   └── main.go
-│   └── static/             # Served files
-│       ├── index.html      # Single-page UI (Files + Chat + Schedule tabs)
+│   └── static/               # Served files
+│       ├── index.html        # Single-page UI (Files + Chat + Schedule tabs)
 │       ├── css/
 │       │   └── app.css
 │       ├── js/
-│       │   └── app.js      # UI logic + Schedule IIFE module (AES-GCM crypto)
+│           ├── qrcode.min.js # QR code generator
+│       │   └── app.js        # UI logic + Schedule IIFE module (AES-GCM crypto)
 │       ├── themes/
 │       │   └── default.json
 │       └── i18n/
 │           ├── languages.json
 │           ├── en.json
-│           └── ...         # 32 languages total
+│           └── ...           # 32 languages total
 ├── configs/
-│   ├── .env.example        # All environment variable reference
-│   ├── gmmff.conf          # nginx reverse proxy configuration
-│   └── gmmff.service       # systemd service unit
+│   ├── .env.example          # All environment variable reference
+│   ├── gmmff.conf            # nginx reverse proxy configuration
+│   └── gmmff.service         # systemd service unit
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── BUILD.md
@@ -538,14 +539,14 @@ gmmff/
 
 ## Inspiration
 
-[https://xkcd.com/949](https://xkcd.com/949)
-
 <p align="center">
   <a href="https://xkcd.com/949" target="_blank"><img src="https://imgs.xkcd.com/comics/file_transfer.png" alt="xkcd comic explaining the difficulties of sending large files between two people"></a>
 </p>
 
 - [X] [webwormhole](https://github.com/saljam/webwormhole) by [@saljam](https://github.com/saljam)
 - [X] [FilePizza](https://github.com/kern/filepizza) by [@kern](https://github.com/kern) and [@neerajbaid](https://github.com/neerajbaid)
+- [X] [Firefox Send](https://gitlab.com/timvisee/send) by [@mozilla](https://github.com/mozilla/) new fork by [@timvisee](https://github.com/timvisee)
+- [X] [Jirafeau](https://gitlab.com/jirafeau/Jirafeau) by [Jerome Jutteau](https://gitlab.com/mojo42) and many [others](https://gitlab.com/jirafeau/Jirafeau/-/blob/master/AUTHORS.md?ref_type=heads)...
 
 ---
 
