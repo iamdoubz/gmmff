@@ -40,6 +40,9 @@ type UIConfig struct {
 
 	// Message of the day — empty string means no message shown.
 	MOTD string `json:"motd"`
+
+	// Schedule tab visibility — mirrors GMMFF_SHOW_SCHEDULE.
+	ShowSchedule bool `json:"show_schedule"`
 }
 
 // DefaultUIConfig returns the safest, most fully-featured defaults.

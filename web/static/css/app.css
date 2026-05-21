@@ -116,7 +116,7 @@
     /* ── Tab bar ────────────────────────────────────────────────────────── */
     .tabs {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: var(--tabs-columns, 1fr 1fr);
       background: var(--color-surface);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
@@ -349,6 +349,7 @@
     /* ── Panel visibility ───────────────────────────────────────────────── */
     .panel { display: none; }
     .panel.active { display: flex; flex-direction: column; gap: var(--spacing-md); }
+    .ice-hidden { display: none !important; }
 
     /* ── Footer ─────────────────────────────────────────────────────────── */
     .footer {
@@ -727,4 +728,173 @@
       overflow: hidden;
       clip: rect(0,0,0,0);
       white-space: nowrap;
+    }
+
+    /* ── Schedule feature ───────────────────────────────────────────────── */
+    .schedule-action-row {
+      display: flex;
+      gap: var(--spacing-sm);
+      margin-top: var(--spacing-md);
+    }
+    .schedule-action-row .btn-primary,
+    .schedule-action-row .btn-ghost {
+      flex: 1;
+    }
+    .schedule-progress-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: var(--font-size-sm);
+      color: var(--color-text-muted);
+      margin-top: var(--spacing-xs);
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+    }
+    .progress-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: var(--color-border);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: var(--spacing-sm);
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--color-accent);
+      border-radius: 3px;
+      transition: width 0.2s ease;
+      width: 0%;
+    }
+    .share-url-input {
+      flex: 1;
+      min-width: 0;
+      background: var(--color-input-bg);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      font-size: var(--font-size-sm);
+      font-family: monospace;
+    }
+    .share-row {
+      display: flex;
+      gap: var(--spacing-xs);
+      align-items: stretch;
+      margin-top: var(--spacing-xs);
+    }
+    .input-sm {
+      width: 80px;
+      background: var(--color-input-bg);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      font-size: var(--font-size-sm);
+    }
+    .select-input {
+      width: 100%;
+      background: var(--color-input-bg);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      font-size: var(--font-size-base);
+      margin-top: var(--spacing-xs);
+    }
+    .qr-wrap {
+      margin-top: var(--spacing-sm);
+      display: flex;
+      justify-content: center;
+    }
+
+    /* ── Custom select dropdown ─────────────────────────────────────────── */
+    .custom-select {
+      position: relative;
+      width: 100%;
+      margin-top: var(--spacing-xs);
+    }
+    .custom-select__btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-sm) var(--spacing-md);
+      background: var(--color-input-bg, var(--color-surface));
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-base);
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s;
+    }
+    .custom-select__btn:hover,
+    .custom-select__btn:focus-visible {
+      border-color: var(--color-accent);
+      outline: none;
+    }
+    .custom-select__chevron {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      color: var(--color-text-muted);
+      transition: transform 0.15s;
+    }
+    .custom-select.open .custom-select__chevron {
+      transform: rotate(180deg);
+    }
+    .custom-select__list {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      list-style: none;
+      margin: 0;
+      padding: var(--spacing-xs) 0;
+      z-index: 50;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    .custom-select.open .custom-select__list {
+      display: block;
+    }
+    .custom-select__item {
+      padding: var(--spacing-sm) var(--spacing-md);
+      cursor: pointer;
+      font-size: var(--font-size-base);
+      color: var(--color-text);
+      transition: background 0.1s;
+    }
+    .custom-select__item:hover {
+      background: var(--color-hover, rgba(255,255,255,0.06));
+    }
+    .custom-select__item.selected {
+      color: var(--color-accent);
+      font-weight: var(--font-weight-medium);
+    }
+
+    /* ── Dynamic UI elements (created by applyUIConfig) ────────────────── */
+    .weird-message {
+      text-align: center;
+      padding: 3rem 1rem;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    .weird-emoji {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    .motd-banner {
+      background: var(--color-warning, #f59e0b);
+      color: #000;
+      padding: 0.5rem 1rem;
+      text-align: center;
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
     }

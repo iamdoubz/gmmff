@@ -61,6 +61,8 @@ async function boot() {
     await switchLanguage(currentLang);
     await loadWasm();
     hideLoading();
+    // Init schedule feature after Wasm is ready.
+    if (typeof window.schedInit === 'function') window.schedInit(cfg);
   } catch (err) {
     showFatalError(err);
   }
@@ -77,99 +79,71 @@ function applyUIConfig(cfg, allLangs) {
   const showFiles = cfg.show_files !== false;
   const showChat  = cfg.show_chat  !== false;
 
-  const tabFiles  = document.getElementById('tab-files');
-  const tabChat   = document.getElementById('tab-chat');
-  const panelFiles = document.getElementById('panel-files');
-  const panelChat  = document.getElementById('panel-chat');
-
-  const tabElements = document.getElementsByClassName('tabs');
-
   if (!showFiles) {
-    if (tabFiles)  tabFiles.style.display  = 'none';
-    if (panelFiles) panelFiles.style.display = 'none';
-    if (tabElements) {
-      document.querySelectorAll('.tabs').forEach(te => {
-        te.style.gridTemplateColumns = "1fr";
-      });
-    }
+    document.getElementById('tab-files')?.classList.add('hidden');
+    document.getElementById('panel-files')?.classList.add('hidden');
   }
   if (!showChat) {
-    if (tabChat)  tabChat.style.display  = 'none';
-    if (panelChat) panelChat.style.display = 'none';
-    if (tabElements) {
-      document.querySelectorAll('.tabs').forEach(te => {
-        te.style.gridTemplateColumns = "1fr";
-      });
-    }
+    document.getElementById('tab-chat')?.classList.add('hidden');
+    document.getElementById('panel-chat')?.classList.add('hidden');
   }
 
   // Both tabs hidden — show the "weird" message.
   if (!showFiles && !showChat) {
     const body = document.getElementById('main-content') || document.body;
     const msg  = document.createElement('div');
-    msg.id = 'weird-message';
-    msg.style.cssText = 'text-align:center;padding:3rem 1rem;max-width:480px;margin:0 auto';
+    msg.id        = 'weird-message';
+    msg.className = 'weird-message';
     msg.innerHTML = `
-      <p style="font-size:2rem;margin-bottom:0.5rem">😶</p>
+      <p class="weird-emoji">😶</p>
       <h2 data-i18n="weird_heading">Your environment looks… weird.</h2>
       <p data-i18n="weird_body">Both the Files and Chat tabs have been disabled by your server
       administrator. There's nothing to do here, but at least the connection is encrypted.</p>`;
     body.prepend(msg);
   }
 
+  // ── Tab grid width ────────────────────────────────────────────────────────
+  const visibleTabs = [showFiles, showChat, cfg.show_schedule === true].filter(Boolean).length;
+  const cols = Array(visibleTabs).fill('1fr').join(' ');
+  // Set a CSS custom property on :root — avoids style-src-attr CSP restriction.
+  document.documentElement.style.setProperty('--tabs-columns', cols);
+
   // ── ICE settings panel ────────────────────────────────────────────────────
   const showICE = cfg.show_ice_settings !== false;
   if (!showICE) {
-    const icePanel = document.getElementById('ice-settings');
-    if (icePanel) icePanel.style.display = 'none';
+    document.getElementById('ice-settings')?.classList.add('ice-hidden');
   } else {
-    // ICE panel visible — check individual STUN/TURN controls.
     if (cfg.allow_stun === false) {
-      const btn = document.getElementById('ice-stun-add-btn');
-      if (btn) btn.closest('.ice-section').style.display = 'none';
+      document.getElementById('ice-stun-add-btn')?.closest('.ice-section')?.classList.add('hidden');
     }
     if (cfg.allow_turn === false) {
-      const btn = document.getElementById('ice-turn-add-btn');
-      if (btn) btn.closest('.ice-section').style.display = 'none';
+      document.getElementById('ice-turn-add-btn')?.closest('.ice-section')?.classList.add('hidden');
     }
   }
 
   // ── Share link + QR code ──────────────────────────────────────────────────
   if (cfg.show_share_link === false) {
-    ['files-share-link', 'chat-share-link'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    });
+    ['files-share-link', 'chat-share-link'].forEach(id =>
+      document.getElementById(id)?.classList.add('hidden'));
   }
   if (cfg.show_qr_code === false) {
-    ['files-qr-toggle', 'files-qr-container', 'chat-qr-toggle', 'chat-qr-container'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    });
+    ['files-qr-toggle', 'files-qr-container', 'chat-qr-toggle', 'chat-qr-container'].forEach(id =>
+      document.getElementById(id)?.classList.add('hidden'));
   }
 
   // ── Custom server field ───────────────────────────────────────────────────
   if (cfg.allow_custom_server === false) {
-    ['files-server', 'chat-server'].forEach(id => {
-      const input = document.getElementById(id);
-      if (input) {
-        const field = input.closest('.field');
-        if (field) field.style.display = 'none';
-      }
-    });
+    ['files-server', 'chat-server'].forEach(id =>
+      document.getElementById(id)?.closest('.field')?.classList.add('hidden'));
   }
 
   // ── Max peers slider ──────────────────────────────────────────────────────
-  const showPeers = cfg.show_peers_limit !== false;
-  const maxPeers  = typeof cfg.max_peers_limit === 'number' ? cfg.max_peers_limit : 10;
+  const showPeers  = cfg.show_peers_limit !== false;
+  const maxPeers   = typeof cfg.max_peers_limit === 'number' ? cfg.max_peers_limit : 10;
   const peerSlider = document.getElementById('files-max-peers');
-  const peerField  = peerSlider?.closest('.field');
-  if (!showPeers && peerField) {
-    peerField.style.display = 'none';
-  }
+  if (!showPeers) peerSlider?.closest('.field')?.classList.add('hidden');
   if (peerSlider) {
-    peerSlider.max   = String(maxPeers);
-    // Clamp current value if it exceeds new max.
+    peerSlider.max = String(maxPeers);
     if (parseInt(peerSlider.value) > maxPeers) {
       peerSlider.value = String(maxPeers);
       const label = document.getElementById('files-max-peers-value');
@@ -180,20 +154,16 @@ function applyUIConfig(cfg, allLangs) {
   // ── MOTD ──────────────────────────────────────────────────────────────────
   if (cfg.motd && cfg.motd.trim() !== '') {
     const banner = document.createElement('div');
-    banner.id = 'motd-banner';
-    banner.style.cssText =
-      'background:var(--color-warning,#f59e0b);color:#000;padding:0.5rem 1rem;' +
-      'text-align:center;font-size:var(--font-size-sm);font-weight:var(--font-weight-medium)';
+    banner.id        = 'motd-banner';
+    banner.className = 'motd-banner';
     banner.textContent = cfg.motd;
     document.body.prepend(banner);
   }
 
   // ── Language filtering ────────────────────────────────────────────────────
-  // If allowed_langs is null/empty, use all. Otherwise filter to the list.
   if (Array.isArray(cfg.allowed_langs) && cfg.allowed_langs.length > 0) {
     const allowed = new Set(cfg.allowed_langs);
     filteredLangs = allLangs.filter(l => allowed.has(l.code));
-    // Fallback to English if the filtered list doesn't include it.
     if (filteredLangs.length === 0) filteredLangs = allLangs.filter(l => l.code === 'en');
   } else {
     filteredLangs = allLangs;
@@ -367,6 +337,8 @@ function hideLoading() {
 
   // Check for ?code= in the URL — pre-fill the join form.
   checkURLParams();
+  // Check for ?type=schedule in the URL.
+  if (typeof window.schedHandleURLParams === 'function') window.schedHandleURLParams();
 }
 
 function showFatalError(err) {
@@ -384,9 +356,21 @@ document.querySelectorAll('.tab').forEach(btn => {
     document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', 'false'));
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     btn.setAttribute('aria-selected', 'true');
-    document.getElementById(btn.getAttribute('aria-controls')).classList.add('active');
+    const targetPanel = document.getElementById(btn.getAttribute('aria-controls'));
+    targetPanel?.classList.remove('hidden');
+    targetPanel?.classList.add('active');
+    // Show ICE settings only on Files and Chat tabs.
+    const ctrl    = btn.getAttribute('aria-controls');
+    const iceEl   = document.getElementById('ice-settings');
+    const showICE = uiConfig.show_ice_settings !== false;
+    if (iceEl) {
+      if (showICE && ctrl !== 'panel-schedule') {
+        iceEl.classList.remove('ice-hidden');
+      } else {
+        iceEl.classList.add('ice-hidden');
+      }
+    }
     // Pre-fill server fields when switching tabs.
-    const ctrl = btn.getAttribute('aria-controls');
     if (ctrl === 'panel-chat') {
       const sf = document.getElementById('chat-server');
       if (sf && !sf.value) sf.value = normaliseServerURL(location.origin.replace(/^http/, 'ws') + '/ws');
@@ -1222,12 +1206,9 @@ function checkURLParams() {
 
   // Hide Chat tab and ICE settings in local mode (Files only, no external servers).
   if (isLocal) {
-    const chatTab    = document.getElementById('tab-chat');
-    const chatPanel  = document.getElementById('panel-chat');
-    const icePanel   = document.getElementById('ice-settings');
-    if (chatTab)   chatTab.style.display   = 'none';
-    if (chatPanel) chatPanel.style.display = 'none';
-    if (icePanel)  icePanel.style.display  = 'none';
+    document.getElementById('tab-chat')?.classList.add('hidden');
+    document.getElementById('panel-chat')?.classList.add('hidden');
+    document.getElementById('ice-settings')?.classList.add('ice-hidden');
     document.getElementById('tab-files')?.click();
   }
 
@@ -1271,3 +1252,838 @@ function checkURLParams() {
 
 // ── Go ────────────────────────────────────────────────────────────────────────
 boot();
+
+// ════════════════════════════════════════════════════════════════════════════
+// SCHEDULE FEATURE
+// Client-side AES-256-GCM encrypted file upload/download.
+// The server never sees plaintext. The decryption key lives in the URL
+// fragment (#key=...) which is never sent to the server.
+// ════════════════════════════════════════════════════════════════════════════
+
+(function() {
+'use strict';
+
+// ── Constants ────────────────────────────────────────────────────────────────
+const SCHED_CHUNK_SIZE = 2 * 1024 * 1024; // 2 MiB plaintext per chunk
+const SCHED_NONCE_SIZE = 12;
+const SCHED_TAG_SIZE   = 16;
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let schedState      = 'landing'; // landing | create | success | join
+let schedPassword   = '';        // entered upload password (if required)
+let schedCryptoKey  = null;      // CryptoKey for current upload/download
+let schedUploadCtrl = null;      // AbortController for in-progress upload
+let schedTTLOptions = [];        // [{label, seconds}] from /api/schedule/ttl-options
+
+// ── Boot: show/hide tab based on config ───────────────────────────────────────
+function schedInit(cfg) {
+  if (!cfg.show_schedule) return;
+
+  const tab = document.getElementById('tab-schedule');
+  if (tab) tab.classList.remove('hidden');
+
+  // Load TTL options.
+  fetch('/api/schedule/ttl-options')
+    .then(r => r.json())
+    .then(opts => {
+      schedTTLOptions = opts;
+      const list    = document.getElementById('schedule-ttl-list');
+      const hidden  = document.getElementById('schedule-ttl');
+      const btnLabel = document.getElementById('schedule-ttl-label');
+      if (!list || !hidden || !btnLabel) return;
+
+      list.innerHTML = '';
+      opts.forEach((o, i) => {
+        const li = document.createElement('li');
+        li.role = 'option';
+        li.className = 'custom-select__item' + (i === 0 ? ' selected' : '');
+        li.dataset.value = o.seconds;
+        li.textContent = o.label;
+        li.addEventListener('click', () => {
+          list.querySelectorAll('.custom-select__item').forEach(el => el.classList.remove('selected'));
+          li.classList.add('selected');
+          hidden.value    = o.seconds;
+          btnLabel.textContent = li.textContent;
+          schedCloseDropdown();
+          schedUpdateExpiresHint();
+        });
+        list.appendChild(li);
+      });
+
+      // Set initial value.
+      if (opts.length > 0) {
+        hidden.value      = opts[0].seconds;
+        btnLabel.textContent = list.querySelector('.custom-select__item')?.textContent || opts[0].label;
+        schedUpdateExpiresHint();
+      }
+    })
+    .catch(() => {});
+
+  bindScheduleEvents();
+}
+
+// ── Bind all schedule DOM events ─────────────────────────────────────────────
+function bindScheduleEvents() {
+
+  // Tab click.
+  document.getElementById('tab-schedule')?.addEventListener('click', () => schedShowTab());
+
+  // Password gate.
+  document.getElementById('schedule-password-btn')?.addEventListener('click', schedPasswordSubmit);
+  document.getElementById('schedule-password-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') schedPasswordSubmit();
+  });
+
+  // Landing buttons.
+  document.getElementById('schedule-create-btn')?.addEventListener('click', schedClickCreate);
+  document.getElementById('schedule-join-btn')?.addEventListener('click',   () => schedSetState('join'));
+
+  // Create — file pickers.
+  document.getElementById('schedule-file-btn')?.addEventListener('click',
+    () => document.getElementById('schedule-file-input').click());
+  document.getElementById('schedule-folder-btn')?.addEventListener('click',
+    () => document.getElementById('schedule-folder-input').click());
+  document.getElementById('schedule-file-input')?.addEventListener('change',   schedFileChosen);
+  document.getElementById('schedule-folder-input')?.addEventListener('change', schedFileChosen);
+
+  // TTL custom dropdown toggle.
+  document.getElementById('schedule-ttl-btn')?.addEventListener('click', schedToggleDropdown);
+  document.addEventListener('click', e => {
+    if (!document.getElementById('schedule-ttl-wrap')?.contains(e.target)) schedCloseDropdown();
+  });
+
+  // Upload.
+  document.getElementById('schedule-upload-btn')?.addEventListener('click', schedStartUpload);
+  document.getElementById('schedule-create-back-btn')?.addEventListener('click', () => schedSetState('landing'));
+
+  // Success.
+  document.getElementById('schedule-copy-url-btn')?.addEventListener('click',    () => schedCopyField('schedule-share-url'));
+  document.getElementById('schedule-copy-delete-btn')?.addEventListener('click', () => schedCopyField('schedule-delete-url'));
+  document.getElementById('schedule-qr-toggle')?.addEventListener('click',       schedToggleQR);
+  document.getElementById('schedule-success-back-btn')?.addEventListener('click', schedResetCreate);
+
+  // Join / download.
+  document.getElementById('schedule-download-btn')?.addEventListener('click', schedStartDownload);
+  document.getElementById('schedule-join-back-btn')?.addEventListener('click', () => schedSetState('landing'));
+  document.getElementById('schedule-join-url')?.addEventListener('input', () => {
+    document.getElementById('schedule-join-error').textContent = '';
+    // Auto-parse URL from fragment.
+    schedAutoFillFromURL();
+  });
+}
+
+// ── Tab activation ────────────────────────────────────────────────────────────
+function schedShowTab() {
+  // Deactivate other tabs — same pattern as the main tab handler.
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', 'false'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-schedule').setAttribute('aria-selected', 'true');
+  document.getElementById('panel-schedule').classList.add('active');
+  // Hide ICE settings — not relevant for schedule transfers.
+  document.getElementById('ice-settings')?.classList.add('ice-hidden');
+
+  // Check auth status.
+  schedCheckAuth();
+}
+
+// ── Auth check ────────────────────────────────────────────────────────────────
+function schedCheckAuth() {
+  fetch('/api/schedule/auth', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.needs_password) {
+        schedSetState('password');
+      } else {
+        schedSetState('landing');
+        schedAutoFillFromURL();
+      }
+    })
+    .catch(() => schedSetState('landing'));
+}
+
+// ── Password gate ─────────────────────────────────────────────────────────────
+function schedPasswordSubmit() {
+  const pw  = document.getElementById('schedule-password-input')?.value.trim();
+  const err = document.getElementById('schedule-password-error');
+  if (!pw) { if (err) err.textContent = t('schedule_password_required') || 'Password required.'; return; }
+  // Verify password by attempting upload init with it.
+  fetch('/api/schedule/upload/init', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Schedule-Password': pw },
+    body: JSON.stringify({ password: pw, chunks_total: 1, total_size: 1, ttl_seconds: 3600, max_downloads: 1 }),
+  }).then(r => {
+    if (r.status === 403) {
+      if (err) err.textContent = t('schedule_password_wrong') || 'Incorrect password.';
+    } else {
+      // Password accepted — we don't actually need this init slot, but we confirmed auth.
+      schedPassword = pw;
+      schedSetState('landing');
+    }
+  }).catch(() => {
+    if (err) err.textContent = t('error_connection') || 'Connection failed.';
+  });
+}
+
+// ── UI state machine ──────────────────────────────────────────────────────────
+function schedSetState(state) {
+  schedState = state;
+  const ids = {
+    landing:  'schedule-landing',
+    create:   'schedule-create',
+    success:  'schedule-success',
+    join:     'schedule-join',
+    password: 'schedule-password-gate',
+  };
+  Object.entries(ids).forEach(([s, id]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (s === state) {
+      el.classList.remove('hidden');
+    } else {
+      el.classList.add('hidden');
+    }
+  });
+}
+
+function schedClickCreate() {
+  schedSetState('create');
+  schedResetProgress();
+}
+
+function schedResetCreate() {
+  schedSetState('landing');
+  schedCryptoKey = null;
+  const fi = document.getElementById('schedule-file-input');
+  const fo = document.getElementById('schedule-folder-input');
+  if (fi) fi.value = '';
+  if (fo) fo.value = '';
+  document.getElementById('schedule-file-name').textContent = t('send_no_file') || 'No file chosen';
+  document.getElementById('schedule-create-error').textContent = '';
+  schedResetProgress();
+}
+
+function schedResetProgress() {
+  const p = document.getElementById('schedule-progress');
+  if (p) p.classList.add('hidden');
+  schedUpdateProgressBar(0, null, null, null, null);
+}
+
+// ── File picker ───────────────────────────────────────────────────────────────
+let schedSelectedFiles = []; // File[]
+
+function schedFileChosen(e) {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  schedSelectedFiles = files;
+  const name = files.length === 1 ? files[0].name : `${files.length} ${t('files_count') || 'files'}`;
+  document.getElementById('schedule-file-name').textContent = name;
+  document.getElementById('schedule-create-error').textContent = '';
+}
+
+// ── TTL / expires hint ────────────────────────────────────────────────────────
+function schedUpdateExpiresHint() {
+  const sel     = document.getElementById('schedule-ttl');
+  const hint    = document.getElementById('schedule-expires-hint');
+  if (!sel || !hint) return;
+  const seconds = parseInt(sel.value, 10);
+  if (isNaN(seconds)) return;
+  const expires = new Date(Date.now() + seconds * 1000);
+  hint.textContent = (t('schedule_expires_at') || 'Expires:') + ' ' +
+    expires.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+// ── Upload ────────────────────────────────────────────────────────────────────
+async function schedStartUpload() {
+  const errEl = document.getElementById('schedule-create-error');
+  errEl.textContent = '';
+
+  if (!schedSelectedFiles.length) {
+    errEl.textContent = t('error_no_file') || 'Please choose a file.';
+    return;
+  }
+
+  const ttl       = parseInt(document.getElementById('schedule-ttl')?.value || '3600', 10);
+  const maxDlRaw  = parseInt(document.getElementById('schedule-max-dl')?.value || '1', 10);
+  const maxDl     = isNaN(maxDlRaw) ? 1 : maxDlRaw;
+  const uploadBtn = document.getElementById('schedule-upload-btn');
+  if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.textContent = t('schedule_uploading') || 'Uploading…'; }
+
+  try {
+    // ── 1. Collect file data (zip if multiple files) ─────────────────────────
+    let plainBytes;
+    let fileName;
+    if (schedSelectedFiles.length === 1 && !schedSelectedFiles[0].webkitRelativePath) {
+      plainBytes = new Uint8Array(await schedSelectedFiles[0].arrayBuffer());
+      fileName   = schedSelectedFiles[0].name;
+    } else {
+      // Multiple files — signal to the user we're preparing.
+      if (uploadBtn) uploadBtn.textContent = t('schedule_preparing') || 'Preparing…';
+      const { bytes, name } = await schedZipFiles(schedSelectedFiles);
+      plainBytes = bytes;
+      fileName   = name;
+    }
+
+    const totalSize = plainBytes.length;
+
+    // ── 2. Generate AES-256-GCM key ──────────────────────────────────────────
+    schedCryptoKey = await crypto.subtle.generateKey(
+      { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']
+    );
+    const rawKey     = await crypto.subtle.exportKey('raw', schedCryptoKey);
+    const keyHex     = bufToHex(rawKey);
+
+    // ── 3. Encrypt filename ───────────────────────────────────────────────────
+    const fnNonce    = crypto.getRandomValues(new Uint8Array(SCHED_NONCE_SIZE));
+    const fnEnc      = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: fnNonce }, schedCryptoKey,
+      new TextEncoder().encode(fileName)
+    );
+    const fileNameEnc   = bufToHex(fnEnc);
+    const fileNameNonce = bufToHex(fnNonce);
+
+    // ── 4. Calculate chunks ───────────────────────────────────────────────────
+    const chunksTotal = Math.ceil(totalSize / SCHED_CHUNK_SIZE);
+
+    // ── 5. Init upload on server ──────────────────────────────────────────────
+    const initResp = await schedFetch('/api/schedule/upload/init', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(schedPassword ? { 'X-Schedule-Password': schedPassword } : {}),
+      },
+      body: JSON.stringify({
+        password:     schedPassword,
+        chunks_total: chunksTotal,
+        total_size:   totalSize,
+        ttl_seconds:  ttl,
+        max_downloads: maxDl,
+      }),
+    });
+    if (!initResp.ok) {
+      const e = await initResp.json();
+      throw new Error(e.error || 'Upload init failed');
+    }
+    const { upload_id: uploadID } = await initResp.json();
+
+    // ── 6. Encrypt and upload chunks ─────────────────────────────────────────
+    document.getElementById('schedule-progress').classList.remove('hidden');
+    const noncePrefix = crypto.getRandomValues(new Uint8Array(8));
+    let uploadedBytes = 0;
+    let startTime     = Date.now();
+
+    // SHA-256 of the full ciphertext (computed as we go).
+    const cipherParts = [];
+
+    schedUploadCtrl = new AbortController();
+
+    for (let i = 0; i < chunksTotal; i++) {
+      const start  = i * SCHED_CHUNK_SIZE;
+      const end    = Math.min(start + SCHED_CHUNK_SIZE, totalSize);
+      const plain  = plainBytes.slice(start, end);
+
+      // Nonce: 4-byte big-endian chunk index || 8-byte prefix.
+      const nonce = new Uint8Array(SCHED_NONCE_SIZE);
+      const view  = new DataView(nonce.buffer);
+      view.setUint32(0, i, false);
+      nonce.set(noncePrefix, 4);
+
+      const cipher = new Uint8Array(await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: nonce, tagLength: 128 }, schedCryptoKey, plain
+      ));
+
+      // Chunk on-wire: nonce || ciphertext+tag.
+      const chunk = new Uint8Array(SCHED_NONCE_SIZE + cipher.length);
+      chunk.set(nonce, 0);
+      chunk.set(cipher, SCHED_NONCE_SIZE);
+      cipherParts.push(chunk);
+
+      // Upload chunk.
+      const fd = new FormData();
+      fd.append('upload_id',   uploadID);
+      fd.append('chunk_index', String(i));
+      fd.append('data',        new Blob([chunk], { type: 'application/octet-stream' }));
+
+      const resp = await fetch('/api/schedule/upload/chunk?' +
+        new URLSearchParams({ upload_id: uploadID, chunk_index: String(i) }), {
+        method: 'POST',
+        body:   chunk,
+        signal: schedUploadCtrl.signal,
+        headers: { 'Content-Type': 'application/octet-stream' },
+      });
+      if (!resp.ok) {
+        const e = await resp.json().catch(() => ({}));
+        throw new Error(e.error || `Chunk ${i} upload failed`);
+      }
+
+      uploadedBytes += plain.length;
+      const elapsed = (Date.now() - startTime) / 1000;
+      const speed   = elapsed > 0 ? uploadedBytes / elapsed : 0;
+      const eta     = speed > 0 ? (totalSize - uploadedBytes) / speed : null;
+      schedUpdateProgressBar(uploadedBytes / totalSize, speed, eta, uploadedBytes, totalSize);
+    }
+
+    // ── 7. Compute SHA-256 of full ciphertext ─────────────────────────────────
+    const totalCipherLen = cipherParts.reduce((s, c) => s + c.length, 0);
+    const fullCipher     = new Uint8Array(totalCipherLen);
+    let offset = 0;
+    for (const part of cipherParts) { fullCipher.set(part, offset); offset += part.length; }
+    const sha256Buf = await crypto.subtle.digest('SHA-256', fullCipher);
+    const sha256Hex = bufToHex(sha256Buf);
+
+    // ── 8. Finalize upload ────────────────────────────────────────────────────
+    const finResp = await schedFetch('/api/schedule/upload/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        upload_id:      uploadID,
+        filename_enc:   fileNameEnc,
+        filename_nonce: fileNameNonce,
+        sha256_cipher:  sha256Hex,
+      }),
+    });
+    if (!finResp.ok) {
+      const e = await finResp.json();
+      throw new Error(e.error || 'Finalize failed');
+    }
+    const { file_id: fileID, delete_key: deleteKey, expires_at: expiresAt } = await finResp.json();
+
+    // ── 9. Build share URLs ───────────────────────────────────────────────────
+    const base      = location.origin + location.pathname;
+    const shareURL  = `${base}?type=schedule&id=${fileID}#key=${keyHex}`;
+    const deleteURL = `${base}?type=schedule&id=${fileID}&action=delete&dk=${deleteKey}`;
+
+    document.getElementById('schedule-share-url').value  = shareURL;
+    document.getElementById('schedule-delete-url').value = deleteURL;
+
+    const expDate = new Date(expiresAt);
+    document.getElementById('schedule-expires-label').textContent =
+      (t('schedule_expires_at') || 'Expires:') + ' ' +
+      expDate.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+    schedSetState('success');
+
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      errEl.textContent = t('status_cancelled_local') || 'Upload cancelled.';
+    } else {
+      errEl.textContent = err.message || (t('status_error') || 'Upload error.');
+    }
+    if (uploadBtn) { uploadBtn.disabled = false; uploadBtn.textContent = t('schedule_upload_btn') || 'Upload'; }
+  } finally {
+    schedUploadCtrl = null;
+  }
+}
+
+// ── Download + Decrypt ────────────────────────────────────────────────────────
+async function schedStartDownload() {
+  const urlInput = document.getElementById('schedule-join-url');
+  const errEl    = document.getElementById('schedule-join-error');
+  errEl.textContent = '';
+
+  const raw = urlInput?.value.trim();
+  if (!raw) {
+    errEl.textContent = t('schedule_join_url_required') || 'Please paste the share URL.';
+    return;
+  }
+
+  let fileID, keyHex;
+  try {
+    const parsed = schedParseShareURL(raw);
+    fileID = parsed.fileID;
+    keyHex = parsed.keyHex;
+  } catch (e) {
+    errEl.textContent = e.message;
+    return;
+  }
+
+  const dlBtn = document.getElementById('schedule-download-btn');
+  if (dlBtn) { dlBtn.disabled = true; dlBtn.textContent = t('schedule_downloading') || 'Downloading…'; }
+  document.getElementById('schedule-dl-progress').classList.remove('hidden');
+
+  try {
+    // ── 1. Fetch file metadata ────────────────────────────────────────────────
+    const metaResp = await fetch(`/api/schedule/meta/${fileID}`);
+    if (!metaResp.ok) {
+      const e = await metaResp.json().catch(() => ({}));
+      throw new Error(e.error || 'File not found or expired.');
+    }
+    const meta = await metaResp.json();
+
+    // ── 2. Import CryptoKey from hex ──────────────────────────────────────────
+    const keyBytes  = hexToBuf(keyHex);
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt']
+    );
+
+    // ── 3. Download ciphertext ────────────────────────────────────────────────
+    const dlResp = await fetch(`/api/schedule/download/${fileID}`);
+    if (!dlResp.ok) {
+      const e = await dlResp.json().catch(() => ({}));
+      throw new Error(e.error || 'Download failed.');
+    }
+
+    const reader       = dlResp.body.getReader();
+    const encSize      = parseInt(dlResp.headers.get('Content-Length') || '0', 10);
+    const chunksTotal  = parseInt(dlResp.headers.get('X-Chunks-Total') || '0', 10);
+    const fnEnc        = dlResp.headers.get('X-Filename-Enc')   || '';
+    const fnNonce      = dlResp.headers.get('X-Filename-Nonce') || '';
+    const encChunkSize = SCHED_NONCE_SIZE + meta.chunk_size + SCHED_TAG_SIZE;
+
+    // Read full ciphertext into buffer (streaming decrypt per chunk below).
+    const cipherBuf = new Uint8Array(encSize);
+    let received = 0;
+    const startTime = Date.now();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      cipherBuf.set(value, received);
+      received += value.length;
+      const speed = received / ((Date.now() - startTime) / 1000);
+      schedUpdateDLProgress(received / encSize, speed, received, encSize);
+    }
+
+    // ── 4. Decrypt filename ───────────────────────────────────────────────────
+    let fileName = 'download';
+    if (fnEnc && fnNonce) {
+      try {
+        const fnDec = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: hexToBuf(fnNonce) }, cryptoKey, hexToBuf(fnEnc)
+        );
+        fileName = new TextDecoder().decode(fnDec);
+      } catch { /* fallback to 'download' */ }
+    }
+
+    // ── 5. Decrypt chunks ─────────────────────────────────────────────────────
+    const plainParts = [];
+    for (let i = 0; i < chunksTotal; i++) {
+      const start = i * encChunkSize;
+      const end   = Math.min(start + encChunkSize, cipherBuf.length);
+      const chunk = cipherBuf.slice(start, end);
+
+      const nonce  = chunk.slice(0, SCHED_NONCE_SIZE);
+      const cipher = chunk.slice(SCHED_NONCE_SIZE);
+
+      const plain = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: nonce, tagLength: 128 }, cryptoKey, cipher
+      );
+      plainParts.push(new Uint8Array(plain));
+    }
+
+    // ── 6. Reassemble and trigger download ────────────────────────────────────
+    const totalPlain = plainParts.reduce((s, p) => s + p.length, 0);
+    const plainBuf   = new Uint8Array(totalPlain);
+    let off = 0;
+    for (const p of plainParts) { plainBuf.set(p, off); off += p.length; }
+
+    const blob = new Blob([plainBuf]);
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+
+    schedUpdateDLProgress(1, 0, encSize, encSize);
+
+  } catch (err) {
+    errEl.textContent = err.message || (t('status_error') || 'Download error.');
+  } finally {
+    if (dlBtn) { dlBtn.disabled = false; dlBtn.textContent = t('schedule_download_btn') || 'Download & Decrypt'; }
+  }
+}
+
+// ── Auto-download from URL params (?type=schedule&id=X#key=Y&dl=1) ────────────
+function schedHandleURLParams() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('type') !== 'schedule') return;
+
+  const fileID = params.get('id');
+  const action = params.get('action');
+  const dk     = params.get('dk');
+  const dl     = params.get('dl') === '1';
+  const keyHex = location.hash.startsWith('#key=') ? location.hash.slice(5) : '';
+
+  // Clean URL.
+  history.replaceState({}, '', location.origin + location.pathname);
+
+  if (!fileID) return;
+
+  // Delete action.
+  if (action === 'delete' && dk) {
+    schedHandleDeleteURL(fileID, dk);
+    return;
+  }
+
+  // Activate schedule tab.
+  document.getElementById('tab-schedule')?.click();
+
+  if (keyHex) {
+    const shareURL = `${location.origin}${location.pathname}?type=schedule&id=${fileID}#key=${keyHex}`;
+    const inp = document.getElementById('schedule-join-url');
+    if (inp) inp.value = shareURL;
+    schedSetState('join');
+    if (dl) {
+      setTimeout(schedStartDownload, 200);
+    }
+  }
+}
+
+function schedHandleDeleteURL(fileID, dk) {
+  fetch(`/api/schedule/delete/${fileID}/${dk}`, { method: 'DELETE' })
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('tab-schedule')?.click();
+      schedSetState('landing');
+      // Show a brief system notice in the landing area.
+      const msg = d.deleted
+        ? (t('schedule_deleted') || 'File deleted successfully.')
+        : (t('schedule_delete_failed') || 'Could not delete file.');
+      const el = document.getElementById('schedule-landing');
+      if (el) {
+        const note = document.createElement('p');
+        note.className = 'status';
+        note.textContent = msg;
+        el.prepend(note);
+        setTimeout(() => note.remove(), 5000);
+      }
+    })
+    .catch(() => {});
+}
+
+function schedAutoFillFromURL() {
+  const raw = document.getElementById('schedule-join-url')?.value.trim();
+  if (!raw) return;
+  try {
+    schedParseShareURL(raw); // validates format
+    document.getElementById('schedule-join-error').textContent = '';
+  } catch { /* ignore — user still typing */ }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function schedParseShareURL(raw) {
+  // Accept full URL or just "id=X#key=Y" fragment.
+  let urlStr = raw;
+  if (!raw.startsWith('http')) urlStr = location.origin + '/' + raw;
+
+  // Extract fragment before URL constructor strips it.
+  const hashIdx = urlStr.indexOf('#');
+  const keyHex  = hashIdx !== -1 && urlStr.slice(hashIdx + 1).startsWith('key=')
+    ? urlStr.slice(hashIdx + 5)
+    : '';
+
+  const url    = new URL(hashIdx !== -1 ? urlStr.slice(0, hashIdx) : urlStr);
+  const fileID = url.searchParams.get('id');
+
+  if (!fileID) throw new Error(t('schedule_invalid_url') || 'Invalid share URL — missing file ID.');
+  if (!keyHex) throw new Error(t('schedule_invalid_url_key') || 'Invalid share URL — missing decryption key.');
+  if (!/^[0-9a-f]+$/i.test(keyHex)) throw new Error(t('schedule_invalid_key') || 'Invalid decryption key format.');
+
+  return { fileID, keyHex };
+}
+
+async function schedZipFiles(files) {
+  // Minimal ZIP builder — stores files without compression.
+  // Uses the File System Access API naming if available, else flat names.
+  const entries = [];
+  for (const f of files) {
+    const name  = f.webkitRelativePath || f.name;
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    entries.push({ name, bytes });
+  }
+
+  // Build a ZIP with stored (no compression) entries.
+  const parts = [];
+  const cds   = []; // central directory entries
+  let offset  = 0;
+
+  for (const { name, bytes } of entries) {
+    const nameBytes = new TextEncoder().encode(name);
+    const crc       = crc32(bytes);
+    const lf        = buildLocalFileHeader(nameBytes, bytes.length, crc);
+    parts.push(lf, bytes);
+    cds.push(buildCentralDirEntry(nameBytes, bytes.length, crc, offset));
+    offset += lf.length + bytes.length;
+  }
+
+  const cdBuf  = concat(cds);
+  const eocd   = buildEOCD(entries.length, cdBuf.length, offset);
+  const zip    = concat([...parts, cdBuf, eocd]);
+  const baseName = files[0].webkitRelativePath
+    ? files[0].webkitRelativePath.split('/')[0]
+    : files[0].name.replace(/\.[^.]+$/, '');
+  return { bytes: zip, name: baseName + '.zip' };
+}
+
+// Minimal ZIP helpers (STORE, no compression).
+function buildLocalFileHeader(nameBytes, size, crc) {
+  const buf = new ArrayBuffer(30 + nameBytes.length);
+  const v   = new DataView(buf);
+  v.setUint32(0,  0x504b0304, false); // signature
+  v.setUint16(4,  20, true);          // version needed
+  v.setUint16(6,  0,  true);          // flags
+  v.setUint16(8,  0,  true);          // compression: STORE
+  v.setUint16(10, 0,  true);          // mod time
+  v.setUint16(12, 0,  true);          // mod date
+  v.setUint32(14, crc,  true);        // CRC-32
+  v.setUint32(18, size, true);        // compressed size
+  v.setUint32(22, size, true);        // uncompressed size
+  v.setUint16(26, nameBytes.length, true);
+  v.setUint16(28, 0, true);           // extra field length
+  new Uint8Array(buf).set(nameBytes, 30);
+  return new Uint8Array(buf);
+}
+
+function buildCentralDirEntry(nameBytes, size, crc, offset) {
+  const buf = new ArrayBuffer(46 + nameBytes.length);
+  const v   = new DataView(buf);
+  v.setUint32(0,  0x504b0102, false); // signature
+  v.setUint16(4,  20, true);          // version made by
+  v.setUint16(6,  20, true);          // version needed
+  v.setUint16(8,  0,  true);          // flags
+  v.setUint16(10, 0,  true);          // compression: STORE
+  v.setUint16(12, 0,  true);          // mod time
+  v.setUint16(14, 0,  true);          // mod date
+  v.setUint32(16, crc,  true);
+  v.setUint32(20, size, true);
+  v.setUint32(24, size, true);
+  v.setUint16(28, nameBytes.length, true);
+  v.setUint16(30, 0, true); // extra
+  v.setUint16(32, 0, true); // comment
+  v.setUint16(34, 0, true); // disk start
+  v.setUint16(36, 0, true); // internal attr
+  v.setUint32(38, 0, true); // external attr
+  v.setUint32(42, offset, true);
+  new Uint8Array(buf).set(nameBytes, 46);
+  return new Uint8Array(buf);
+}
+
+function buildEOCD(count, cdSize, cdOffset) {
+  const buf = new ArrayBuffer(22);
+  const v   = new DataView(buf);
+  v.setUint32(0, 0x504b0506, false);
+  v.setUint16(4, 0, true);
+  v.setUint16(6, 0, true);
+  v.setUint16(8, count, true);
+  v.setUint16(10, count, true);
+  v.setUint32(12, cdSize,   true);
+  v.setUint32(16, cdOffset, true);
+  v.setUint16(20, 0, true);
+  return new Uint8Array(buf);
+}
+
+function crc32(data) {
+  let crc = 0xFFFFFFFF;
+  for (const b of data) {
+    crc ^= b;
+    for (let k = 0; k < 8; k++) {
+      crc = (crc & 1) ? (crc >>> 1) ^ 0xEDB88320 : crc >>> 1;
+    }
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+function concat(arrays) {
+  const len = arrays.reduce((s, a) => s + a.length, 0);
+  const out = new Uint8Array(len);
+  let off = 0;
+  for (const a of arrays) { out.set(a, off); off += a.length; }
+  return out;
+}
+
+function bufToHex(buf) {
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function hexToBuf(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.slice(i*2, i*2+2), 16);
+  return bytes;
+}
+
+function schedFetch(url, opts) {
+  return fetch(url, opts);
+}
+
+function schedToggleDropdown() {
+  const wrap = document.getElementById('schedule-ttl-wrap');
+  const btn  = document.getElementById('schedule-ttl-btn');
+  const list = document.getElementById('schedule-ttl-list');
+  if (!wrap) return;
+  const open = wrap.classList.toggle('open');
+  btn?.setAttribute('aria-expanded', String(open));
+  if (open) list?.querySelector('.selected')?.scrollIntoView({ block: 'nearest' });
+}
+
+function schedCloseDropdown() {
+  const wrap = document.getElementById('schedule-ttl-wrap');
+  const btn  = document.getElementById('schedule-ttl-btn');
+  wrap?.classList.remove('open');
+  btn?.setAttribute('aria-expanded', 'false');
+}
+
+function schedCopyField(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.select();
+  navigator.clipboard?.writeText(el.value).catch(() => document.execCommand('copy'));
+  el.blur();
+}
+
+function schedToggleQR() {
+  const container = document.getElementById('schedule-qr-container');
+  const btn       = document.getElementById('schedule-qr-toggle');
+  if (!container) return;
+  const hidden = container.classList.toggle('hidden');
+  if (btn) btn.textContent = hidden ? (t('share_show_qr') || 'Show QR') : (t('share_hide_qr') || 'Hide QR');
+  if (!hidden && container.children.length === 0) {
+    const url = document.getElementById('schedule-share-url')?.value;
+    if (url && typeof QRCode !== 'undefined') {
+      new QRCode(container, { text: url, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+    }
+  }
+}
+
+function schedUpdateProgressBar(pct, speed, eta, done, total) {
+  const fill = document.getElementById('schedule-progress-fill');
+  if (fill) fill.style.width = Math.round(pct * 100) + '%';
+  const pctEl = document.getElementById('schedule-progress-pct');
+  if (pctEl) pctEl.textContent = Math.round(pct * 100) + '%';
+  const speedEl = document.getElementById('schedule-progress-speed');
+  if (speedEl && speed !== null) speedEl.textContent = formatBytes(speed) + '/s';
+  const etaEl = document.getElementById('schedule-progress-eta');
+  if (etaEl && eta !== null) etaEl.textContent = eta > 0 ? 'ETA ' + formatETA(eta) : '';
+  const bytesEl = document.getElementById('schedule-progress-bytes');
+  if (bytesEl && done !== null) bytesEl.textContent = formatBytes(done) + ' / ' + formatBytes(total);
+}
+
+function schedUpdateDLProgress(pct, speed, done, total) {
+  const fill = document.getElementById('schedule-dl-progress-fill');
+  if (fill) fill.style.width = Math.round(pct * 100) + '%';
+  const pctEl = document.getElementById('schedule-dl-progress-pct');
+  if (pctEl) pctEl.textContent = Math.round(pct * 100) + '%';
+  const speedEl = document.getElementById('schedule-dl-progress-speed');
+  if (speedEl && speed > 0) speedEl.textContent = formatBytes(speed) + '/s';
+  const bytesEl = document.getElementById('schedule-dl-progress-bytes');
+  if (bytesEl) bytesEl.textContent = formatBytes(done) + ' / ' + formatBytes(total);
+}
+
+function formatBytes(n) {
+  if (n >= 1<<30) return (n/(1<<30)).toFixed(1) + ' GB';
+  if (n >= 1<<20) return (n/(1<<20)).toFixed(1) + ' MB';
+  if (n >= 1<<10) return (n/(1<<10)).toFixed(1) + ' KB';
+  return n + ' B';
+}
+
+function formatETA(secs) {
+  if (secs >= 3600) return Math.round(secs/3600) + 'h';
+  if (secs >= 60)   return Math.round(secs/60)   + 'm';
+  return Math.round(secs) + 's';
+}
+
+// ── Expose boot hook for main app.js ─────────────────────────────────────────
+window.schedInit          = schedInit;
+window.schedHandleURLParams = schedHandleURLParams;
+
+}()); // end IIFE
