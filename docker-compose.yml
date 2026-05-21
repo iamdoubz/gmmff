@@ -29,6 +29,9 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    # If using Schedule, uncomment volumes
+    #volumes:
+    #  - gmmff_data:${GMMFF_SCHEDULE_DIR}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
       interval: 10s
@@ -38,3 +41,4 @@ services:
 
 volumes:
   redis_data:
+  gmmff_data:
