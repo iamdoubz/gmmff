@@ -113,11 +113,6 @@ func (s *Server) routes() {
 	r.Get("/metrics", s.handleMetrics)
 	r.Get("/config.json", s.handleUIConfig)
 
-	// Schedule feature — mounted only when enabled.
-	if s.scheduleHandler != nil {
-		s.scheduleHandler.Mount(r)
-	}
-
 	if s.staticFS != nil {
 		// Serve from embedded fs.FS (local mode).
 		r.Get("/*", http.FileServer(http.FS(s.staticFS)).ServeHTTP)
@@ -288,9 +283,8 @@ func (s *Server) handleUIConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 // SetScheduleHandler attaches the schedule feature handler.
-// Must be called before any requests are served.
+// Must be called before the HTTP server starts accepting requests.
 func (s *Server) SetScheduleHandler(h interface{ Mount(chi.Router) }) {
 	s.scheduleHandler = h
-	// Re-register routes so the schedule endpoints are included.
-	s.routes()
+	h.Mount(s.router)
 }
