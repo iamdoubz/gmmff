@@ -45,6 +45,44 @@ Open the **Chat** tab, click **Start session** to get a code, or click
 session (initiator) or leave quietly (responder). The **End session** button
 always leaves quietly.
 
+### Schedule tab
+
+The **Schedule** tab is hidden by default and must be enabled by the server
+operator (`GMMFF_SHOW_SCHEDULE=true`). It allows asynchronous encrypted file
+delivery — no simultaneous connection between sender and recipient required.
+
+**Uploading (Create)**
+
+1. Click **Schedule** → **Create**
+2. If the server requires an upload password, enter it when prompted
+3. Choose a file or folder — multiple files are zipped automatically in the browser before encryption
+4. Select how long the link should remain valid from the **Valid for** dropdown
+5. Optionally set a **Max downloads** limit (default: 1, set by server; 0 = unlimited)
+6. Click **Upload** — the file is encrypted with AES-256-GCM in your browser before a single byte is sent to the server
+7. Once complete you receive:
+   - **Share URL** — includes the decryption key in the `#key=` fragment; share this with the recipient
+   - **QR code** — scannable version of the share URL
+   - **Delete link** — only you have this; use it to remove the file before it expires
+   - **Expiry date** — when the file will be automatically deleted
+
+The server never sees plaintext. The decryption key lives only in the URL
+fragment which browsers never transmit to the server.
+
+**Downloading (Join)**
+
+1. Click **Schedule** → **Join**
+2. Paste the full share URL (including the `#key=` part)
+3. Click **Download & Decrypt** — the file is fetched and decrypted entirely in the browser
+4. The original file downloads automatically once decryption is complete
+
+If the share URL contains `&dl=1`, the download starts automatically when the
+page loads — useful for links shared via email or messaging apps.
+
+**Deleting an upload**
+
+Open the delete URL shown on the success screen. The file is removed immediately.
+You can also use the CLI: `gmmff schedule delete "<delete-url>"`
+
 ## Screenshots
 
 <p align="center">
