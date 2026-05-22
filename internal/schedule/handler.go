@@ -33,6 +33,7 @@ func NewHandler(cfg *Config) (*Handler, error) {
 func (h *Handler) Mount(r chi.Router) {
 	r.Route("/api/schedule", func(r chi.Router) {
 		r.Post("/auth",            h.handleAuth)
+		r.Post("/probe",           h.handleProbe)
 		r.Post("/upload/init",     h.handleUploadInit)
 		r.Post("/upload/chunk",    h.handleUploadChunk)
 		r.Post("/upload/complete", h.handleUploadComplete)
@@ -50,6 +51,25 @@ func (h *Handler) Mount(r chi.Router) {
 type authResponse struct {
 	Allowed      bool `json:"allowed"`       // IP is in upload allowlist
 	NeedsPassword bool `json:"needs_password"` // password required to proceed
+}
+
+// handleProbe accepts an upload of arbitrary size, discards it immediately,
+// and returns the server-side receipt time in milliseconds.  The client uses
+// two probe sizes (1 MB and 512 KB) to estimate upload bandwidth before
+// choosing a chunk size for the actual upload.  No data is written to disk.
+func (h *Handler) handleProbe(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
+	// Drain the body (up to 2 MiB — largest probe size).
+	maxRead := int64(2 * 1024 * 1024)
+	n, _ := io.Copy(io.Discard, io.LimitReader(r.Body, maxRead))
+
+	elapsed := time.Since(start).Milliseconds()
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"bytes":      n,
+		"elapsed_ms": elapsed,
+	})
 }
 
 // handleAuth returns the caller's upload auth status.
