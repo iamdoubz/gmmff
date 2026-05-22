@@ -2073,8 +2073,12 @@ async function schedProbeSpeed(signal) {
   let totalWeights = 0;
 
   for (const { size, weight } of probes) {
-    // Fill with random bytes — realistic encrypted data, prevents compression.
-    const data  = crypto.getRandomValues(new Uint8Array(size));
+    // crypto.getRandomValues is limited to 65536 bytes per call — fill in 64 KB batches.
+    const data  = new Uint8Array(size);
+    const batch = 65536;
+    for (let off = 0; off < size; off += batch) {
+      crypto.getRandomValues(data.subarray(off, Math.min(off + batch, size)));
+    }
     const start = performance.now();
 
     const resp = await fetch('/api/schedule/probe', {
