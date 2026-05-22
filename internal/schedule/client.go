@@ -368,14 +368,14 @@ func (c *Client) Download(ctx context.Context, fileID, keyHex string, meta *Publ
 	// Use server-authoritative chunk size from response headers.
 	chunkSize := meta.ChunkSize
 	if h := resp.Header.Get("X-Chunk-Size"); h != "" {
-		if n := 0; fmt.Sscanf(h, "%d", &n) == 1 && n > 0 {
-			chunkSize = n
+		if n, err := fmt.Sscanf(h, "%d", &chunkSize); n != 1 || err != nil {
+			chunkSize = meta.ChunkSize
 		}
 	}
 	chunksTotal := meta.ChunksTotal
 	if h := resp.Header.Get("X-Chunks-Total"); h != "" {
-		if n := 0; fmt.Sscanf(h, "%d", &n) == 1 && n > 0 {
-			chunksTotal = n
+		if n, err := fmt.Sscanf(h, "%d", &chunksTotal); n != 1 || err != nil {
+			chunksTotal = meta.ChunksTotal
 		}
 	}
 	fnEncHex   := resp.Header.Get("X-Filename-Enc")
