@@ -986,6 +986,123 @@
     .theme-toggle:hover { color: var(--color-text); background: var(--color-surface-raised); }
     .theme-toggle:focus-visible { outline: 2px solid var(--color-border-focus); }
     .theme-toggle svg { width: 16px; height: 16px; display: block; }
+	/* Show fun moon */
+	.theme-toggle {
+	  display: inline-flex;
+	  align-items: center;
+	  justify-content: center;
+	  width: 44px;
+	  height: 44px;
+	  border: none;
+	  background: transparent;
+	  color: #e5e7eb;
+	  cursor: pointer;
+	  border-radius: 9999px;
+	  transition: background-color 0.3s ease, transform 0.2s ease;
+	}
+
+	.theme-toggle:hover {
+	  background-color: rgba(255, 255, 255, 0.08);
+	}
+
+	.icon-moon,
+	.icon-sun {
+	  width: 24px;
+	  height: 24px;
+	}
+
+	.icon-moon .moon-path {
+	  fill: transparent;
+	  stroke: currentColor;
+	  stroke-width: 2;
+	  stroke-linecap: round;
+	  stroke-linejoin: round;
+	  transform-origin: center;
+	  transition:
+		fill 0.45s ease,
+		stroke 0.35s ease,
+		transform 0.35s ease,
+		opacity 0.35s ease,
+		filter 0.45s ease;
+	}
+
+	/* Hover on the whole button */
+	.theme-toggle:hover .icon-moon .moon-path {
+	  fill: url(#moonFillGradient);
+	  stroke: #ffd76a;
+	  filter: url(#moonGlow);
+	  transform: scale(1.08);
+	}
+
+	/* Optional: tiny "breathing" shimmer while hovered */
+	.theme-toggle:hover .icon-moon {
+	  animation: moonPulse 1.8s ease-in-out infinite;
+	}
+
+	@keyframes moonPulse {
+	  0%, 100% {
+		transform: scale(1);
+	  }
+	  50% {
+		transform: scale(1.04);
+	  }
+	}
+
+	/* Show fun sun */
+	.icon-sun .sun-core,
+	.icon-sun .sun-ray {
+	  stroke: currentColor;
+	  stroke-width: 2;
+	  stroke-linecap: round;
+	  stroke-linejoin: round;
+	  transform-origin: center;
+	  transition:
+		fill 0.4s ease,
+		stroke 0.35s ease,
+		transform 0.35s ease,
+		filter 0.4s ease,
+		opacity 0.35s ease;
+	}
+
+	.icon-sun .sun-core {
+	  fill: transparent;
+	}
+
+	.theme-toggle:hover .icon-sun .sun-core {
+	  fill: #ffd34d;
+	  stroke: #ffb300;
+	  filter:
+		drop-shadow(0 0 4px rgba(255, 211, 77, 0.95))
+		drop-shadow(0 0 10px rgba(255, 179, 0, 0.65))
+		drop-shadow(0 0 16px rgba(255, 140, 0, 0.35));
+	  transform: scale(1.06);
+	}
+
+	.theme-toggle:hover .icon-sun .sun-ray {
+	  stroke: #ffbf2f;
+	  filter:
+		drop-shadow(0 0 3px rgba(255, 211, 77, 0.85))
+		drop-shadow(0 0 8px rgba(255, 166, 0, 0.45));
+	}
+
+	.theme-toggle:hover .icon-sun {
+	  animation: sunWiggle 1.6s ease-in-out infinite;
+	}
+
+	@keyframes sunWiggle {
+	  0%, 100% {
+		transform: rotate(0deg) scale(1);
+	  }
+	  25% {
+		transform: rotate(4deg) scale(1.03);
+	  }
+	  50% {
+		transform: rotate(0deg) scale(1.05);
+	  }
+	  75% {
+		transform: rotate(-4deg) scale(1.03);
+	  }
+	}
     /* Show the correct icon for each mode */
     .theme-toggle .icon-moon { display: block; }
     .theme-toggle .icon-sun  { display: none; }
