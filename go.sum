@@ -1,5 +1,5 @@
-filippo.io/cpace v0.0.0-20200503185815-340c58da85ed h1:+6tV4gCvAW6BbCHa+yrkoo4xlwIb37KKvyBWCFLAHeg=
-filippo.io/cpace v0.0.0-20200503185815-340c58da85ed/go.mod h1:b8UFwXF0HGYD8OWBGJEPwu3IMDHqTpzCtGFtY2xRwTU=
+filippo.io/cpace v0.0.0-20210101143347-24d601e2e469 h1:+gAICE3DIgwMKUzUuVCjd5R4ws+HFL19bKegPYkcgmQ=
+filippo.io/cpace v0.0.0-20210101143347-24d601e2e469/go.mod h1:b8UFwXF0HGYD8OWBGJEPwu3IMDHqTpzCtGFtY2xRwTU=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
 github.com/bsm/ginkgo/v2 v2.12.0/go.mod h1:SwYbGRRDovPVboqFv0tPTcG1sN61LM1Z4ARdbAV9g4c=
 github.com/bsm/gomega v1.27.10 h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=
