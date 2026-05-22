@@ -149,12 +149,14 @@ func (h *Handler) handleUploadInit(w http.ResponseWriter, r *http.Request) {
 
 	// Use client-supplied chunk size, clamped to valid range.
 	// Falls back to the server default (ChunkSize constant) if not provided.
+	// Maximum is 2 MiB — the top tier of the client's adaptive chunk size table.
+	const maxChunkSize = 2 * 1024 * 1024 // 2 MiB
 	cs := req.ChunkSize
 	if cs <= 0 {
 		cs = ChunkSize
 	}
-	if cs > ChunkSize {
-		cs = ChunkSize // never exceed the server maximum
+	if cs > maxChunkSize {
+		cs = maxChunkSize
 	}
 
 	// Calculate expected chunk count using the negotiated chunk size.
