@@ -383,7 +383,7 @@
           <button class="btn-ghost" id="schedule-folder-btn" data-i18n="send_choose_folder">Choose folder</button>
           <span id="schedule-file-name" class="file-name" data-i18n="send_no_file">No file chosen</span>
         </div>
-        <input type="file"   id="schedule-file-input"   class="hidden" aria-hidden="true">
+        <input type="file"   id="schedule-file-input"   class="hidden" aria-hidden="true" multiple>
         <input type="file"   id="schedule-folder-input" class="hidden" aria-hidden="true" webkitdirectory>
       </div>
 
@@ -406,6 +406,7 @@
           <span class="field-hint" data-i18n="schedule_max_dl_hint">(0 = unlimited)</span>
         </div>
         <input type="number" id="schedule-max-dl" min="0" value="1" class="input-sm">
+        <p class="field-hint hidden" id="schedule-max-dl-warning" role="alert"></p>
       </div>
 
       <p class="status" id="schedule-create-error" role="alert"></p>
