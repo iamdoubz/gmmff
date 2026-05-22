@@ -228,54 +228,116 @@ function applyUIConfig(cfg, allLangs) {
 }
 
 // ── Theme ──────────────────────────────────────────────────────────────────
+
+// COLOR_KEYS is the ordered list of color token names.
+// These are the only keys that differ between dark and light modes.
+const COLOR_KEYS = [
+  'color_bg', 'color_surface', 'color_surface_raised',
+  'color_border', 'color_border_focus',
+  'color_text', 'color_text_muted', 'color_text_inverse',
+  'color_accent', 'color_accent_hover', 'color_accent_active',
+  'color_success', 'color_warning', 'color_error',
+  'color_progress_track', 'color_progress_fill',
+  'shadow_card', 'shadow_focus',
+];
+
+// CSS custom property name for each token key.
+const TOKEN_MAP = {
+  font_family:          '--font-family',
+  font_size_base:       '--font-size-base',
+  font_size_sm:         '--font-size-sm',
+  font_size_lg:         '--font-size-lg',
+  font_size_xl:         '--font-size-xl',
+  font_weight_normal:   '--font-weight-normal',
+  font_weight_medium:   '--font-weight-medium',
+  font_weight_bold:     '--font-weight-bold',
+  line_height:          '--line-height',
+  color_bg:             '--color-bg',
+  color_surface:        '--color-surface',
+  color_surface_raised: '--color-surface-raised',
+  color_border:         '--color-border',
+  color_border_focus:   '--color-border-focus',
+  color_text:           '--color-text',
+  color_text_muted:     '--color-text-muted',
+  color_text_inverse:   '--color-text-inverse',
+  color_accent:         '--color-accent',
+  color_accent_hover:   '--color-accent-hover',
+  color_accent_active:  '--color-accent-active',
+  color_success:        '--color-success',
+  color_warning:        '--color-warning',
+  color_error:          '--color-error',
+  color_progress_track: '--color-progress-track',
+  color_progress_fill:  '--color-progress-fill',
+  radius_sm:   '--radius-sm',
+  radius_md:   '--radius-md',
+  radius_lg:   '--radius-lg',
+  radius_pill: '--radius-pill',
+  spacing_xs:  '--spacing-xs',
+  spacing_sm:  '--spacing-sm',
+  spacing_md:  '--spacing-md',
+  spacing_lg:  '--spacing-lg',
+  spacing_xl:  '--spacing-xl',
+  shadow_card:  '--shadow-card',
+  shadow_focus: '--shadow-focus',
+  transition:   '--transition',
+  max_width:    '--max-width',
+};
+
+// The loaded theme object — kept in module scope so initThemeToggle can
+// call applyColorTokens when the mode changes.
+let _loadedTheme = null;
+
 function applyTheme(theme) {
-  const map = {
-    font_family:        '--font-family',
-    font_size_base:     '--font-size-base',
-    font_size_sm:       '--font-size-sm',
-    font_size_lg:       '--font-size-lg',
-    font_size_xl:       '--font-size-xl',
-    font_weight_normal: '--font-weight-normal',
-    font_weight_medium: '--font-weight-medium',
-    font_weight_bold:   '--font-weight-bold',
-    line_height:        '--line-height',
-    color_bg:             '--color-bg',
-    color_surface:        '--color-surface',
-    color_surface_raised: '--color-surface-raised',
-    color_border:         '--color-border',
-    color_border_focus:   '--color-border-focus',
-    color_text:           '--color-text',
-    color_text_muted:     '--color-text-muted',
-    color_text_inverse:   '--color-text-inverse',
-    color_accent:         '--color-accent',
-    color_accent_hover:   '--color-accent-hover',
-    color_accent_active:  '--color-accent-active',
-    color_success:        '--color-success',
-    color_warning:        '--color-warning',
-    color_error:          '--color-error',
-    color_progress_track: '--color-progress-track',
-    color_progress_fill:  '--color-progress-fill',
-    radius_sm:   '--radius-sm',
-    radius_md:   '--radius-md',
-    radius_lg:   '--radius-lg',
-    radius_pill: '--radius-pill',
-    spacing_xs: '--spacing-xs',
-    spacing_sm: '--spacing-sm',
-    spacing_md: '--spacing-md',
-    spacing_lg: '--spacing-lg',
-    spacing_xl: '--spacing-xl',
-    shadow_card:  '--shadow-card',
-    shadow_focus: '--shadow-focus',
-    transition: '--transition',
-    max_width:  '--max-width',
-  };
+  _loadedTheme = theme;
   const root = document.documentElement;
-  for (const [key, prop] of Object.entries(map)) {
-    if (theme[key] !== undefined) root.style.setProperty(prop, theme[key]);
+
+  // ── Phase 1: structural tokens (never change between light/dark) ──────────
+  // Written as inline styles — highest specificity, apply once on boot.
+  const STRUCTURAL = new Set([
+    'font_family', 'font_size_base', 'font_size_sm', 'font_size_lg',
+    'font_size_xl', 'font_weight_normal', 'font_weight_medium', 'font_weight_bold',
+    'line_height', 'radius_sm', 'radius_md', 'radius_lg', 'radius_pill',
+    'spacing_xs', 'spacing_sm', 'spacing_md', 'spacing_lg', 'spacing_xl',
+    'transition', 'max_width',
+  ]);
+  for (const [key, prop] of Object.entries(TOKEN_MAP)) {
+    if (STRUCTURAL.has(key) && theme[key] !== undefined) {
+      root.style.setProperty(prop, theme[key]);
+    }
   }
-  // Update theme-color meta to match bg
+
+  // ── Phase 2: color tokens (change with mode) ──────────────────────────────
+  const mode = root.getAttribute('data-theme') || 'dark';
+  applyColorTokens(theme, mode);
+}
+
+// applyColorTokens resolves the correct color values for the given mode
+// and writes them as inline styles on :root.
+//
+// Resolution order for each color token:
+//   1. theme[mode][key]   — e.g. theme.dark.color_bg   (mode-specific override)
+//   2. theme[key]          — flat top-level value (backwards-compat / fallback)
+//   3. (leave unset — CSS :root variables serve as the ultimate fallback)
+function applyColorTokens(theme, mode) {
+  if (!theme) return;
+  const root    = document.documentElement;
+  const palette = theme[mode] || {}; // theme.dark or theme.light, may be empty
+
+  for (const key of COLOR_KEYS) {
+    const prop = TOKEN_MAP[key];
+    if (!prop) continue;
+    const val = palette[key] ?? theme[key];
+    if (val !== undefined) {
+      root.style.setProperty(prop, val);
+    }
+  }
+
+  // Update theme-color meta for mobile browser chrome.
   const tm = document.querySelector('meta[name="theme-color"]');
-  if (tm && theme.color_bg) tm.content = theme.color_bg;
+  if (tm) {
+    const bg = (palette.color_bg ?? theme.color_bg);
+    if (bg) tm.content = bg;
+  }
 }
 
 // ── Language detection & switching ─────────────────────────────────────────
@@ -413,11 +475,8 @@ function initThemeToggle() {
   function setTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('gmmff-theme', theme);
-    // Update theme-color meta for mobile browser chrome.
-    const tm = document.querySelector('meta[name="theme-color"]');
-    if (tm) {
-      tm.content = theme === 'light' ? '#f5f5f5' : '#0f0f0f';
-    }
+    // Re-apply color tokens from the loaded theme for the new mode.
+    applyColorTokens(_loadedTheme, theme);
   }
 
   btn.addEventListener('click', () => {
