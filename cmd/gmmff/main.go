@@ -132,6 +132,15 @@ func runServe(_ *cobra.Command, _ []string) error {
 	// ── Logging ──────────────────────────────────────────────────────────────
 	applog.Init(serveCfg.logPretty, serveCfg.logLevel)
 	l := applog.Component("main")
+
+	// ── Env validation ────────────────────────────────────────────────────────
+	for _, w := range broker.ValidateEnv() {
+		l().Warn().
+			Str("env_var", w.Key).
+			Str("value", w.Value).
+			Str("reason", w.Message).
+			Msg("invalid environment variable — using default")
+	}
 	l().Info().
 		Str("version", version).
 		Str("commit", commit).
