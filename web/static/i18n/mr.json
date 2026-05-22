@@ -136,5 +136,6 @@
   "schedule_deleted": "File deleted successfully.",
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "यासाठी वैध",
-  "schedule_estimating": "अंदाज करतोय…"
+  "schedule_estimating": "अंदाज करतोय…",
+  "schedule_max_dl_capped": "सर्व्हरची मर्यादा ओलांडली — मर्यादित होईल"
 }

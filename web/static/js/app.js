@@ -1276,6 +1276,21 @@ let schedPassword   = '';        // entered upload password (if required)
 let schedCryptoKey  = null;      // CryptoKey for current upload/download
 let schedUploadCtrl = null;      // AbortController for in-progress upload
 let schedTTLOptions = [];        // [{label, seconds}] from /api/schedule/ttl-options
+let schedMaxDownloadsCap = 0;    // server cap; 0 = unlimited
+
+// Show/clear the max-downloads warning based on the server cap.
+function schedCheckMaxDl() {
+  const el      = document.getElementById('schedule-max-dl');
+  const warning = document.getElementById('schedule-max-dl-warning');
+  if (!el || !warning || schedMaxDownloadsCap === 0) return;
+  const val = parseInt(el.value, 10);
+  if (!isNaN(val) && val > 0 && val > schedMaxDownloadsCap) {
+    warning.textContent = (t('schedule_max_dl_capped') || 'Exceeds server limit — will be capped at') + ' ' + schedMaxDownloadsCap + '.';
+    warning.classList.remove('hidden');
+  } else {
+    warning.classList.add('hidden');
+  }
+}
 
 // ── Boot: show/hide tab based on config ───────────────────────────────────────
 function schedInit(cfg) {
@@ -1287,10 +1302,14 @@ function schedInit(cfg) {
   // Load TTL options.
   fetch('/api/schedule/ttl-options')
     .then(r => r.json())
-    .then(opts => {
+    .then(resp => {
+      // Response is now { options: [...], max_downloads_cap: N }.
+      // Accept both the old array shape and the new object shape for safety.
+      const opts = Array.isArray(resp) ? resp : (resp.options || []);
+      schedMaxDownloadsCap = Array.isArray(resp) ? 0 : (resp.max_downloads_cap ?? 0);
       schedTTLOptions = opts;
-      const list    = document.getElementById('schedule-ttl-list');
-      const hidden  = document.getElementById('schedule-ttl');
+      const list     = document.getElementById('schedule-ttl-list');
+      const hidden   = document.getElementById('schedule-ttl');
       const btnLabel = document.getElementById('schedule-ttl-label');
       if (!list || !hidden || !btnLabel) return;
 
@@ -1304,7 +1323,7 @@ function schedInit(cfg) {
         li.addEventListener('click', () => {
           list.querySelectorAll('.custom-select__item').forEach(el => el.classList.remove('selected'));
           li.classList.add('selected');
-          hidden.value    = o.seconds;
+          hidden.value         = o.seconds;
           btnLabel.textContent = li.textContent;
           schedCloseDropdown();
           schedUpdateExpiresHint();
@@ -1314,9 +1333,17 @@ function schedInit(cfg) {
 
       // Set initial value.
       if (opts.length > 0) {
-        hidden.value      = opts[0].seconds;
+        hidden.value         = opts[0].seconds;
         btnLabel.textContent = list.querySelector('.custom-select__item')?.textContent || opts[0].label;
         schedUpdateExpiresHint();
+      }
+
+      // Wire up the cap warning now that we know the server limit.
+      if (schedMaxDownloadsCap > 0) {
+        const dlInput = document.getElementById('schedule-max-dl');
+        dlInput?.addEventListener('input', schedCheckMaxDl);
+        // Also check the current value in case it was already out of range.
+        schedCheckMaxDl();
       }
     })
     .catch(() => {});
@@ -1454,13 +1481,17 @@ function schedClickCreate() {
 
 function schedResetCreate() {
   schedSetState('landing');
-  schedCryptoKey = null;
+  schedCryptoKey    = null;
+  schedSelectedFiles = [];
   const fi = document.getElementById('schedule-file-input');
   const fo = document.getElementById('schedule-folder-input');
   if (fi) fi.value = '';
   if (fo) fo.value = '';
   document.getElementById('schedule-file-name').textContent = t('send_no_file') || 'No file chosen';
   document.getElementById('schedule-create-error').textContent = '';
+  // Re-enable the upload button so back-to-back uploads work.
+  const btn = document.getElementById('schedule-upload-btn');
+  if (btn) { btn.disabled = false; btn.textContent = t('schedule_upload_btn') || 'Upload'; }
   schedResetProgress();
 }
 
@@ -1474,11 +1505,19 @@ function schedResetProgress() {
 let schedSelectedFiles = []; // File[]
 
 function schedFileChosen(e) {
-  const files = Array.from(e.target.files || []);
-  if (!files.length) return;
-  schedSelectedFiles = files;
-  const name = files.length === 1 ? files[0].name : `${files.length} ${t('files_count') || 'files'}`;
-  document.getElementById('schedule-file-name').textContent = name;
+  const newFiles = Array.from(e.target.files || []);
+  if (!newFiles.length) return;
+  // Merge with any files already chosen from the other picker,
+  // de-duplicating by name+size so choosing the same file twice is harmless.
+  const existing = new Set(schedSelectedFiles.map(f => f.name + f.size));
+  for (const f of newFiles) {
+    if (!existing.has(f.name + f.size)) schedSelectedFiles.push(f);
+  }
+  const count = schedSelectedFiles.length;
+  const label = count === 1
+    ? schedSelectedFiles[0].name
+    : `${count} ${t('files_count') || 'files'}`;
+  document.getElementById('schedule-file-name').textContent = label;
   document.getElementById('schedule-create-error').textContent = '';
 }
 
@@ -2049,7 +2088,7 @@ function schedFetch(url, opts) {
 // ── Speed probe & adaptive chunk sizing ───────────────────────────────────────
 
 // PROBE_THRESHOLD: files smaller than this skip the probe and use min chunk size.
-const PROBE_THRESHOLD = 2 * 1024 * 1024; // 2 MB
+const PROBE_THRESHOLD = 4 * 1024 * 1024; // 4 MB
 
 // Tier table: [minSpeedBytesPerSec, chunkSizeBytes, label]
 const CHUNK_TIERS = [

@@ -136,5 +136,6 @@
   "schedule_deleted": "File deleted successfully.",
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "درست مدت",
-  "schedule_estimating": "اندازہ ہو رہا ہے…"
+  "schedule_estimating": "اندازہ ہو رہا ہے…",
+  "schedule_max_dl_capped": "سرور کی حد سے تجاوز — زیادہ سے زیادہ ہوگا"
 }

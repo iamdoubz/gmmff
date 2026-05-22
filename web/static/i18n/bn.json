@@ -136,5 +136,6 @@
   "schedule_deleted": "File deleted successfully.",
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "বৈধতার সময়",
-  "schedule_estimating": "অনুমান হচ্ছে…"
+  "schedule_estimating": "অনুমান হচ্ছে…",
+  "schedule_max_dl_capped": "সার্ভারের সীমা অতিক্রম করেছে — সর্বোচ্চ হবে"
 }

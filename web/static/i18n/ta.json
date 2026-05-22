@@ -136,5 +136,6 @@
   "schedule_deleted": "File deleted successfully.",
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "செல்லுபடியாகும் கால அளவு",
-  "schedule_estimating": "மதிப்பிடுகिறது…"
+  "schedule_estimating": "மதிப்பிடுகिறது…",
+  "schedule_max_dl_capped": "சேவையக வரம்பை மீறுகிறது — அதிகபட்சம்"
 }
