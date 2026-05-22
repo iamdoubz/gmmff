@@ -33,6 +33,7 @@ func NewHandler(cfg *Config) (*Handler, error) {
 func (h *Handler) Mount(r chi.Router) {
 	r.Route("/api/schedule", func(r chi.Router) {
 		r.Post("/auth",            h.handleAuth)
+		r.Post("/probe",           h.handleProbe)
 		r.Post("/upload/init",     h.handleUploadInit)
 		r.Post("/upload/chunk",    h.handleUploadChunk)
 		r.Post("/upload/complete", h.handleUploadComplete)
@@ -50,6 +51,25 @@ func (h *Handler) Mount(r chi.Router) {
 type authResponse struct {
 	Allowed      bool `json:"allowed"`       // IP is in upload allowlist
 	NeedsPassword bool `json:"needs_password"` // password required to proceed
+}
+
+// handleProbe accepts an upload of arbitrary size, discards it immediately,
+// and returns the server-side receipt time in milliseconds.  The client uses
+// two probe sizes (1 MB and 512 KB) to estimate upload bandwidth before
+// choosing a chunk size for the actual upload.  No data is written to disk.
+func (h *Handler) handleProbe(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
+	// Drain the body (up to 2 MiB — largest probe size).
+	maxRead := int64(2 * 1024 * 1024)
+	n, _ := io.Copy(io.Discard, io.LimitReader(r.Body, maxRead))
+
+	elapsed := time.Since(start).Milliseconds()
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"bytes":      n,
+		"elapsed_ms": elapsed,
+	})
 }
 
 // handleAuth returns the caller's upload auth status.
@@ -82,6 +102,7 @@ type uploadInitRequest struct {
 	TotalSize    int64  `json:"total_size"`
 	TTLSeconds   int64  `json:"ttl_seconds"`
 	MaxDownloads int    `json:"max_downloads"`
+	ChunkSize    int    `json:"chunk_size"` // 0 = use server default
 }
 
 type uploadInitResponse struct {
@@ -126,16 +147,28 @@ func (h *Handler) handleUploadInit(w http.ResponseWriter, r *http.Request) {
 		maxDl = h.cfg.MaxDownloads
 	}
 
-	// Calculate expected chunk count.
-	expectedChunks := int((req.TotalSize + ChunkSize - 1) / ChunkSize)
+	// Use client-supplied chunk size, clamped to valid range.
+	// Falls back to the server default (ChunkSize constant) if not provided.
+	// Maximum is 2 MiB — the top tier of the client's adaptive chunk size table.
+	const maxChunkSize = 2 * 1024 * 1024 // 2 MiB
+	cs := req.ChunkSize
+	if cs <= 0 {
+		cs = ChunkSize
+	}
+	if cs > maxChunkSize {
+		cs = maxChunkSize
+	}
+
+	// Calculate expected chunk count using the negotiated chunk size.
+	expectedChunks := int((req.TotalSize + int64(cs) - 1) / int64(cs))
 	if req.ChunksTotal != expectedChunks {
 		writeError(w, http.StatusBadRequest,
-			fmt.Sprintf("chunks_total mismatch: expected %d for %d bytes", expectedChunks, req.TotalSize))
+			fmt.Sprintf("chunks_total mismatch: expected %d for %d bytes with chunk_size %d", expectedChunks, req.TotalSize, cs))
 		return
 	}
 
 	expires := time.Now().Add(time.Duration(req.TTLSeconds) * time.Second)
-	meta, err := h.store.InitUpload(req.ChunksTotal, req.TotalSize, expires, maxDl)
+	meta, err := h.store.InitUpload(req.ChunksTotal, req.TotalSize, expires, maxDl, cs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to init upload")
 		return
@@ -144,7 +177,7 @@ func (h *Handler) handleUploadInit(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, uploadInitResponse{
 		UploadID:  meta.UploadID,
 		ExpiresAt: meta.ExpiresAt,
-		ChunkSize: ChunkSize,
+		ChunkSize: cs,
 	})
 }
 
@@ -167,8 +200,19 @@ func (h *Handler) handleUploadChunk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Read the raw chunk bytes from the request body.
-	// Max = nonce(12) + ciphertext(ChunkSize) + tag(16)
-	maxRead := int64(NonceSize + ChunkSize + TagSize)
+	// Use the chunk size recorded in the pending meta (negotiated at init time).
+	// This is important when the client uploads smaller chunks than the server default.
+	pendingMeta, err := h.store.ReadPendingMeta(uploadID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "upload not found")
+		return
+	}
+	negChunkSize := pendingMeta.ChunkSize
+	if negChunkSize <= 0 {
+		negChunkSize = ChunkSize
+	}
+	// Max = nonce(12) + ciphertext(negotiated chunk size) + tag(16)
+	maxRead := int64(NonceSize + negChunkSize + TagSize)
 	data, err := io.ReadAll(io.LimitReader(r.Body, maxRead+1))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "failed to read chunk")

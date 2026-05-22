@@ -135,5 +135,6 @@
   "schedule_invalid_key": "Invalid decryption key format.",
   "schedule_deleted": "File deleted successfully.",
   "schedule_delete_failed": "Could not delete file.",
-  "schedule_ttl_label": "유효 기간"
+  "schedule_ttl_label": "유효 기간",
+  "schedule_estimating": "㕌량 중…"
 }

@@ -135,5 +135,6 @@
   "schedule_invalid_key": "Invalid decryption key format.",
   "schedule_deleted": "File deleted successfully.",
   "schedule_delete_failed": "Could not delete file.",
-  "schedule_ttl_label": "Gyldig i"
+  "schedule_ttl_label": "Gyldig i",
+  "schedule_estimating": "Estimerer…"
 }
