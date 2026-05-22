@@ -62,6 +62,10 @@ Please use the [guide here](docs/BUILD.md) for building `gmmff`.
 
 [CLI Guide](docs/CLI.md)
 
+### Schedule — encrypted server-side transfers
+
+[Schedule Guide](docs/SCHEDULE.md)
+
 ### WASM Webclient
 
 [WASM Guide](docs/WASM.md)
@@ -404,58 +408,58 @@ slot codes, or any data that could identify a transfer or a user.
 
 ```
 gmmff/
-├── cmd/gmmff/                # Binary entrypoint (Cobra CLI)
-│   ├── main.go               # Root command + serve subcommand + shared helpers
-│   ├── create.go             # gmmff create — starts file+message session, session REPL
-│   ├── chat.go               # gmmff chat — pure chat; gmmff join — joins any session
-│   ├── local.go              # gmmff local — self-contained local-network mode
-│   └── cleanup.go            # gmmff cleanup — remove expired schedule uploads (cron-friendly)
+├── cmd/gmmff/              # Binary entrypoint (Cobra CLI)
+│   ├── main.go             # Root command + serve subcommand + shared helpers
+│   ├── create.go           # gmmff create — starts file+message session, session REPL
+│   ├── chat.go             # gmmff chat — pure chat; gmmff join — joins any session
+│   ├── local.go            # gmmff local — self-contained local-network mode
+│   └── cleanup.go          # gmmff cleanup — remove expired schedule uploads (cron-friendly)
 ├── internal/
-│   ├── broker/               # WebSocket hub, message router, HTTP server, UI config
+│   ├── broker/             # WebSocket hub, message router, HTTP server, UI config
 │   │   ├── broker.go
 │   │   ├── server.go
-│   │   └── uiconfig.go       # Feature flags served via /config.json
-│   ├── schedule/             # Server-side encrypted file storage (Schedule feature)
-│   │   ├── config.go         # Env parsing, TTL options, IP allowlists
-│   │   ├── store.go          # Pending/complete file lifecycle, chunk storage
-│   │   ├── handler.go        # HTTP handlers: /api/schedule/*
-│   │   └── cleanup.go        # Crontab parser, background cleanup goroutine
-│   ├── store/                # Redis + in-memory slot persistence
+│   │   └── uiconfig.go     # Feature flags served via /config.json
+│   ├── schedule/           # Server-side encrypted file storage (Schedule feature)
+│   │   ├── config.go       # Env parsing, TTL options, IP allowlists
+│   │   ├── store.go        # Pending/complete file lifecycle, chunk storage
+│   │   ├── handler.go      # HTTP handlers: /api/schedule/*
+│   │   └── cleanup.go      # Crontab parser, background cleanup goroutine
+│   ├── store/              # Redis + in-memory slot persistence
 │   │   └── store.go
-│   ├── slot/                 # Slot domain model & state machine
+│   ├── slot/               # Slot domain model & state machine
 │   │   └── slot.go
-│   ├── crypto/               # Slot code generation (3-word passphrase)
+│   ├── crypto/             # Slot code generation (3-word passphrase)
 │   │   └── codegen.go
-│   ├── log/                  # Privacy-safe structured logger
+│   ├── log/                # Privacy-safe structured logger
 │   │   └── log.go
-│   ├── archive/              # On-the-fly zip for multi-file transfers
+│   ├── archive/            # On-the-fly zip for multi-file transfers
 │   │   └── archive.go
-│   ├── peer/                 # WebRTC + PAKE orchestration; StartSession/JoinSession
+│   ├── peer/               # WebRTC + PAKE orchestration; StartSession/JoinSession
 │   │   └── peer.go
-│   ├── peerconfig/           # Shared Config type (avoids peer↔session import cycle)
+│   ├── peerconfig/         # Shared Config type (avoids peer↔session import cycle)
 │   │   └── peerconfig.go
-│   ├── session/              # Bidirectional session coordinator
+│   ├── session/            # Bidirectional session coordinator
 │   │   └── session.go
-│   ├── signaling/            # WebSocket signaling client
+│   ├── signaling/          # WebSocket signaling client
 │   │   ├── client_native.go
 │   │   ├── client_js.go
 │   │   └── b64.go
-│   ├── transfer/             # Binary chunk protocol (send + receive state machines)
+│   ├── transfer/           # Binary chunk protocol (send + receive state machines)
 │   │   └── transfer.go
-│   ├── localmode/            # Self-contained local-network mode
+│   ├── localmode/          # Self-contained local-network mode
 │   │   ├── embed.go
 │   │   ├── tls.go
 │   │   ├── mdns.go
 │   │   └── local.go
-│   └── turn/                 # TURN URL parsing and ephemeral credential derivation
+│   └── turn/               # TURN URL parsing and ephemeral credential derivation
 │       └── turn.go
-├── pkg/protocol/             # Wire message types (shared server/client)
+├── pkg/protocol/           # Wire message types (shared server/client)
 │   └── protocol.go
-├── web/                      # Browser UI (Wasm + plain JS)
-│   ├── cmd/gmmff-wasm/       # Go→Wasm entry point (syscall/js bridge)
+├── web/                    # Browser UI (Wasm + plain JS)
+│   ├── cmd/gmmff-wasm/     # Go→Wasm entry point (syscall/js bridge)
 │   │   └── main.go
-│   └── static/               # Served files
-│       ├── index.html        # Single-page UI (Files + Chat + Schedule tabs)
+│   └── static/             # Served files
+│       ├── index.html      # Single-page UI (Files + Chat + Schedule tabs)
 │       ├── css/
 │       │   └── app.css
 │       ├── js/
@@ -466,11 +470,11 @@ gmmff/
 │       └── i18n/
 │           ├── languages.json
 │           ├── en.json
-│           └── ...           # 32 languages total
+│           └── ...         # 32 languages total
 ├── configs/
-│   ├── .env.example          # All environment variable reference
-│   ├── gmmff.conf            # nginx reverse proxy configuration
-│   └── gmmff.service         # systemd service unit
+│   ├── .env.example        # All environment variable reference
+│   ├── gmmff.conf          # nginx reverse proxy configuration
+│   └── gmmff.service       # systemd service unit
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── BUILD.md
@@ -480,6 +484,7 @@ gmmff/
 │   ├── LOCAL.md
 │   ├── NGINX.md
 │   ├── PROTOCOL.md
+│   ├── SCHEDULE.md
 │   ├── SECURITY.md
 │   ├── SYSTEMD.md
 │   ├── TURN.md
@@ -516,6 +521,7 @@ gmmff/
 - **TURN support** — long-term and ephemeral credentials, mixed auth types, transport hints, max 3 servers
 - **Browser UI (Wasm)** — same Go source compiled to WebAssembly; Files, Chat, and Schedule tabs
 - **Schedule tab** — browser-side AES-256-GCM encrypted uploads; server never sees plaintext; TTL, download limits, IP/password access control, QR codes, auto-download links, cleanup service
+- **Schedule CLI** — `gmmff schedule upload/download/delete` for terminal-based encrypted transfers; full browser↔CLI interoperability
 - **Drag and drop** — drop files anywhere on the browser UI to queue them for sending
 - **32 languages** — English, Spanish, French, German, Italian, Swedish, Portuguese (BR/EU), Arabic, Bengali, Persian, Finnish, Hindi, Indonesian, Japanese, Korean, Marathi, Malay, Dutch, Norwegian, Polish, Russian, Thai, Filipino, Turkish, Ukrainian, Urdu, Vietnamese, Chinese (Simplified/Traditional), Tamil, Sinhala; language picker with 7-day persistence
 - **ICE settings panel** — configurable STUN/TURN in the browser UI, persisted 7 days
@@ -528,7 +534,6 @@ gmmff/
 - **More languages** — 32 languages shipped; contributions welcome
 - **Trusted local CA** — one-time CA install for iOS Safari support in `gmmff local`
 - **Quantum-safe encryption** — post-quantum algorithms with elliptic-curve fallback
-- **Schedule CLI** — `gmmff schedule download <url>` for terminal-based decryption and download
 
 ### Probably won't do
 
