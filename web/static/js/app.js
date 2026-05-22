@@ -1,5 +1,26 @@
 'use strict';
 
+// ── Theme system ─────────────────────────────────────────────────────────────
+// Runs immediately on script parse — before DOMContentLoaded — to avoid a
+// flash of the wrong theme. Sets data-theme on <html>.
+//
+// Priority order (highest to lowest):
+//   1. User's explicit choice stored in localStorage ('dark' | 'light')
+//   2. OS/browser prefers-color-scheme media query
+//   3. Default: 'dark'
+//
+// The CSS handles the actual token values via:
+//   :root[data-theme="dark"]  — explicit dark
+//   :root[data-theme="light"] — explicit light
+//   @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) }
+//                             — auto light when OS prefers it and no override
+(function() {
+  const stored = localStorage.getItem('gmmff-theme'); // 'dark' | 'light' | null
+  const osPrefersLight = window.matchMedia?.('(prefers-color-scheme: light)').matches;
+  const resolved = stored || (osPrefersLight ? 'light' : 'dark');
+  document.documentElement.setAttribute('data-theme', resolved);
+})();
+
 // ── Config ──────────────────────────────────────────────────────────────────
 const THEME_URL      = 'themes/default.json';
 const LANGUAGES_URL  = 'i18n/languages.json';
@@ -375,6 +396,40 @@ function hideLoading() {
   checkURLParams();
   // Check for ?type=schedule in the URL.
   if (typeof window.schedHandleURLParams === 'function') window.schedHandleURLParams();
+
+  // ── Theme toggle button ──────────────────────────────────────────────────
+  initThemeToggle();
+}
+
+// ── Theme toggle ──────────────────────────────────────────────────────────────
+function initThemeToggle() {
+  const btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+
+  function currentTheme() {
+    return document.documentElement.getAttribute('data-theme') || 'dark';
+  }
+
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('gmmff-theme', theme);
+    // Update theme-color meta for mobile browser chrome.
+    const tm = document.querySelector('meta[name="theme-color"]');
+    if (tm) {
+      tm.content = theme === 'light' ? '#f5f5f5' : '#0f0f0f';
+    }
+  }
+
+  btn.addEventListener('click', () => {
+    setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+  });
+
+  // Follow OS preference changes live — only when the user hasn't overridden.
+  window.matchMedia?.('(prefers-color-scheme: light)').addEventListener('change', e => {
+    if (!localStorage.getItem('gmmff-theme')) {
+      setTheme(e.matches ? 'light' : 'dark');
+    }
+  });
 }
 
 function showFatalError(err) {
