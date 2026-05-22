@@ -79,7 +79,7 @@ function applyUIConfig(cfg, allLangs) {
   // Reorder tabs and panels in the DOM according to cfg.tab_order.
   // The server always sends a complete ordered list (e.g. ["files","chat","schedule"]).
   const tabNav   = document.querySelector('.tabs');
-  const appEl    = document.querySelector('.app') || document.body;
+  const footer   = document.querySelector('.footer');
   const tabOrder = Array.isArray(cfg.tab_order) && cfg.tab_order.length
     ? cfg.tab_order
     : ['files', 'chat', 'schedule'];
@@ -87,9 +87,29 @@ function applyUIConfig(cfg, allLangs) {
   tabOrder.forEach(name => {
     const tab   = document.getElementById(`tab-${name}`);
     const panel = document.getElementById(`panel-${name}`);
-    if (tab   && tabNav) tabNav.appendChild(tab);
-    if (panel && appEl)  appEl.appendChild(panel);
+    if (tab  && tabNav) tabNav.appendChild(tab);
+    // Insert panel before the footer so it stays between header and footer.
+    if (panel && footer) footer.parentNode.insertBefore(panel, footer);
   });
+
+  // ── Default tab ───────────────────────────────────────────────────────────
+  // Activate the configured default tab (or the first in tab_order).
+  // Deactivate the hardcoded panel-files first since it starts as active in HTML.
+  const defaultTab = cfg.tab_default || tabOrder[0] || 'files';
+  document.querySelectorAll('.panel').forEach(p => {
+    p.classList.remove('active');
+  });
+  document.querySelectorAll('.tab').forEach(t => {
+    t.setAttribute('aria-selected', 'false');
+  });
+  const defaultTabEl   = document.getElementById(`tab-${defaultTab}`);
+  const defaultPanelEl = document.getElementById(`panel-${defaultTab}`);
+  if (defaultTabEl)   defaultTabEl.setAttribute('aria-selected', 'true');
+  if (defaultPanelEl) defaultPanelEl.classList.add('active');
+  // Schedule tab needs its own init path.
+  if (defaultTab === 'schedule' && typeof schedShowTab === 'function') {
+    schedShowTab();
+  }
 
   // ── Tab visibility ────────────────────────────────────────────────────────
   const showFiles = cfg.show_files !== false;

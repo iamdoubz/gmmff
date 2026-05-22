@@ -51,6 +51,11 @@ type UIConfig struct {
 	// Tabs not present in the slice appear after those that are.
 	// Tabs disabled via ShowFiles/ShowChat/ShowSchedule are hidden regardless.
 	TabOrder []string `json:"tab_order"`
+
+	// TabDefault is the tab shown on page load.
+	// If empty, the first tab in TabOrder is used.
+	// Valid values: "files", "chat", "schedule".
+	TabDefault string `json:"tab_default"`
 }
 
 // knownTabs is the canonical set of valid tab names and their default order.
@@ -118,6 +123,13 @@ func UIConfigFromEnv() UIConfig {
 
 	if raw := strings.TrimSpace(os.Getenv("GMMFF_TAB_ORDER")); raw != "" {
 		cfg.TabOrder = parseTabOrder(raw)
+	}
+
+	if raw := strings.ToLower(strings.TrimSpace(os.Getenv("GMMFF_TAB_DEFAULT"))); raw != "" {
+		valid := map[string]bool{"files": true, "chat": true, "schedule": true}
+		if valid[raw] {
+			cfg.TabDefault = raw
+		}
 	}
 
 	return cfg
@@ -234,6 +246,15 @@ func ValidateEnv() []EnvWarning {
 					fmt.Sprintf("duplicate tab name %q — each tab should appear at most once", name))
 			}
 			seen[name] = true
+		}
+	}
+
+	// ── GMMFF_TAB_DEFAULT ─────────────────────────────────────────────────────
+	if raw := strings.TrimSpace(os.Getenv("GMMFF_TAB_DEFAULT")); raw != "" {
+		valid := map[string]bool{"files": true, "chat": true, "schedule": true}
+		if !valid[strings.ToLower(raw)] {
+			add("GMMFF_TAB_DEFAULT", raw,
+				fmt.Sprintf("unknown tab name %q — valid names are: files, chat, schedule", raw))
 		}
 	}
 
