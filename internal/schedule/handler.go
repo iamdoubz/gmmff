@@ -382,6 +382,11 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 // TTL options (served to the UI)
 // ─────────────────────────────────────────────────────────────────────────────
 
+type ttlOptionJSON struct {
+	Label   string `json:"label"`
+	Seconds int64  `json:"seconds"`
+}
+
 type ttlOptionsResponse struct {
 	Options         []ttlOptionJSON `json:"options"`
 	MaxDownloadsCap int             `json:"max_downloads_cap"` // 0 = unlimited
