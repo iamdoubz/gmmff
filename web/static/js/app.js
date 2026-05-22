@@ -75,6 +75,22 @@ async function boot() {
 function applyUIConfig(cfg, allLangs) {
   uiConfig = cfg;
 
+  // ── Tab ordering ──────────────────────────────────────────────────────────
+  // Reorder tabs and panels in the DOM according to cfg.tab_order.
+  // The server always sends a complete ordered list (e.g. ["files","chat","schedule"]).
+  const tabNav   = document.querySelector('.tabs');
+  const appEl    = document.querySelector('.app') || document.body;
+  const tabOrder = Array.isArray(cfg.tab_order) && cfg.tab_order.length
+    ? cfg.tab_order
+    : ['files', 'chat', 'schedule'];
+
+  tabOrder.forEach(name => {
+    const tab   = document.getElementById(`tab-${name}`);
+    const panel = document.getElementById(`panel-${name}`);
+    if (tab   && tabNav) tabNav.appendChild(tab);
+    if (panel && appEl)  appEl.appendChild(panel);
+  });
+
   // ── Tab visibility ────────────────────────────────────────────────────────
   const showFiles = cfg.show_files !== false;
   const showChat  = cfg.show_chat  !== false;
