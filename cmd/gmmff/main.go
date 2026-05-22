@@ -186,6 +186,37 @@ func runServe(_ *cobra.Command, _ []string) error {
 	}
 	srv := broker.NewServer(b, st, serveCfg.webDir, serveCfg.cspReportOnly, uiCfg)
 
+	// ── ICE push config ───────────────────────────────────────────────────────
+	if uiCfg.PushSTUN || uiCfg.PushTURN {
+		var pushedSTUN []string
+		var pushedTURN []broker.PushedTURN
+
+		if uiCfg.PushSTUN {
+			pushedSTUN = stunServersDefault()
+			l().Info().Strs("servers", pushedSTUN).Msg("STUN push enabled")
+		}
+		if uiCfg.PushTURN {
+			rawTURN := turnServersDefault()
+			// Parse with 30-minute TTL for pushed ephemeral credentials.
+			servers, err := turn.ParseAllWithTTL(rawTURN, 30*time.Minute)
+			if err != nil {
+				l().Warn().Err(err).Msg("TURN push: failed to parse TURN servers — push disabled")
+			} else {
+				for _, s := range servers {
+					pushedTURN = append(pushedTURN, broker.PushedTURN{
+						URL:      s.URL,
+						Username: s.Username,
+						Password: s.Password,
+					})
+				}
+				if len(servers) > 0 {
+					l().Warn().Msg("⚠  TURN push enabled — TURN credentials will be sent to all peers")
+				}
+			}
+		}
+		srv.SetICEConfig(pushedSTUN, pushedTURN)
+	}
+
 	if schedCfg.Enabled {
 		sh, err := schedule.NewHandler(&schedCfg)
 		if err != nil {

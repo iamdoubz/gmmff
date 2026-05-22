@@ -567,7 +567,7 @@ func configFromJS(iceCfg js.Value) peer.Config {
 	if iceCfg.IsUndefined() || iceCfg.IsNull() {
 		return cfg
 	}
-	// STUN: append user list to defaults
+	// STUN: use pushed list or append user list to defaults.
 	stunArr := iceCfg.Get("stun")
 	if !stunArr.IsUndefined() && !stunArr.IsNull() {
 		stuns := peer.DefaultSTUNServers
@@ -579,7 +579,26 @@ func configFromJS(iceCfg js.Value) peer.Config {
 		}
 		cfg.STUNServers = stuns
 	}
-	// TURN: parse each entry via turn.ParseOne
+	// pushed_turn: pre-resolved {url, username, password} objects from /api/ice.
+	// These bypass turn.ParseOne since credentials are already resolved server-side.
+	pushedTurn := iceCfg.Get("pushed_turn")
+	if !pushedTurn.IsUndefined() && !pushedTurn.IsNull() && pushedTurn.Length() > 0 {
+		for i := 0; i < pushedTurn.Length(); i++ {
+			entry := pushedTurn.Index(i)
+			url  := entry.Get("url").String()
+			user := entry.Get("username").String()
+			pass := entry.Get("password").String()
+			if url != "" {
+				cfg.TURNServers = append(cfg.TURNServers, turn.Server{
+					URL:      url,
+					Username: user,
+					Password: pass,
+				})
+			}
+		}
+		return cfg // pushed TURN replaces user-defined TURN
+	}
+	// TURN: parse user-defined entries via turn.ParseOne (includes ephemeral cred derivation).
 	turnArr := iceCfg.Get("turn")
 	if !turnArr.IsUndefined() && !turnArr.IsNull() {
 		for i := 0; i < turnArr.Length(); i++ {

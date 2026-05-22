@@ -56,6 +56,17 @@ type UIConfig struct {
 	// If empty, the first tab in TabOrder is used.
 	// Valid values: "files", "chat", "schedule".
 	TabDefault string `json:"tab_default"`
+
+	// PushSTUN — when true the server pushes its STUN config to the browser
+	// via /api/ice, replacing user-defined STUN servers.
+	PushSTUN bool `json:"push_stun"`
+
+	// PushTURN — when true the server pushes its TURN config to the browser
+	// via /api/ice, replacing user-defined TURN servers.
+	// If TURN uses ephemeral credentials (secret=) a 30-minute credential is
+	// generated server-side. Static user/pass credentials are forwarded as-is —
+	// the admin accepts that all peers will receive them.
+	PushTURN bool `json:"push_turn"`
 }
 
 // knownTabs is the canonical set of valid tab names and their default order.
@@ -132,6 +143,9 @@ func UIConfigFromEnv() UIConfig {
 		}
 	}
 
+	cfg.PushSTUN = boolEnv("GMMFF_PUSH_STUN", false)
+	cfg.PushTURN = boolEnv("GMMFF_PUSH_TURN", false)
+
 	return cfg
 }
 
@@ -194,6 +208,7 @@ func ValidateEnv() []EnvWarning {
 		"GMMFF_SHOW_ICE_SETTINGS", "GMMFF_ALLOW_STUN", "GMMFF_ALLOW_TURN",
 		"GMMFF_SHOW_SHARE_LINK", "GMMFF_SHOW_QR_CODE",
 		"GMMFF_ALLOW_CUSTOM_SERVER", "GMMFF_SHOW_PEERS_LIMIT",
+		"GMMFF_PUSH_STUN", "GMMFF_PUSH_TURN",
 	}
 	for _, key := range boolVars {
 		v := strings.TrimSpace(os.Getenv(key))

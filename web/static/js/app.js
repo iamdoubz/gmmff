@@ -596,7 +596,7 @@ document.getElementById('files-create-btn')?.addEventListener('click', () => {
   const createBtn = document.getElementById('files-create-btn');
   if (createBtn) { createBtn.disabled = true; createBtn.textContent = t('create_creating') || 'Creating…'; }
   if (typeof window.gmmffCreateSession === 'function') {
-    window.gmmffCreateSession(server, maxPeers, buildIceConfig());
+    buildIceConfig().then(ice => window.gmmffCreateSession(server, maxPeers, ice));
   }
 });
 
@@ -631,7 +631,7 @@ document.getElementById('files-join-btn')?.addEventListener('click', () => {
   const joinBtn = document.getElementById('files-join-btn');
   if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = t('join_connecting') || 'Connecting…'; }
   if (typeof window.gmmffJoinSession === 'function') {
-    window.gmmffJoinSession(code, server, buildIceConfig());
+    buildIceConfig().then(ice => window.gmmffJoinSession(code, server, ice));
   }
 });
 
@@ -997,7 +997,9 @@ document.getElementById('chat-start-btn')?.addEventListener('click', () => {
   errEl.textContent = '';
   if (!server) { errEl.textContent = t('error_no_server'); return; }
   if (nameVal) myName = nameVal;
-  if (typeof window.gmmffChat === 'function') window.gmmffChat(server, buildIceConfig());
+  buildIceConfig().then(ice => {
+    if (typeof window.gmmffChat === 'function') window.gmmffChat(server, ice);
+  });
 });
 
 // Dynamically add "Join with a code" link below Start button
@@ -1040,7 +1042,9 @@ document.getElementById('chat-join-btn')?.addEventListener('click', () => {
   if (chatNameVal) myName = chatNameVal;
   const chatJoinBtn = document.getElementById('chat-join-btn');
   if (chatJoinBtn) { chatJoinBtn.disabled = true; chatJoinBtn.textContent = t('join_connecting') || 'Connecting…'; }
-  if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, buildIceConfig());
+  buildIceConfig().then(ice => {
+    if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, ice);
+  });
 });
 
 document.getElementById('chat-send-btn')?.addEventListener('click', sendChatMessage);
@@ -1194,8 +1198,39 @@ function saveIceState() {
   } catch(_) {}
 }
 
-function buildIceConfig() {
-  return { stun: [...iceState.stun], turn: [...iceState.turn] };
+// buildIceConfig returns a promise resolving to the ICE config object.
+// When push_stun or push_turn is enabled in the server config, a fresh
+// /api/ice request is made and the pushed values replace user-defined entries.
+// This is async because the per-session fetch generates fresh ephemeral TURN
+// credentials server-side with a 30-minute TTL.
+async function buildIceConfig() {
+  const base = { stun: [...iceState.stun], turn: [...iceState.turn] };
+
+  if (!uiConfig.push_stun && !uiConfig.push_turn) {
+    return base; // no push — use user's local ICE state unchanged
+  }
+
+  try {
+    const resp = await fetch('/api/ice', { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`/api/ice returned ${resp.status}`);
+    const pushed = await resp.json();
+
+    if (uiConfig.push_stun && Array.isArray(pushed.stun)) {
+      base.stun = pushed.stun; // replace entirely
+    }
+    if (uiConfig.push_turn && Array.isArray(pushed.turn)) {
+      // TURN push returns pre-resolved {url, username, password} objects.
+      // Convert to the raw "turn:host?..." format with embedded credentials
+      // that configFromJS in Wasm expects — actually Wasm configFromJS takes
+      // the raw string and calls turn.ParseOne on it, so we pass a JSON object
+      // directly instead and handle it in the 'pushed_turn' key.
+      base.pushed_turn = pushed.turn; // separate key — handled in configFromJS
+    }
+  } catch (e) {
+    console.warn('[ice] failed to fetch pushed ICE config, using local state:', e.message);
+  }
+
+  return base;
 }
 
 document.getElementById('ice-toggle')?.addEventListener('click', () => {
@@ -1375,7 +1410,9 @@ function checkURLParams() {
     if (input) input.value = code;
     if (autoconnect) {
       const server = normaliseServerURL(location.origin.replace(/^http/, 'ws') + '/ws');
-      if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, buildIceConfig());
+      buildIceConfig().then(ice => {
+        if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, ice);
+      });
     } else {
       showChatState('join');
       document.getElementById('chat-join-code')?.focus();
@@ -1392,7 +1429,7 @@ function checkURLParams() {
       const server = normaliseServerURL(location.origin.replace(/^http/, 'ws') + '/ws');
       setTimeout(() => {
         if (typeof window.gmmffJoinSession === 'function') {
-          window.gmmffJoinSession(code, server, buildIceConfig());
+          buildIceConfig().then(ice => window.gmmffJoinSession(code, server, ice));
         }
       }, 100);
     } else {
