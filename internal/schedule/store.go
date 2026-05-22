@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -75,7 +76,7 @@ func NewStore(cfg *Config) (*Store, error) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // InitUpload creates a pending slot and returns the upload ID.
-func (s *Store) InitUpload(chunksTotal int, totalSize int64, expires time.Time, maxDownloads int) (*UploadMeta, error) {
+func (s *Store) InitUpload(chunksTotal int, totalSize int64, expires time.Time, maxDownloads int, chunkSize int) (*UploadMeta, error) {
 	id, err := randomHex(16)
 	if err != nil {
 		return nil, err
@@ -83,7 +84,7 @@ func (s *Store) InitUpload(chunksTotal int, totalSize int64, expires time.Time, 
 	meta := &UploadMeta{
 		UploadID:     id,
 		ChunksTotal:  chunksTotal,
-		ChunkSize:    ChunkSize,
+		ChunkSize:    chunkSize,
 		TotalSize:    totalSize,
 		ExpiresAt:    expires,
 		MaxDownloads: maxDownloads,
@@ -112,8 +113,8 @@ func (s *Store) AppendChunk(uploadID string, chunkIndex int, data []byte) error 
 	if chunkIndex != meta.ChunksWritten {
 		return fmt.Errorf("schedule: expected chunk %d, got %d", meta.ChunksWritten, chunkIndex)
 	}
-	// Each chunk = nonce(12) + ciphertext(up to ChunkSize) + tag(16)
-	maxChunkBytes := NonceSize + ChunkSize + TagSize
+	// Each chunk = nonce(12) + ciphertext(up to meta.ChunkSize) + tag(16)
+	maxChunkBytes := NonceSize + meta.ChunkSize + TagSize
 	if len(data) > maxChunkBytes {
 		return fmt.Errorf("schedule: chunk too large: %d > %d", len(data), maxChunkBytes)
 	}

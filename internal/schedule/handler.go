@@ -82,6 +82,7 @@ type uploadInitRequest struct {
 	TotalSize    int64  `json:"total_size"`
 	TTLSeconds   int64  `json:"ttl_seconds"`
 	MaxDownloads int    `json:"max_downloads"`
+	ChunkSize    int    `json:"chunk_size"` // 0 = use server default
 }
 
 type uploadInitResponse struct {
@@ -126,16 +127,26 @@ func (h *Handler) handleUploadInit(w http.ResponseWriter, r *http.Request) {
 		maxDl = h.cfg.MaxDownloads
 	}
 
-	// Calculate expected chunk count.
-	expectedChunks := int((req.TotalSize + ChunkSize - 1) / ChunkSize)
+	// Use client-supplied chunk size, clamped to valid range.
+	// Falls back to the server default (ChunkSize constant) if not provided.
+	cs := req.ChunkSize
+	if cs <= 0 {
+		cs = ChunkSize
+	}
+	if cs > ChunkSize {
+		cs = ChunkSize // never exceed the server maximum
+	}
+
+	// Calculate expected chunk count using the negotiated chunk size.
+	expectedChunks := int((req.TotalSize + int64(cs) - 1) / int64(cs))
 	if req.ChunksTotal != expectedChunks {
 		writeError(w, http.StatusBadRequest,
-			fmt.Sprintf("chunks_total mismatch: expected %d for %d bytes", expectedChunks, req.TotalSize))
+			fmt.Sprintf("chunks_total mismatch: expected %d for %d bytes with chunk_size %d", expectedChunks, req.TotalSize, cs))
 		return
 	}
 
 	expires := time.Now().Add(time.Duration(req.TTLSeconds) * time.Second)
-	meta, err := h.store.InitUpload(req.ChunksTotal, req.TotalSize, expires, maxDl)
+	meta, err := h.store.InitUpload(req.ChunksTotal, req.TotalSize, expires, maxDl, cs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to init upload")
 		return
@@ -144,7 +155,7 @@ func (h *Handler) handleUploadInit(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, uploadInitResponse{
 		UploadID:  meta.UploadID,
 		ExpiresAt: meta.ExpiresAt,
-		ChunkSize: ChunkSize,
+		ChunkSize: cs,
 	})
 }
 
@@ -167,8 +178,19 @@ func (h *Handler) handleUploadChunk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Read the raw chunk bytes from the request body.
-	// Max = nonce(12) + ciphertext(ChunkSize) + tag(16)
-	maxRead := int64(NonceSize + ChunkSize + TagSize)
+	// Use the chunk size recorded in the pending meta (negotiated at init time).
+	// This is important when the client uploads smaller chunks than the server default.
+	pendingMeta, err := h.store.ReadPendingMeta(uploadID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "upload not found")
+		return
+	}
+	negChunkSize := pendingMeta.ChunkSize
+	if negChunkSize <= 0 {
+		negChunkSize = ChunkSize
+	}
+	// Max = nonce(12) + ciphertext(negotiated chunk size) + tag(16)
+	maxRead := int64(NonceSize + negChunkSize + TagSize)
 	data, err := io.ReadAll(io.LimitReader(r.Body, maxRead+1))
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "failed to read chunk")

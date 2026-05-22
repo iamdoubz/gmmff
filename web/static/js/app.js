@@ -1555,6 +1555,7 @@ async function schedStartUpload() {
         password:     schedPassword,
         chunks_total: chunksTotal,
         total_size:   totalSize,
+        chunk_size:   SCHED_CHUNK_SIZE,
         ttl_seconds:  ttl,
         max_downloads: maxDl,
       }),
@@ -1565,91 +1566,79 @@ async function schedStartUpload() {
     }
     const { upload_id: uploadID } = await initResp.json();
 
-    // ── 6. Encrypt and upload chunks (pipelined) ─────────────────────────────
-    // Strategy: encrypt chunk N+1 while chunk N is in flight.
-    // A sliding window of UPLOAD_CONCURRENCY concurrent uploads keeps the
-    // connection saturated without overwhelming the server.
-    // This is the critical path for upload speed on mobile.
-    const UPLOAD_CONCURRENCY = 3; // concurrent in-flight chunk uploads
+    // ── 6. Encrypt all chunks in parallel, then upload sequentially ──────────
+    // Encryption is parallelised for speed (especially on mobile CPUs where
+    // AES-GCM on large blocks is slow). Uploads are sequential because the
+    // server enforces strict chunk ordering — it rejects chunk N+1 before N
+    // is written. Encrypting ahead means the network is never idle waiting for
+    // the CPU: by the time chunk i finishes uploading, chunk i+1 is already
+    // encrypted and ready to send.
+    const ENCRYPT_AHEAD = 3; // how many chunks to pre-encrypt ahead of uploads
 
     document.getElementById('schedule-progress').classList.remove('hidden');
     const noncePrefix = crypto.getRandomValues(new Uint8Array(8));
     let uploadedBytes = 0;
     let startTime     = Date.now();
 
-    // SHA-256 of the full ciphertext (computed as we go).
+    // SHA-256 of the full ciphertext (computed in order as chunks are uploaded).
     const cipherParts = new Array(chunksTotal);
-
-    // Pre-encrypt all chunks, yielding to the event loop between each so
-    // the UI stays responsive and progress updates render.
-    const encryptedChunks = new Array(chunksTotal);
-    for (let i = 0; i < chunksTotal; i++) {
-      const start = i * SCHED_CHUNK_SIZE;
-      const end   = Math.min(start + SCHED_CHUNK_SIZE, totalSize);
-      const plain = plainBytes.slice(start, end);
-
-      const nonce = new Uint8Array(SCHED_NONCE_SIZE);
-      const dv    = new DataView(nonce.buffer);
-      dv.setUint32(0, i, false);
-      nonce.set(noncePrefix, 4);
-
-      const cipher = new Uint8Array(await crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv: nonce, tagLength: 128 }, schedCryptoKey, plain
-      ));
-
-      const chunk = new Uint8Array(SCHED_NONCE_SIZE + cipher.length);
-      chunk.set(nonce, 0);
-      chunk.set(cipher, SCHED_NONCE_SIZE);
-      encryptedChunks[i] = { chunk, plainLen: end - start };
-      cipherParts[i]     = chunk;
-
-      // Yield to browser between chunks so the UI doesn't freeze.
-      await new Promise(r => setTimeout(r, 0));
-    }
-
-    // Upload with a sliding window of UPLOAD_CONCURRENCY concurrent requests.
-    let nextChunk  = 0;
-    let inFlight   = 0;
-    let uploadErr  = null;
 
     schedUploadCtrl = new AbortController();
 
-    await new Promise((resolve, reject) => {
-      function pump() {
-        if (uploadErr) { reject(uploadErr); return; }
-        if (nextChunk >= chunksTotal && inFlight === 0) { resolve(); return; }
+    // Encrypt-ahead queue: a sliding window of pre-encrypted chunks.
+    // encQueue[i] is a Promise<{chunk, plainLen}> for chunk i.
+    const encQueue = [];
+    let encNext = 0;
 
-        while (inFlight < UPLOAD_CONCURRENCY && nextChunk < chunksTotal) {
-          const i = nextChunk++;
-          inFlight++;
-          const { chunk, plainLen } = encryptedChunks[i];
+    function enqueueEncryption() {
+      while (encQueue.length < ENCRYPT_AHEAD && encNext < chunksTotal) {
+        const i     = encNext++;
+        const start = i * SCHED_CHUNK_SIZE;
+        const end   = Math.min(start + SCHED_CHUNK_SIZE, totalSize);
+        const plain = plainBytes.slice(start, end);
 
-          fetch('/api/schedule/upload/chunk?' +
-            new URLSearchParams({ upload_id: uploadID, chunk_index: String(i) }), {
-            method:  'POST',
-            body:    chunk,
-            signal:  schedUploadCtrl.signal,
-            headers: { 'Content-Type': 'application/octet-stream' },
+        const nonce = new Uint8Array(SCHED_NONCE_SIZE);
+        const dv    = new DataView(nonce.buffer);
+        dv.setUint32(0, i, false);
+        nonce.set(noncePrefix, 4);
+
+        encQueue.push(
+          crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv: nonce, tagLength: 128 }, schedCryptoKey, plain
+          ).then(cipher => {
+            const c = new Uint8Array(SCHED_NONCE_SIZE + cipher.byteLength);
+            c.set(nonce, 0);
+            c.set(new Uint8Array(cipher), SCHED_NONCE_SIZE);
+            return { chunk: c, plainLen: end - start };
           })
-          .then(resp => {
-            if (!resp.ok) return resp.json().catch(() => ({})).then(e => { throw new Error(e.error || `Chunk ${i} failed`); });
-            uploadedBytes += plainLen;
-            inFlight--;
-            const elapsed = (Date.now() - startTime) / 1000;
-            const speed   = elapsed > 0 ? uploadedBytes / elapsed : 0;
-            const eta     = speed > 0 ? (totalSize - uploadedBytes) / speed : null;
-            schedUpdateProgressBar(uploadedBytes / totalSize, speed, eta, uploadedBytes, totalSize);
-            pump();
-          })
-          .catch(err => {
-            inFlight--;
-            uploadErr = err;
-            pump();
-          });
-        }
+        );
       }
-      pump();
-    });
+    }
+
+    // Upload each chunk in strict order, filling the encrypt-ahead queue as we go.
+    for (let i = 0; i < chunksTotal; i++) {
+      enqueueEncryption();
+      const { chunk, plainLen } = await encQueue.shift();
+      cipherParts[i] = chunk;
+
+      const resp = await fetch('/api/schedule/upload/chunk?' +
+        new URLSearchParams({ upload_id: uploadID, chunk_index: String(i) }), {
+        method:  'POST',
+        body:    chunk,
+        signal:  schedUploadCtrl.signal,
+        headers: { 'Content-Type': 'application/octet-stream' },
+      });
+      if (!resp.ok) {
+        const e = await resp.json().catch(() => ({}));
+        throw new Error(e.error || `Chunk ${i} upload failed`);
+      }
+
+      uploadedBytes += plainLen;
+      const elapsed = (Date.now() - startTime) / 1000;
+      const speed   = elapsed > 0 ? uploadedBytes / elapsed : 0;
+      const eta     = speed > 0 ? (totalSize - uploadedBytes) / speed : null;
+      schedUpdateProgressBar(uploadedBytes / totalSize, speed, eta, uploadedBytes, totalSize);
+    }
 
     // ── 7. Compute SHA-256 of full ciphertext ─────────────────────────────────
     const totalCipherLen = cipherParts.reduce((s, c) => s + c.length, 0);

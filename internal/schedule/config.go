@@ -164,7 +164,7 @@ func parseTTLSettings(raw string) ([]TTLOption, error) {
 		if p == "" {
 			continue
 		}
-		d, label, err := parseFuzzyDuration(p)
+		d, label, err := ParseFuzzyDuration(p)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse TTL %q: %w", p, err)
 		}
@@ -176,8 +176,9 @@ func parseTTLSettings(raw string) ([]TTLOption, error) {
 	return opts, nil
 }
 
-// parseFuzzyDuration accepts many human-friendly duration formats.
-func parseFuzzyDuration(s string) (time.Duration, string, error) {
+// ParseFuzzyDuration accepts many human-friendly duration formats.
+// Exported so the CLI --ttl flag can reuse the same parser.
+func ParseFuzzyDuration(s string) (time.Duration, string, error) {
 	s = strings.ToLower(strings.TrimSpace(s))
 
 	// Try standard Go duration first (e.g. "1h", "24h", "168h").
