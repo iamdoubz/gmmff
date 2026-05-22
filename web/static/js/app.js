@@ -841,10 +841,12 @@ function showChatState(state) {
 
 // Start session button
 document.getElementById('chat-start-btn')?.addEventListener('click', () => {
-  const server = normaliseServerURL(document.getElementById('chat-server').value.trim());
-  const errEl  = document.getElementById('chat-error');
+  const server    = normaliseServerURL(document.getElementById('chat-server').value.trim());
+  const nameVal   = document.getElementById('chat-my-name')?.value.trim();
+  const errEl     = document.getElementById('chat-error');
   errEl.textContent = '';
   if (!server) { errEl.textContent = t('error_no_server'); return; }
+  if (nameVal) myName = nameVal;
   if (typeof window.gmmffChat === 'function') window.gmmffChat(server, buildIceConfig());
 });
 
