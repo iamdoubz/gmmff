@@ -308,6 +308,11 @@ The decryption key is in the URL **fragment** (`#…`).  Fragments are never
 transmitted to the server — they exist only in the browser.  The delete key
 is a separate short token shown only to the uploader on the success screen.
 
+### Limitations
+
+The crypto api is only available in secure contexts: https and localhost. If
+you attempt to use schedule using http, it will not work!
+
 ---
 
 ## Theming
