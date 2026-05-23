@@ -51,6 +51,76 @@
       --max-width:  480px;
     }
 
+    /* ── Light theme tokens ───────────────────────────────────────────────── */
+    /* Auto-applied when OS prefers light AND the user hasn't overridden.      */
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --color-bg:             #f5f5f5;
+        --color-surface:        #ffffff;
+        --color-surface-raised: #efefef;
+        --color-border:         #d4d4d4;
+        --color-border-focus:   #2563eb;
+        --color-text:         #111111;
+        --color-text-muted:   #666666;
+        --color-text-inverse: #ffffff;
+        --color-accent:        #2563eb;
+        --color-accent-hover:  #1d4ed8;
+        --color-accent-active: #1e40af;
+        --color-success:  #16a34a;
+        --color-warning:  #d97706;
+        --color-error:    #dc2626;
+        --color-progress-track: #d4d4d4;
+        --color-progress-fill:  #2563eb;
+        --shadow-card:  0 1px 3px rgba(0,0,0,0.12);
+        --shadow-focus: 0 0 0 3px rgba(37,99,235,0.30);
+      }
+    }
+
+    /* Explicit light override — JS sets data-theme="light" on <html>.        */
+    :root[data-theme="light"] {
+      --color-bg:             #f5f5f5;
+      --color-surface:        #ffffff;
+      --color-surface-raised: #efefef;
+      --color-border:         #d4d4d4;
+      --color-border-focus:   #2563eb;
+      --color-text:         #111111;
+      --color-text-muted:   #666666;
+      --color-text-inverse: #ffffff;
+      --color-accent:        #2563eb;
+      --color-accent-hover:  #1d4ed8;
+      --color-accent-active: #1e40af;
+      --color-success:  #16a34a;
+      --color-warning:  #d97706;
+      --color-error:    #dc2626;
+      --color-progress-track: #d4d4d4;
+      --color-progress-fill:  #2563eb;
+      --shadow-card:  0 1px 3px rgba(0,0,0,0.12);
+      --shadow-focus: 0 0 0 3px rgba(37,99,235,0.30);
+    }
+
+    /* Explicit dark override — JS sets data-theme="dark" on <html>.
+       Restores dark values even when OS prefers light.                       */
+    :root[data-theme="dark"] {
+      --color-bg:             #0f0f0f;
+      --color-surface:        #1a1a1a;
+      --color-surface-raised: #242424;
+      --color-border:         #2e2e2e;
+      --color-border-focus:   #4a9eff;
+      --color-text:         #e8e8e8;
+      --color-text-muted:   #888888;
+      --color-text-inverse: #0f0f0f;
+      --color-accent:        #4a9eff;
+      --color-accent-hover:  #6aafff;
+      --color-accent-active: #2a7edf;
+      --color-success:  #3ecf8e;
+      --color-warning:  #f5a623;
+      --color-error:    #ff5c5c;
+      --color-progress-track: #2e2e2e;
+      --color-progress-fill:  #4a9eff;
+      --shadow-card:  0 1px 3px rgba(0,0,0,0.4);
+      --shadow-focus: 0 0 0 3px rgba(74,158,255,0.35);
+    }
+
     /* ── Reset ───────────────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -897,4 +967,148 @@
       text-align: center;
       font-size: var(--font-size-sm);
       font-weight: var(--font-weight-medium);
+    }
+
+    /* ── Theme toggle button ─────────────────────────────────────────────── */
+    .theme-toggle {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      color: var(--color-text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color var(--transition), background var(--transition);
+      flex-shrink: 0;
+    }
+    .theme-toggle:hover { color: var(--color-text); background: var(--color-surface-raised); }
+    .theme-toggle:focus-visible { outline: 2px solid var(--color-border-focus); }
+    .theme-toggle svg { width: 16px; height: 16px; display: block; }
+	/* Show fun moon */
+	.theme-toggle {
+	  display: inline-flex;
+	  align-items: center;
+	  justify-content: center;
+	  width: 44px;
+	  height: 44px;
+	  border: none;
+	  background: transparent;
+	  color: #e5e7eb;
+	  cursor: pointer;
+	  border-radius: 9999px;
+	  transition: background-color 0.3s ease, transform 0.2s ease;
+	}
+
+	.theme-toggle:hover {
+	  background-color: rgba(255, 255, 255, 0.08);
+	}
+
+	.icon-moon,
+	.icon-sun {
+	  width: 24px;
+	  height: 24px;
+	}
+
+	.icon-moon .moon-path {
+	  fill: transparent;
+	  stroke: currentColor;
+	  stroke-width: 2;
+	  stroke-linecap: round;
+	  stroke-linejoin: round;
+	  transform-origin: center;
+	  transition:
+		fill 0.45s ease,
+		stroke 0.35s ease,
+		transform 0.35s ease,
+		opacity 0.35s ease,
+		filter 0.45s ease;
+	}
+
+	/* Hover on the whole button */
+	.theme-toggle:hover .icon-moon .moon-path {
+	  fill: url(#moonFillGradient);
+	  stroke: #ffd76a;
+	  filter: url(#moonGlow);
+	  transform: scale(1.08);
+	}
+
+	/* Optional: tiny "breathing" shimmer while hovered */
+	.theme-toggle:hover .icon-moon {
+	  animation: moonPulse 1.8s ease-in-out infinite;
+	}
+
+	@keyframes moonPulse {
+	  0%, 100% {
+		transform: scale(1);
+	  }
+	  50% {
+		transform: scale(1.04);
+	  }
+	}
+
+	/* Show fun sun */
+	.icon-sun .sun-core,
+	.icon-sun .sun-ray {
+	  stroke: currentColor;
+	  stroke-width: 2;
+	  stroke-linecap: round;
+	  stroke-linejoin: round;
+	  transform-origin: center;
+	  transition:
+		fill 0.4s ease,
+		stroke 0.35s ease,
+		transform 0.35s ease,
+		filter 0.4s ease,
+		opacity 0.35s ease;
+	}
+
+	.icon-sun .sun-core {
+	  fill: transparent;
+	}
+
+	.theme-toggle:hover .icon-sun .sun-core {
+	  fill: #ffd34d;
+	  stroke: #ffb300;
+	  filter:
+		drop-shadow(0 0 4px rgba(255, 211, 77, 0.95))
+		drop-shadow(0 0 10px rgba(255, 179, 0, 0.65))
+		drop-shadow(0 0 16px rgba(255, 140, 0, 0.35));
+	  transform: scale(1.06);
+	}
+
+	.theme-toggle:hover .icon-sun .sun-ray {
+	  stroke: #ffbf2f;
+	  filter:
+		drop-shadow(0 0 3px rgba(255, 211, 77, 0.85))
+		drop-shadow(0 0 8px rgba(255, 166, 0, 0.45));
+	}
+
+	.theme-toggle:hover .icon-sun {
+	  animation: sunWiggle 1.6s ease-in-out infinite;
+	}
+
+	@keyframes sunWiggle {
+	  0%, 100% {
+		transform: rotate(0deg) scale(1);
+	  }
+	  25% {
+		transform: rotate(4deg) scale(1.03);
+	  }
+	  50% {
+		transform: rotate(0deg) scale(1.05);
+	  }
+	  75% {
+		transform: rotate(-4deg) scale(1.03);
+	  }
+	}
+    /* Show the correct icon for each mode */
+    .theme-toggle .icon-moon { display: block; }
+    .theme-toggle .icon-sun  { display: none; }
+    :root[data-theme="light"] .theme-toggle .icon-moon { display: none; }
+    :root[data-theme="light"] .theme-toggle .icon-sun  { display: block; }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) .theme-toggle .icon-moon { display: none; }
+      :root:not([data-theme="dark"]) .theme-toggle .icon-sun  { display: block; }
     }

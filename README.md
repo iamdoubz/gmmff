@@ -308,6 +308,11 @@ The decryption key is in the URL **fragment** (`#…`).  Fragments are never
 transmitted to the server — they exist only in the browser.  The delete key
 is a separate short token shown only to the uploader on the success screen.
 
+### Limitations
+
+The crypto api is only available in secure contexts: https and localhost. If
+you attempt to use schedule using http, it will not work!
+
 ---
 
 ## Theming
@@ -365,6 +370,8 @@ The browser UI behaviour is controlled by environment variables served via
 | `GMMFF_MAX_CHUNK_SIZE` | `65526` | Transfer chunk size in bytes (server-enforced) |
 | `GMMFF_ALLOWED_LANGS` | `all` | Comma-separated language codes, or `all`; single code hides the picker |
 | `GMMFF_MOTD` | — | Message of the day shown as a banner at the top of the UI |
+| `GMMFF_TAB_ORDER` | `files,chat,schedule` | Comma-separated display order of tabs; valid names: `files`, `chat`, `schedule` |
+| `GMMFF_TAB_DEFAULT` | (first in `GMMFF_TAB_ORDER`) | Tab shown on page load; valid names: `files`, `chat`, `schedule` |
 
 ---
 
@@ -463,8 +470,7 @@ gmmff/
 │       ├── css/
 │       │   └── app.css
 │       ├── js/
-│           ├── qrcode.min.js # QR code generator
-│       │   └── app.js        # UI logic + Schedule IIFE module (AES-GCM crypto)
+│       │   └── app.js      # UI logic + Schedule IIFE module (AES-GCM crypto)
 │       ├── themes/
 │       │   └── default.json
 │       └── i18n/

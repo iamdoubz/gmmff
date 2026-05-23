@@ -387,6 +387,11 @@ type ttlOptionJSON struct {
 	Seconds int64  `json:"seconds"`
 }
 
+type ttlOptionsResponse struct {
+	Options         []ttlOptionJSON `json:"options"`
+	MaxDownloadsCap int             `json:"max_downloads_cap"` // 0 = unlimited
+}
+
 func (h *Handler) handleTTLOptions(w http.ResponseWriter, r *http.Request) {
 	opts := make([]ttlOptionJSON, len(h.cfg.TTLOptions))
 	for i, o := range h.cfg.TTLOptions {
@@ -395,7 +400,10 @@ func (h *Handler) handleTTLOptions(w http.ResponseWriter, r *http.Request) {
 			Seconds: int64(o.Duration.Seconds()),
 		}
 	}
-	writeJSON(w, http.StatusOK, opts)
+	writeJSON(w, http.StatusOK, ttlOptionsResponse{
+		Options:         opts,
+		MaxDownloadsCap: h.cfg.MaxDownloads,
+	})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

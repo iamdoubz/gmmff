@@ -1,5 +1,26 @@
 'use strict';
 
+// ── Theme system ─────────────────────────────────────────────────────────────
+// Runs immediately on script parse — before DOMContentLoaded — to avoid a
+// flash of the wrong theme. Sets data-theme on <html>.
+//
+// Priority order (highest to lowest):
+//   1. User's explicit choice stored in localStorage ('dark' | 'light')
+//   2. OS/browser prefers-color-scheme media query
+//   3. Default: 'dark'
+//
+// The CSS handles the actual token values via:
+//   :root[data-theme="dark"]  — explicit dark
+//   :root[data-theme="light"] — explicit light
+//   @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) }
+//                             — auto light when OS prefers it and no override
+(function() {
+  const stored = localStorage.getItem('gmmff-theme'); // 'dark' | 'light' | null
+  const osPrefersLight = window.matchMedia?.('(prefers-color-scheme: light)').matches;
+  const resolved = stored || (osPrefersLight ? 'light' : 'dark');
+  document.documentElement.setAttribute('data-theme', resolved);
+})();
+
 // ── Config ──────────────────────────────────────────────────────────────────
 const THEME_URL      = 'themes/default.json';
 const LANGUAGES_URL  = 'i18n/languages.json';
@@ -74,6 +95,42 @@ async function boot() {
 // Called once during boot before the loading overlay is removed.
 function applyUIConfig(cfg, allLangs) {
   uiConfig = cfg;
+
+  // ── Tab ordering ──────────────────────────────────────────────────────────
+  // Reorder tabs and panels in the DOM according to cfg.tab_order.
+  // The server always sends a complete ordered list (e.g. ["files","chat","schedule"]).
+  const tabNav   = document.querySelector('.tabs');
+  const footer   = document.querySelector('.footer');
+  const tabOrder = Array.isArray(cfg.tab_order) && cfg.tab_order.length
+    ? cfg.tab_order
+    : ['files', 'chat', 'schedule'];
+
+  tabOrder.forEach(name => {
+    const tab   = document.getElementById(`tab-${name}`);
+    const panel = document.getElementById(`panel-${name}`);
+    if (tab  && tabNav) tabNav.appendChild(tab);
+    // Insert panel before the footer so it stays between header and footer.
+    if (panel && footer) footer.parentNode.insertBefore(panel, footer);
+  });
+
+  // ── Default tab ───────────────────────────────────────────────────────────
+  // Activate the configured default tab (or the first in tab_order).
+  // Deactivate the hardcoded panel-files first since it starts as active in HTML.
+  const defaultTab = cfg.tab_default || tabOrder[0] || 'files';
+  document.querySelectorAll('.panel').forEach(p => {
+    p.classList.remove('active');
+  });
+  document.querySelectorAll('.tab').forEach(t => {
+    t.setAttribute('aria-selected', 'false');
+  });
+  const defaultTabEl   = document.getElementById(`tab-${defaultTab}`);
+  const defaultPanelEl = document.getElementById(`panel-${defaultTab}`);
+  if (defaultTabEl)   defaultTabEl.setAttribute('aria-selected', 'true');
+  if (defaultPanelEl) defaultPanelEl.classList.add('active');
+  // Schedule tab needs its own init path.
+  if (defaultTab === 'schedule' && typeof schedShowTab === 'function') {
+    schedShowTab();
+  }
 
   // ── Tab visibility ────────────────────────────────────────────────────────
   const showFiles = cfg.show_files !== false;
@@ -171,54 +228,116 @@ function applyUIConfig(cfg, allLangs) {
 }
 
 // ── Theme ──────────────────────────────────────────────────────────────────
+
+// COLOR_KEYS is the ordered list of color token names.
+// These are the only keys that differ between dark and light modes.
+const COLOR_KEYS = [
+  'color_bg', 'color_surface', 'color_surface_raised',
+  'color_border', 'color_border_focus',
+  'color_text', 'color_text_muted', 'color_text_inverse',
+  'color_accent', 'color_accent_hover', 'color_accent_active',
+  'color_success', 'color_warning', 'color_error',
+  'color_progress_track', 'color_progress_fill',
+  'shadow_card', 'shadow_focus',
+];
+
+// CSS custom property name for each token key.
+const TOKEN_MAP = {
+  font_family:          '--font-family',
+  font_size_base:       '--font-size-base',
+  font_size_sm:         '--font-size-sm',
+  font_size_lg:         '--font-size-lg',
+  font_size_xl:         '--font-size-xl',
+  font_weight_normal:   '--font-weight-normal',
+  font_weight_medium:   '--font-weight-medium',
+  font_weight_bold:     '--font-weight-bold',
+  line_height:          '--line-height',
+  color_bg:             '--color-bg',
+  color_surface:        '--color-surface',
+  color_surface_raised: '--color-surface-raised',
+  color_border:         '--color-border',
+  color_border_focus:   '--color-border-focus',
+  color_text:           '--color-text',
+  color_text_muted:     '--color-text-muted',
+  color_text_inverse:   '--color-text-inverse',
+  color_accent:         '--color-accent',
+  color_accent_hover:   '--color-accent-hover',
+  color_accent_active:  '--color-accent-active',
+  color_success:        '--color-success',
+  color_warning:        '--color-warning',
+  color_error:          '--color-error',
+  color_progress_track: '--color-progress-track',
+  color_progress_fill:  '--color-progress-fill',
+  radius_sm:   '--radius-sm',
+  radius_md:   '--radius-md',
+  radius_lg:   '--radius-lg',
+  radius_pill: '--radius-pill',
+  spacing_xs:  '--spacing-xs',
+  spacing_sm:  '--spacing-sm',
+  spacing_md:  '--spacing-md',
+  spacing_lg:  '--spacing-lg',
+  spacing_xl:  '--spacing-xl',
+  shadow_card:  '--shadow-card',
+  shadow_focus: '--shadow-focus',
+  transition:   '--transition',
+  max_width:    '--max-width',
+};
+
+// The loaded theme object — kept in module scope so initThemeToggle can
+// call applyColorTokens when the mode changes.
+let _loadedTheme = null;
+
 function applyTheme(theme) {
-  const map = {
-    font_family:        '--font-family',
-    font_size_base:     '--font-size-base',
-    font_size_sm:       '--font-size-sm',
-    font_size_lg:       '--font-size-lg',
-    font_size_xl:       '--font-size-xl',
-    font_weight_normal: '--font-weight-normal',
-    font_weight_medium: '--font-weight-medium',
-    font_weight_bold:   '--font-weight-bold',
-    line_height:        '--line-height',
-    color_bg:             '--color-bg',
-    color_surface:        '--color-surface',
-    color_surface_raised: '--color-surface-raised',
-    color_border:         '--color-border',
-    color_border_focus:   '--color-border-focus',
-    color_text:           '--color-text',
-    color_text_muted:     '--color-text-muted',
-    color_text_inverse:   '--color-text-inverse',
-    color_accent:         '--color-accent',
-    color_accent_hover:   '--color-accent-hover',
-    color_accent_active:  '--color-accent-active',
-    color_success:        '--color-success',
-    color_warning:        '--color-warning',
-    color_error:          '--color-error',
-    color_progress_track: '--color-progress-track',
-    color_progress_fill:  '--color-progress-fill',
-    radius_sm:   '--radius-sm',
-    radius_md:   '--radius-md',
-    radius_lg:   '--radius-lg',
-    radius_pill: '--radius-pill',
-    spacing_xs: '--spacing-xs',
-    spacing_sm: '--spacing-sm',
-    spacing_md: '--spacing-md',
-    spacing_lg: '--spacing-lg',
-    spacing_xl: '--spacing-xl',
-    shadow_card:  '--shadow-card',
-    shadow_focus: '--shadow-focus',
-    transition: '--transition',
-    max_width:  '--max-width',
-  };
+  _loadedTheme = theme;
   const root = document.documentElement;
-  for (const [key, prop] of Object.entries(map)) {
-    if (theme[key] !== undefined) root.style.setProperty(prop, theme[key]);
+
+  // ── Phase 1: structural tokens (never change between light/dark) ──────────
+  // Written as inline styles — highest specificity, apply once on boot.
+  const STRUCTURAL = new Set([
+    'font_family', 'font_size_base', 'font_size_sm', 'font_size_lg',
+    'font_size_xl', 'font_weight_normal', 'font_weight_medium', 'font_weight_bold',
+    'line_height', 'radius_sm', 'radius_md', 'radius_lg', 'radius_pill',
+    'spacing_xs', 'spacing_sm', 'spacing_md', 'spacing_lg', 'spacing_xl',
+    'transition', 'max_width',
+  ]);
+  for (const [key, prop] of Object.entries(TOKEN_MAP)) {
+    if (STRUCTURAL.has(key) && theme[key] !== undefined) {
+      root.style.setProperty(prop, theme[key]);
+    }
   }
-  // Update theme-color meta to match bg
+
+  // ── Phase 2: color tokens (change with mode) ──────────────────────────────
+  const mode = root.getAttribute('data-theme') || 'dark';
+  applyColorTokens(theme, mode);
+}
+
+// applyColorTokens resolves the correct color values for the given mode
+// and writes them as inline styles on :root.
+//
+// Resolution order for each color token:
+//   1. theme[mode][key]   — e.g. theme.dark.color_bg   (mode-specific override)
+//   2. theme[key]          — flat top-level value (backwards-compat / fallback)
+//   3. (leave unset — CSS :root variables serve as the ultimate fallback)
+function applyColorTokens(theme, mode) {
+  if (!theme) return;
+  const root    = document.documentElement;
+  const palette = theme[mode] || {}; // theme.dark or theme.light, may be empty
+
+  for (const key of COLOR_KEYS) {
+    const prop = TOKEN_MAP[key];
+    if (!prop) continue;
+    const val = palette[key] ?? theme[key];
+    if (val !== undefined) {
+      root.style.setProperty(prop, val);
+    }
+  }
+
+  // Update theme-color meta for mobile browser chrome.
   const tm = document.querySelector('meta[name="theme-color"]');
-  if (tm && theme.color_bg) tm.content = theme.color_bg;
+  if (tm) {
+    const bg = (palette.color_bg ?? theme.color_bg);
+    if (bg) tm.content = bg;
+  }
 }
 
 // ── Language detection & switching ─────────────────────────────────────────
@@ -339,6 +458,37 @@ function hideLoading() {
   checkURLParams();
   // Check for ?type=schedule in the URL.
   if (typeof window.schedHandleURLParams === 'function') window.schedHandleURLParams();
+
+  // ── Theme toggle button ──────────────────────────────────────────────────
+  initThemeToggle();
+}
+
+// ── Theme toggle ──────────────────────────────────────────────────────────────
+function initThemeToggle() {
+  const btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+
+  function currentTheme() {
+    return document.documentElement.getAttribute('data-theme') || 'dark';
+  }
+
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('gmmff-theme', theme);
+    // Re-apply color tokens from the loaded theme for the new mode.
+    applyColorTokens(_loadedTheme, theme);
+  }
+
+  btn.addEventListener('click', () => {
+    setTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+  });
+
+  // Follow OS preference changes live — only when the user hasn't overridden.
+  window.matchMedia?.('(prefers-color-scheme: light)').addEventListener('change', e => {
+    if (!localStorage.getItem('gmmff-theme')) {
+      setTheme(e.matches ? 'light' : 'dark');
+    }
+  });
 }
 
 function showFatalError(err) {
@@ -446,7 +596,7 @@ document.getElementById('files-create-btn')?.addEventListener('click', () => {
   const createBtn = document.getElementById('files-create-btn');
   if (createBtn) { createBtn.disabled = true; createBtn.textContent = t('create_creating') || 'Creating…'; }
   if (typeof window.gmmffCreateSession === 'function') {
-    window.gmmffCreateSession(server, maxPeers, buildIceConfig());
+    buildIceConfig().then(ice => window.gmmffCreateSession(server, maxPeers, ice));
   }
 });
 
@@ -481,7 +631,7 @@ document.getElementById('files-join-btn')?.addEventListener('click', () => {
   const joinBtn = document.getElementById('files-join-btn');
   if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = t('join_connecting') || 'Connecting…'; }
   if (typeof window.gmmffJoinSession === 'function') {
-    window.gmmffJoinSession(code, server, buildIceConfig());
+    buildIceConfig().then(ice => window.gmmffJoinSession(code, server, ice));
   }
 });
 
@@ -841,11 +991,15 @@ function showChatState(state) {
 
 // Start session button
 document.getElementById('chat-start-btn')?.addEventListener('click', () => {
-  const server = normaliseServerURL(document.getElementById('chat-server').value.trim());
-  const errEl  = document.getElementById('chat-error');
+  const server    = normaliseServerURL(document.getElementById('chat-server').value.trim());
+  const nameVal   = document.getElementById('chat-my-name')?.value.trim();
+  const errEl     = document.getElementById('chat-error');
   errEl.textContent = '';
   if (!server) { errEl.textContent = t('error_no_server'); return; }
-  if (typeof window.gmmffChat === 'function') window.gmmffChat(server, buildIceConfig());
+  if (nameVal) myName = nameVal;
+  buildIceConfig().then(ice => {
+    if (typeof window.gmmffChat === 'function') window.gmmffChat(server, ice);
+  });
 });
 
 // Dynamically add "Join with a code" link below Start button
@@ -888,7 +1042,9 @@ document.getElementById('chat-join-btn')?.addEventListener('click', () => {
   if (chatNameVal) myName = chatNameVal;
   const chatJoinBtn = document.getElementById('chat-join-btn');
   if (chatJoinBtn) { chatJoinBtn.disabled = true; chatJoinBtn.textContent = t('join_connecting') || 'Connecting…'; }
-  if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, buildIceConfig());
+  buildIceConfig().then(ice => {
+    if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, ice);
+  });
 });
 
 document.getElementById('chat-send-btn')?.addEventListener('click', sendChatMessage);
@@ -1042,8 +1198,39 @@ function saveIceState() {
   } catch(_) {}
 }
 
-function buildIceConfig() {
-  return { stun: [...iceState.stun], turn: [...iceState.turn] };
+// buildIceConfig returns a promise resolving to the ICE config object.
+// When push_stun or push_turn is enabled in the server config, a fresh
+// /api/ice request is made and the pushed values replace user-defined entries.
+// This is async because the per-session fetch generates fresh ephemeral TURN
+// credentials server-side with a 30-minute TTL.
+async function buildIceConfig() {
+  const base = { stun: [...iceState.stun], turn: [...iceState.turn] };
+
+  if (!uiConfig.push_stun && !uiConfig.push_turn) {
+    return base; // no push — use user's local ICE state unchanged
+  }
+
+  try {
+    const resp = await fetch('/api/ice', { cache: 'no-store' });
+    if (!resp.ok) throw new Error(`/api/ice returned ${resp.status}`);
+    const pushed = await resp.json();
+
+    if (uiConfig.push_stun && Array.isArray(pushed.stun)) {
+      base.stun = pushed.stun; // replace entirely
+    }
+    if (uiConfig.push_turn && Array.isArray(pushed.turn)) {
+      // TURN push returns pre-resolved {url, username, password} objects.
+      // Convert to the raw "turn:host?..." format with embedded credentials
+      // that configFromJS in Wasm expects — actually Wasm configFromJS takes
+      // the raw string and calls turn.ParseOne on it, so we pass a JSON object
+      // directly instead and handle it in the 'pushed_turn' key.
+      base.pushed_turn = pushed.turn; // separate key — handled in configFromJS
+    }
+  } catch (e) {
+    console.warn('[ice] failed to fetch pushed ICE config, using local state:', e.message);
+  }
+
+  return base;
 }
 
 document.getElementById('ice-toggle')?.addEventListener('click', () => {
@@ -1223,7 +1410,9 @@ function checkURLParams() {
     if (input) input.value = code;
     if (autoconnect) {
       const server = normaliseServerURL(location.origin.replace(/^http/, 'ws') + '/ws');
-      if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, buildIceConfig());
+      buildIceConfig().then(ice => {
+        if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, ice);
+      });
     } else {
       showChatState('join');
       document.getElementById('chat-join-code')?.focus();
@@ -1240,7 +1429,7 @@ function checkURLParams() {
       const server = normaliseServerURL(location.origin.replace(/^http/, 'ws') + '/ws');
       setTimeout(() => {
         if (typeof window.gmmffJoinSession === 'function') {
-          window.gmmffJoinSession(code, server, buildIceConfig());
+          buildIceConfig().then(ice => window.gmmffJoinSession(code, server, ice));
         }
       }, 100);
     } else {
@@ -1274,6 +1463,21 @@ let schedPassword   = '';        // entered upload password (if required)
 let schedCryptoKey  = null;      // CryptoKey for current upload/download
 let schedUploadCtrl = null;      // AbortController for in-progress upload
 let schedTTLOptions = [];        // [{label, seconds}] from /api/schedule/ttl-options
+let schedMaxDownloadsCap = 0;    // server cap; 0 = unlimited
+
+// Show/clear the max-downloads warning based on the server cap.
+function schedCheckMaxDl() {
+  const el      = document.getElementById('schedule-max-dl');
+  const warning = document.getElementById('schedule-max-dl-warning');
+  if (!el || !warning || schedMaxDownloadsCap === 0) return;
+  const val = parseInt(el.value, 10);
+  if (!isNaN(val) && val > 0 && val > schedMaxDownloadsCap) {
+    warning.textContent = (t('schedule_max_dl_capped') || 'Exceeds server limit — will be capped at') + ' ' + schedMaxDownloadsCap + '.';
+    warning.classList.remove('hidden');
+  } else {
+    warning.classList.add('hidden');
+  }
+}
 
 // ── Boot: show/hide tab based on config ───────────────────────────────────────
 function schedInit(cfg) {
@@ -1285,10 +1489,14 @@ function schedInit(cfg) {
   // Load TTL options.
   fetch('/api/schedule/ttl-options')
     .then(r => r.json())
-    .then(opts => {
+    .then(resp => {
+      // Response is now { options: [...], max_downloads_cap: N }.
+      // Accept both the old array shape and the new object shape for safety.
+      const opts = Array.isArray(resp) ? resp : (resp.options || []);
+      schedMaxDownloadsCap = Array.isArray(resp) ? 0 : (resp.max_downloads_cap ?? 0);
       schedTTLOptions = opts;
-      const list    = document.getElementById('schedule-ttl-list');
-      const hidden  = document.getElementById('schedule-ttl');
+      const list     = document.getElementById('schedule-ttl-list');
+      const hidden   = document.getElementById('schedule-ttl');
       const btnLabel = document.getElementById('schedule-ttl-label');
       if (!list || !hidden || !btnLabel) return;
 
@@ -1302,7 +1510,7 @@ function schedInit(cfg) {
         li.addEventListener('click', () => {
           list.querySelectorAll('.custom-select__item').forEach(el => el.classList.remove('selected'));
           li.classList.add('selected');
-          hidden.value    = o.seconds;
+          hidden.value         = o.seconds;
           btnLabel.textContent = li.textContent;
           schedCloseDropdown();
           schedUpdateExpiresHint();
@@ -1312,9 +1520,17 @@ function schedInit(cfg) {
 
       // Set initial value.
       if (opts.length > 0) {
-        hidden.value      = opts[0].seconds;
+        hidden.value         = opts[0].seconds;
         btnLabel.textContent = list.querySelector('.custom-select__item')?.textContent || opts[0].label;
         schedUpdateExpiresHint();
+      }
+
+      // Wire up the cap warning now that we know the server limit.
+      if (schedMaxDownloadsCap > 0) {
+        const dlInput = document.getElementById('schedule-max-dl');
+        dlInput?.addEventListener('input', schedCheckMaxDl);
+        // Also check the current value in case it was already out of range.
+        schedCheckMaxDl();
       }
     })
     .catch(() => {});
@@ -1452,13 +1668,17 @@ function schedClickCreate() {
 
 function schedResetCreate() {
   schedSetState('landing');
-  schedCryptoKey = null;
+  schedCryptoKey    = null;
+  schedSelectedFiles = [];
   const fi = document.getElementById('schedule-file-input');
   const fo = document.getElementById('schedule-folder-input');
   if (fi) fi.value = '';
   if (fo) fo.value = '';
   document.getElementById('schedule-file-name').textContent = t('send_no_file') || 'No file chosen';
   document.getElementById('schedule-create-error').textContent = '';
+  // Re-enable the upload button so back-to-back uploads work.
+  const btn = document.getElementById('schedule-upload-btn');
+  if (btn) { btn.disabled = false; btn.textContent = t('schedule_upload_btn') || 'Upload'; }
   schedResetProgress();
 }
 
@@ -1472,11 +1692,19 @@ function schedResetProgress() {
 let schedSelectedFiles = []; // File[]
 
 function schedFileChosen(e) {
-  const files = Array.from(e.target.files || []);
-  if (!files.length) return;
-  schedSelectedFiles = files;
-  const name = files.length === 1 ? files[0].name : `${files.length} ${t('files_count') || 'files'}`;
-  document.getElementById('schedule-file-name').textContent = name;
+  const newFiles = Array.from(e.target.files || []);
+  if (!newFiles.length) return;
+  // Merge with any files already chosen from the other picker,
+  // de-duplicating by name+size so choosing the same file twice is harmless.
+  const existing = new Set(schedSelectedFiles.map(f => f.name + f.size));
+  for (const f of newFiles) {
+    if (!existing.has(f.name + f.size)) schedSelectedFiles.push(f);
+  }
+  const count = schedSelectedFiles.length;
+  const label = count === 1
+    ? schedSelectedFiles[0].name
+    : `${count} ${t('files_count') || 'files'}`;
+  document.getElementById('schedule-file-name').textContent = label;
   document.getElementById('schedule-create-error').textContent = '';
 }
 
@@ -2047,7 +2275,7 @@ function schedFetch(url, opts) {
 // ── Speed probe & adaptive chunk sizing ───────────────────────────────────────
 
 // PROBE_THRESHOLD: files smaller than this skip the probe and use min chunk size.
-const PROBE_THRESHOLD = 2 * 1024 * 1024; // 2 MB
+const PROBE_THRESHOLD = 4 * 1024 * 1024; // 4 MB
 
 // Tier table: [minSpeedBytesPerSec, chunkSizeBytes, label]
 const CHUNK_TIERS = [

@@ -85,7 +85,25 @@ func ParseAll(raw []string) ([]Server, error) {
 	return servers, nil
 }
 
-// ICEServers converts a slice of Server entries into Pion ICEServer structs,
+// ParseAllWithTTL is like ParseAll but uses a custom TTL for ephemeral credentials.
+// Use this for server-push scenarios where shorter-lived credentials are preferred.
+func ParseAllWithTTL(raw []string, ttl time.Duration) ([]Server, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	if len(raw) > MaxServers {
+		return nil, fmt.Errorf("turn: too many servers — maximum is %d, got %d", MaxServers, len(raw))
+	}
+	servers := make([]Server, 0, len(raw))
+	for _, r := range raw {
+		s, err := parseWithTTL(r, ttl)
+		if err != nil {
+			return nil, err
+		}
+		servers = append(servers, s)
+	}
+	return servers, nil
+}
 // one per TURN server (each needs its own credentials).
 func ICEServers(servers []Server) []webrtc.ICEServer {
 	ice := make([]webrtc.ICEServer, 0, len(servers))
@@ -106,11 +124,16 @@ func ICEServers(servers []Server) []webrtc.ICEServer {
 // ParseOne parses and validates a single raw TURN URL string.
 // The format is described in the package documentation.
 func ParseOne(raw string) (Server, error) {
-	return parse(raw)
+	return parseWithTTL(raw, EphemeralTTL)
 }
 
-// parse is the internal implementation.
+// parse is the internal implementation using the default TTL.
 func parse(raw string) (Server, error) {
+	return parseWithTTL(raw, EphemeralTTL)
+}
+
+// parseWithTTL is the full implementation with configurable TTL.
+func parseWithTTL(raw string, ttl time.Duration) (Server, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return Server{}, fmt.Errorf("turn: empty server string")
@@ -172,7 +195,7 @@ func parse(raw string) (Server, error) {
 	// Resolve credentials.
 	var username, password string
 	if hasEphemeral {
-		username, password = ephemeralCredentials(secret, "gmmff", EphemeralTTL)
+		username, password = ephemeralCredentials(secret, "gmmff", ttl)
 	} else {
 		username = user
 		password = pass

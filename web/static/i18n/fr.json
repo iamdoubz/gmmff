@@ -136,5 +136,6 @@
   "schedule_deleted": "File deleted successfully.",
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "Valide pour",
-  "schedule_estimating": "Estimation…"
+  "schedule_estimating": "Estimation…",
+  "schedule_max_dl_capped": "Dépasse la limite du serveur — sera plafonné à"
 }

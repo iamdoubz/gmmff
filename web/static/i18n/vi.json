@@ -136,5 +136,6 @@
   "schedule_deleted": "File deleted successfully.",
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "Có hiệu lực trong",
-  "schedule_estimating": "Đang ước lượng…"
+  "schedule_estimating": "Đang ước lượng…",
+  "schedule_max_dl_capped": "Vượt giới hạn máy chủ — sẽ bị giới hạn ở"
 }

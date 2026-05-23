@@ -52,6 +52,9 @@ type Server struct {
 	localMode     bool     // offline-safe CSP, no external origins
 	uiConfig      UIConfig // feature flags served via /config.json
 	scheduleHandler interface{ Mount(chi.Router) } // nil when schedule is disabled
+	// ICE push config — populated by SetICEConfig when GMMFF_PUSH_STUN/TURN is set.
+	pushedSTUN []string   // STUN URLs to push to clients
+	pushedTURN []PushedTURN  // TURN servers to push (credentials already resolved)
 }
 
 // NewServer constructs a Server and registers all routes.
@@ -112,6 +115,7 @@ func (s *Server) routes() {
 	r.Get("/readyz", s.handleReadiness)
 	r.Get("/metrics", s.handleMetrics)
 	r.Get("/config.json", s.handleUIConfig)
+	r.Get("/api/ice",     s.handleICE)
 
 	if s.staticFS != nil {
 		// Serve from embedded fs.FS (local mode).
@@ -280,6 +284,49 @@ func (s *Server) handleUIConfig(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(s.uiConfig); err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
+}
+
+// iceTURN is a resolved TURN entry safe to send to the browser.
+// Credentials are already resolved (ephemeral creds generated server-side).
+type PushedTURN struct {
+	URL      string `json:"url"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// iceResponse is the shape of GET /api/ice.
+type iceResponse struct {
+	STUN []string  `json:"stun"` // may be nil/empty when GMMFF_PUSH_STUN=false
+	TURN []PushedTURN `json:"turn"` // may be nil/empty when GMMFF_PUSH_TURN=false
+}
+
+// SetICEConfig stores the pushed ICE servers on the Server so /api/ice can
+// serve them.  Called from main after parsing GMMFF_STUN / GMMFF_TURN env vars.
+func (s *Server) SetICEConfig(stun []string, turn []PushedTURN) {
+	s.pushedSTUN = stun
+	s.pushedTURN = turn
+}
+
+// handleICE serves GET /api/ice — called by the browser right before creating
+// a peer connection when push_stun or push_turn is enabled in /config.json.
+// Returns only the portions that are enabled; empty slices for disabled parts.
+func (s *Server) handleICE(w http.ResponseWriter, r *http.Request) {
+	resp := iceResponse{}
+	if s.uiConfig.PushSTUN {
+		resp.STUN = s.pushedSTUN
+		if resp.STUN == nil {
+			resp.STUN = []string{}
+		}
+	}
+	if s.uiConfig.PushTURN {
+		resp.TURN = s.pushedTURN
+		if resp.TURN == nil {
+			resp.TURN = []PushedTURN{}
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	json.NewEncoder(w).Encode(resp) //nolint:errcheck
 }
 
 // SetScheduleHandler attaches the schedule feature handler.

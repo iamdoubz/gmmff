@@ -136,5 +136,6 @@
   "schedule_deleted": "File deleted successfully.",
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "유효 기간",
-  "schedule_estimating": "㕌량 중…"
+  "schedule_estimating": "㕌량 중…",
+  "schedule_max_dl_capped": "서버 한도 초과 — 최대"
 }

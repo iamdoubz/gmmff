@@ -136,5 +136,6 @@
   "schedule_deleted": "File deleted successfully.",
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "Sah untuk",
-  "schedule_estimating": "Menganggar…"
+  "schedule_estimating": "Menganggar…",
+  "schedule_max_dl_capped": "Melebihi had pelayan — akan dihadkan kepada"
 }

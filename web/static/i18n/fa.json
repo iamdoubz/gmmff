@@ -136,5 +136,6 @@
   "schedule_deleted": "File deleted successfully.",
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "معتبر برای",
-  "schedule_estimating": "در حال برآورد…"
+  "schedule_estimating": "در حال برآورد…",
+  "schedule_max_dl_capped": "از حد سرور تجاوز می‌کند — محدود می‌شود به"
 }
