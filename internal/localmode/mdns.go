@@ -5,20 +5,20 @@ package localmode
 import (
 	"context"
 	"fmt"
+	"net"
 	"time"
 
-	"github.com/grandcat/zeroconf"
+	"github.com/betamos/zeroconf"
 )
 
 const (
 	mdnsService  = "_gmmff._tcp"
-	mdnsDomain   = "local."
 	mdnsInstance = "gmmff"
 )
 
 // MDNSServer holds a running mDNS service registration.
 type MDNSServer struct {
-	server *zeroconf.Server
+	client *zeroconf.Client
 }
 
 // RegisterMDNS advertises this gmmff instance on the local network via mDNS.
@@ -37,26 +37,28 @@ func RegisterMDNS(port int, scheme string) (*MDNSServer, error) {
 }
 
 // RegisterMDNSAsync starts mDNS registration in a goroutine and returns a
-// channel that receives the result. Sends nil on failure. The caller should
-// select on this channel with its own timeout.
+// channel that receives the result. Sends nil on failure.
 func RegisterMDNSAsync(port int, scheme string) <-chan *MDNSServer {
 	ch := make(chan *MDNSServer, 1)
 	go func() {
-		txt := []string{"version=1", fmt.Sprintf("scheme=%s", scheme)}
-		srv, err := zeroconf.Register(mdnsInstance, mdnsService, mdnsDomain, port, txt, nil)
+		ty  := zeroconf.NewType(mdnsService)
+		svc := zeroconf.NewService(ty, mdnsInstance, uint16(port))
+		svc.Text = []string{"version=1", fmt.Sprintf("scheme=%s", scheme)}
+
+		client, err := zeroconf.New().Publish(svc).Open()
 		if err != nil {
 			ch <- nil
 			return
 		}
-		ch <- &MDNSServer{server: srv}
+		ch <- &MDNSServer{client: client}
 	}()
 	return ch
 }
 
 // Shutdown deregisters this instance from mDNS.
 func (m *MDNSServer) Shutdown() {
-	if m != nil && m.server != nil {
-		m.server.Shutdown()
+	if m != nil && m.client != nil {
+		m.client.Close()
 	}
 }
 
@@ -84,56 +86,62 @@ func DiscoverPeers(ctx context.Context, scanDuration time.Duration) ([]PeerInfo,
 	case r := <-ch:
 		return r.peers, r.err
 	case <-time.After(scanDuration + 500*time.Millisecond):
-		return nil, nil // timeout — treat as no peers found
+		return nil, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
 }
 
 func discoverPeers(ctx context.Context, scanDuration time.Duration) ([]PeerInfo, error) {
-	entries := make(chan *zeroconf.ServiceEntry, 16)
-	var peers []PeerInfo
-
-	resolver, err := zeroconf.NewResolver(nil)
-	if err != nil {
-		return nil, fmt.Errorf("local: mDNS resolver: %w", err)
-	}
-
 	scanCtx, cancel := context.WithTimeout(ctx, scanDuration)
 	defer cancel()
 
-	if err := resolver.Browse(scanCtx, mdnsService, mdnsDomain, entries); err != nil {
+	var peers []PeerInfo
+	ty := zeroconf.NewType(mdnsService)
+
+	client, err := zeroconf.New().Browse(func(e zeroconf.Event) {
+		if e.Op == zeroconf.OpRemoved {
+			return
+		}
+		if e.Name == mdnsInstance {
+			return
+		}
+		scheme := "http"
+		for _, txt := range e.Text {
+			if txt == "scheme=https" {
+				scheme = "https"
+			}
+		}
+		// Prefer IPv4, fall back to IPv6, then hostname.
+		addr := ""
+		for _, a := range e.Addrs {
+			ip := net.IP(a.AsSlice())
+			if ip.To4() != nil {
+				addr = fmt.Sprintf("%s:%d", ip.String(), e.Port)
+				break
+			}
+		}
+		if addr == "" && len(e.Addrs) > 0 {
+			a := e.Addrs[0]
+			if a.Is6() {
+				addr = fmt.Sprintf("[%s]:%d", a.String(), e.Port)
+			} else {
+				addr = fmt.Sprintf("%s:%d", a.String(), e.Port)
+			}
+		}
+		if addr == "" && e.Hostname != "" {
+			addr = fmt.Sprintf("%s:%d", e.Hostname, e.Port)
+		}
+		if addr != "" {
+			peers = append(peers, PeerInfo{Addr: addr, Scheme: scheme})
+		}
+	}, ty).Open()
+
+	if err != nil {
 		return nil, fmt.Errorf("local: mDNS browse: %w", err)
 	}
+	defer client.Close()
 
-	for {
-		select {
-		case entry, ok := <-entries:
-			if !ok {
-				return peers, nil
-			}
-			if entry.Instance == mdnsInstance {
-				continue
-			}
-			scheme := "http"
-			for _, txt := range entry.Text {
-				if txt == "scheme=https" {
-					scheme = "https"
-				}
-			}
-			addr := ""
-			if len(entry.AddrIPv4) > 0 {
-				addr = fmt.Sprintf("%s:%d", entry.AddrIPv4[0], entry.Port)
-			} else if len(entry.AddrIPv6) > 0 {
-				addr = fmt.Sprintf("[%s]:%d", entry.AddrIPv6[0], entry.Port)
-			} else if entry.HostName != "" {
-				addr = fmt.Sprintf("%s:%d", entry.HostName, entry.Port)
-			}
-			if addr != "" {
-				peers = append(peers, PeerInfo{Addr: addr, Scheme: scheme})
-			}
-		case <-scanCtx.Done():
-			return peers, nil
-		}
-	}
+	<-scanCtx.Done()
+	return peers, nil
 }
