@@ -137,5 +137,7 @@
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "செல்லுபடியாகும் கால அளவு",
   "schedule_estimating": "மதிப்பிடுகिறது…",
-  "schedule_max_dl_capped": "சேவையக வரம்பை மீறுகிறது — அதிகபட்சம்"
+  "schedule_max_dl_capped": "சேவையக வரம்பை மீறுகிறது — அதிகபட்சம்",
+  "schedule_file_too_large": "File too large — maximum allowed size is",
+  "schedule_file_size_is": "Selected size:"
 }

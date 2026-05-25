@@ -390,6 +390,7 @@ type ttlOptionJSON struct {
 type ttlOptionsResponse struct {
 	Options         []ttlOptionJSON `json:"options"`
 	MaxDownloadsCap int             `json:"max_downloads_cap"` // 0 = unlimited
+	MaxSizeBytes    int64           `json:"max_size_bytes"`    // 0 = unlimited
 }
 
 func (h *Handler) handleTTLOptions(w http.ResponseWriter, r *http.Request) {
@@ -403,6 +404,7 @@ func (h *Handler) handleTTLOptions(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, ttlOptionsResponse{
 		Options:         opts,
 		MaxDownloadsCap: h.cfg.MaxDownloads,
+		MaxSizeBytes:    h.cfg.MaxSize,
 	})
 }
 

@@ -137,5 +137,7 @@
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "درست مدت",
   "schedule_estimating": "اندازہ ہو رہا ہے…",
-  "schedule_max_dl_capped": "سرور کی حد سے تجاوز — زیادہ سے زیادہ ہوگا"
+  "schedule_max_dl_capped": "سرور کی حد سے تجاوز — زیادہ سے زیادہ ہوگا",
+  "schedule_file_too_large": "File too large — maximum allowed size is",
+  "schedule_file_size_is": "Selected size:"
 }

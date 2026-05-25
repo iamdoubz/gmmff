@@ -137,5 +137,7 @@
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "Gäller i",
   "schedule_estimating": "Uppskattar…",
-  "schedule_max_dl_capped": "Överskrider servergränsen — kommer begränsas till"
+  "schedule_max_dl_capped": "Överskrider servergränsen — kommer begränsas till",
+  "schedule_file_too_large": "Filen är för stor — maximal tillåten storlek är",
+  "schedule_file_size_is": "Vald storlek:"
 }

@@ -137,5 +137,7 @@
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "有効期間",
   "schedule_estimating": "計測中…",
-  "schedule_max_dl_capped": "サーバー上限を超えています — 上限は"
+  "schedule_max_dl_capped": "サーバー上限を超えています — 上限は",
+  "schedule_file_too_large": "ファイルが大きすぎます — 最大許容サイズ:",
+  "schedule_file_size_is": "選択したサイズ:"
 }

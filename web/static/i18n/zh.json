@@ -137,5 +137,7 @@
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "有效期",
   "schedule_estimating": "估算中…",
-  "schedule_max_dl_capped": "超过服务器限制 — 将上限为"
+  "schedule_max_dl_capped": "超过服务器限制 — 将上限为",
+  "schedule_file_too_large": "文件过大 — 最大允许大小为",
+  "schedule_file_size_is": "选择的大小:"
 }

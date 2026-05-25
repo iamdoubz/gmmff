@@ -137,5 +137,7 @@
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "صالح لمدة",
   "schedule_estimating": "جارٍ التقدير…",
-  "schedule_max_dl_capped": "يتجاوز حد الخادم — سيتم تقليصه إلى"
+  "schedule_max_dl_capped": "يتجاوز حد الخادم — سيتم تقليصه إلى",
+  "schedule_file_too_large": "الملف كبير جداً — الحجم الأقصى المسموح به هو",
+  "schedule_file_size_is": "الحجم المحدد:"
 }

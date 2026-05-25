@@ -1464,6 +1464,7 @@ let schedCryptoKey  = null;      // CryptoKey for current upload/download
 let schedUploadCtrl = null;      // AbortController for in-progress upload
 let schedTTLOptions = [];        // [{label, seconds}] from /api/schedule/ttl-options
 let schedMaxDownloadsCap = 0;    // server cap; 0 = unlimited
+let schedMaxSizeBytes    = 0;    // server max upload size; 0 = unknown
 
 // Show/clear the max-downloads warning based on the server cap.
 function schedCheckMaxDl() {
@@ -1494,6 +1495,7 @@ function schedInit(cfg) {
       // Accept both the old array shape and the new object shape for safety.
       const opts = Array.isArray(resp) ? resp : (resp.options || []);
       schedMaxDownloadsCap = Array.isArray(resp) ? 0 : (resp.max_downloads_cap ?? 0);
+      schedMaxSizeBytes    = Array.isArray(resp) ? 0 : (resp.max_size_bytes    ?? 0);
       schedTTLOptions = opts;
       const list     = document.getElementById('schedule-ttl-list');
       const hidden   = document.getElementById('schedule-ttl');
@@ -1737,7 +1739,20 @@ async function schedStartUpload() {
   if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.textContent = t('schedule_uploading') || 'Uploading…'; }
 
   try {
-    // ── 1. Collect file data ──────────────────────────────────────────────────
+    // ── 0. Pre-flight size check (before reading any file data) ───────────────
+    // File.size is a native 64-bit float — accurate up to 9 PB, never overflows.
+    // arrayBuffer() on a >2 GB file silently truncates in a Uint8Array because
+    // Uint8Array.length is a 32-bit integer — so we MUST check here first.
+    const rawTotalSize = schedSelectedFiles.reduce((sum, f) => sum + f.size, 0);
+    if (schedMaxSizeBytes > 0 && rawTotalSize > schedMaxSizeBytes) {
+      throw new Error(
+        (t('schedule_file_too_large') || 'File too large — maximum allowed size is') +
+        ' ' + formatBytes(schedMaxSizeBytes) +
+        '. ' +
+        (t('schedule_file_size_is') || 'Selected size:') +
+        ' ' + formatBytes(rawTotalSize) + '.'
+      );
+    }
     let plainBytes;
     let fileName;
     if (schedSelectedFiles.length === 1 && !schedSelectedFiles[0].webkitRelativePath) {
