@@ -137,5 +137,7 @@
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "Válido por",
   "schedule_estimating": "Estimando…",
-  "schedule_max_dl_capped": "Supera el límite del servidor — se limitará a"
+  "schedule_max_dl_capped": "Supera el límite del servidor — se limitará a",
+  "schedule_file_too_large": "Archivo demasiado grande — el tamaño máximo permitido es",
+  "schedule_file_size_is": "Tamaño seleccionado:"
 }

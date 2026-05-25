@@ -137,5 +137,7 @@
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "Voimassa",
   "schedule_estimating": "Arvioidaan…",
-  "schedule_max_dl_capped": "Ylittää palvelimen rajan — rajoitetaan arvoon"
+  "schedule_max_dl_capped": "Ylittää palvelimen rajan — rajoitetaan arvoon",
+  "schedule_file_too_large": "File too large — maximum allowed size is",
+  "schedule_file_size_is": "Selected size:"
 }

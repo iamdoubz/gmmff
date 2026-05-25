@@ -137,5 +137,7 @@
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "यासाठी वैध",
   "schedule_estimating": "अंदाज करतोय…",
-  "schedule_max_dl_capped": "सर्व्हरची मर्यादा ओलांडली — मर्यादित होईल"
+  "schedule_max_dl_capped": "सर्व्हरची मर्यादा ओलांडली — मर्यादित होईल",
+  "schedule_file_too_large": "File too large — maximum allowed size is",
+  "schedule_file_size_is": "Selected size:"
 }

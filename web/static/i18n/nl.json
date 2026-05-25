@@ -137,5 +137,7 @@
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "Geldig voor",
   "schedule_estimating": "Schatting…",
-  "schedule_max_dl_capped": "Overschrijdt serverlimiet — wordt beperkt tot"
+  "schedule_max_dl_capped": "Overschrijdt serverlimiet — wordt beperkt tot",
+  "schedule_file_too_large": "Bestand te groot — maximaal toegestane grootte is",
+  "schedule_file_size_is": "Geselecteerde grootte:"
 }

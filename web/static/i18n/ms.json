@@ -137,5 +137,7 @@
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "Sah untuk",
   "schedule_estimating": "Menganggar…",
-  "schedule_max_dl_capped": "Melebihi had pelayan — akan dihadkan kepada"
+  "schedule_max_dl_capped": "Melebihi had pelayan — akan dihadkan kepada",
+  "schedule_file_too_large": "File too large — maximum allowed size is",
+  "schedule_file_size_is": "Selected size:"
 }

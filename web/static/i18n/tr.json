@@ -137,5 +137,7 @@
   "schedule_delete_failed": "Could not delete file.",
   "schedule_ttl_label": "Geçerli süre",
   "schedule_estimating": "Tahmin ediliyor…",
-  "schedule_max_dl_capped": "Sunucu limitini aşıyor — şuna sınırlanacak"
+  "schedule_max_dl_capped": "Sunucu limitini aşıyor — şuna sınırlanacak",
+  "schedule_file_too_large": "Dosya çok büyük — izin verilen maksimum boyut:",
+  "schedule_file_size_is": "Seçilen boyut:"
 }
