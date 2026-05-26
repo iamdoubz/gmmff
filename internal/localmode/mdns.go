@@ -12,10 +12,7 @@ import (
 	"github.com/betamos/zeroconf"
 )
 
-const (
-	mdnsService  = "_gmmff._tcp"
-	mdnsInstance = "gmmff"
-)
+const mdnsService = "_gmmff._tcp"
 
 // ipSupport describes which IP families are available on this host.
 type ipSupport struct {
@@ -23,7 +20,6 @@ type ipSupport struct {
 	v6 bool
 }
 
-// String returns a human-readable description for logging.
 func (s ipSupport) String() string {
 	switch {
 	case s.v4 && s.v6:
@@ -37,7 +33,6 @@ func (s ipSupport) String() string {
 	}
 }
 
-// network returns the betamos/zeroconf network string for this support level.
 func (s ipSupport) network() string {
 	switch {
 	case s.v4 && s.v6:
@@ -51,33 +46,48 @@ func (s ipSupport) network() string {
 	}
 }
 
-// detectIPSupport probes which IP families are usable for multicast on this
-// host by attempting to open a UDP socket of each type. This is cheaper and
-// more accurate than parsing /proc or checking kernel flags — if you can open
-// the socket, the family works; if not (EAFNOSUPPORT, ENETUNREACH, etc.) it
-// doesn't.
+// detectIPSupport probes which IP families are usable on this host by
+// attempting to open a UDP socket of each type.
 func detectIPSupport() ipSupport {
 	var s ipSupport
-
-	// Try to bind a UDP4 socket on the mDNS multicast address.
 	if c, err := net.ListenPacket("udp4", "0.0.0.0:0"); err == nil {
 		c.Close()
 		s.v4 = true
 	}
-
-	// Try to bind a UDP6 socket. Some kernels disable IPv6 entirely
-	// (net.ipv6.conf.all.disable_ipv6=1), which causes EAFNOSUPPORT here.
 	if c, err := net.ListenPacket("udp6", "[::]:0"); err == nil {
 		c.Close()
 		s.v6 = true
 	}
-
 	return s
+}
+
+// instanceName returns a unique mDNS instance name for this process.
+// Uses the system hostname so two machines on the same LAN are always
+// distinguishable, with a short random suffix to handle the case where
+// two instances run on the same host.
+func instanceName() string {
+	host, err := os.Hostname()
+	if err != nil || host == "" {
+		host = "gmmff"
+	}
+	// Append a 4-byte random hex suffix so two instances on the same host
+	// (e.g. during testing) don't collide.
+	b := make([]byte, 4)
+	// crypto/rand not imported here — use time-seeded simple token.
+	// For an mDNS instance name uniqueness is all that's needed; this is
+	// not a security-sensitive value.
+	t := uint32(time.Now().UnixNano() & 0xFFFFFFFF)
+	b[0] = byte(t >> 24)
+	b[1] = byte(t >> 16)
+	b[2] = byte(t >> 8)
+	b[3] = byte(t)
+	return fmt.Sprintf("%s-%x", host, b)
 }
 
 // MDNSServer holds a running mDNS service registration.
 type MDNSServer struct {
-	client *zeroconf.Client
+	client   *zeroconf.Client
+	instance string // the unique instance name we registered under
 }
 
 // RegisterMDNS advertises this gmmff instance on the local network via mDNS.
@@ -109,8 +119,9 @@ func RegisterMDNSAsync(port int, scheme string) <-chan *MDNSServer {
 			return
 		}
 
-		ty  := zeroconf.NewType(mdnsService)
-		svc := zeroconf.NewService(ty, mdnsInstance, uint16(port))
+		name := instanceName()
+		ty   := zeroconf.NewType(mdnsService)
+		svc  := zeroconf.NewService(ty, name, uint16(port))
 		svc.Text = []string{"version=1", fmt.Sprintf("scheme=%s", scheme)}
 
 		client, err := zeroconf.New().Network(support.network()).Publish(svc).Open()
@@ -119,7 +130,8 @@ func RegisterMDNSAsync(port int, scheme string) <-chan *MDNSServer {
 			ch <- nil
 			return
 		}
-		ch <- &MDNSServer{client: client}
+		fmt.Fprintf(os.Stderr, "local: mDNS registered as %q\n", name)
+		ch <- &MDNSServer{client: client, instance: name}
 	}()
 	return ch
 }
@@ -138,8 +150,15 @@ type PeerInfo struct {
 }
 
 // DiscoverPeers scans the local network for other gmmff instances.
-// Runs with a hard timeout so IPv6 failures or slow networks never block.
-func DiscoverPeers(ctx context.Context, scanDuration time.Duration) ([]PeerInfo, error) {
+// self is the MDNSServer returned by RegisterMDNS — its instance name is
+// excluded from results so we never return ourselves.
+// Pass nil if registration was skipped or failed.
+func DiscoverPeers(ctx context.Context, scanDuration time.Duration, self *MDNSServer) ([]PeerInfo, error) {
+	selfName := ""
+	if self != nil {
+		selfName = self.instance
+	}
+
 	type result struct {
 		peers []PeerInfo
 		err   error
@@ -147,7 +166,7 @@ func DiscoverPeers(ctx context.Context, scanDuration time.Duration) ([]PeerInfo,
 	ch := make(chan result, 1)
 
 	go func() {
-		peers, err := discoverPeers(ctx, scanDuration)
+		peers, err := discoverPeers(ctx, scanDuration, selfName)
 		ch <- result{peers, err}
 	}()
 
@@ -161,7 +180,7 @@ func DiscoverPeers(ctx context.Context, scanDuration time.Duration) ([]PeerInfo,
 	}
 }
 
-func discoverPeers(ctx context.Context, scanDuration time.Duration) ([]PeerInfo, error) {
+func discoverPeers(ctx context.Context, scanDuration time.Duration, selfName string) ([]PeerInfo, error) {
 	scanCtx, cancel := context.WithTimeout(ctx, scanDuration)
 	defer cancel()
 
@@ -172,7 +191,7 @@ func discoverPeers(ctx context.Context, scanDuration time.Duration) ([]PeerInfo,
 
 	var peers []PeerInfo
 	ty := zeroconf.NewType(mdnsService)
-	cb := makeBrowseCallback(&peers)
+	cb := makeBrowseCallback(&peers, selfName)
 
 	client, err := zeroconf.New().Network(support.network()).Browse(cb, ty).Open()
 	if err != nil {
@@ -185,10 +204,14 @@ func discoverPeers(ctx context.Context, scanDuration time.Duration) ([]PeerInfo,
 }
 
 // makeBrowseCallback returns a zeroconf event handler that appends discovered
-// peers to the provided slice, preferring IPv4 addresses.
-func makeBrowseCallback(peers *[]PeerInfo) func(zeroconf.Event) {
+// peers, excluding the instance registered by this process (selfName).
+func makeBrowseCallback(peers *[]PeerInfo, selfName string) func(zeroconf.Event) {
 	return func(e zeroconf.Event) {
-		if e.Op == zeroconf.OpRemoved || e.Name == mdnsInstance {
+		// Ignore removals and our own announcement.
+		if e.Op == zeroconf.OpRemoved {
+			return
+		}
+		if selfName != "" && e.Name == selfName {
 			return
 		}
 		scheme := "http"

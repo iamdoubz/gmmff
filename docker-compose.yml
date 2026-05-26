@@ -38,7 +38,25 @@ services:
       timeout: 3s
       retries: 1
       start_period: 5s
-
+  # ── gmmff local (no signaling server, no Redis, LAN-only mode) ───────────
+  # Usage: docker compose --profile local up gmmff-local
+  # The --health-port 8081 flag starts a plain HTTP /healthz listener
+  # alongside the TLS server so Docker can healthcheck it.
+  gmmff-local:
+    image: ghcr.io/iamdoubz/gmmff:latest
+    container_name: gmmff-local
+    mem_limit: 64M
+    restart: unless-stopped
+    network_mode: host
+    profiles:
+      - local
+    command: ["/gmmff", "local", "--health-port", "8081"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 8s
 volumes:
   redis_data:
   gmmff_data:
