@@ -4,6 +4,12 @@
 
 # gmmff — peer-to-peer file transfer
 
+[![GitHub Release][release-shield]][release-url]
+[![Docker](https://github.com/iamdoubz/gmmff/actions/workflows/docker.yml/badge.svg)](https://github.com/iamdoubz/gmmff/actions/workflows/docker.yml)
+[![GitHub Open Issues](https://img.shields.io/github/issues-raw/iamdoubz/gmmff?style=for-the-badge&color=ffe666)](https://github.com/iamdoubz/gmmff/issues)
+[![GitHub Closed Pulls](https://img.shields.io/github/issues-pr-closed/iamdoubz/gmmff?style=for-the-badge&color=000)](https://github.com/iamdoubz/gmmff/pulls?q=is%3Apr+is%3Aclosed)
+[![License][license-shield]](LICENSE)
+
 > **gmmff** (pronounced *gimph*) is a brutally simple, cryptographically sound
 > peer-to-peer file and message transfer system.
 
