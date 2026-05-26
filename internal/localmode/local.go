@@ -43,9 +43,13 @@ func Run(cfg Config) error {
 
 	// ── 1. Discover other gmmff peers (best-effort, never blocks startup) ────
 	fmt.Print("Scanning for other gmmff instances on the local network... ")
+	// selfName is set once mDNS registration completes (step 5 below).
+	// Because discovery and registration run concurrently, we pass a pointer
+	// so the browse callback always compares against the most up-to-date name.
+	selfName := ""
 	discoverCh := make(chan []PeerInfo, 1)
 	go func() {
-		peers, _ := discoverPeers(ctx, 2*time.Second)
+		peers, _ := discoverPeers(ctx, 2*time.Second, selfName)
 		discoverCh <- peers
 	}()
 	select {
@@ -135,6 +139,7 @@ func Run(cfg Config) error {
 	select {
 	case mdnsSrv := <-RegisterMDNSAsync(port, scheme):
 		if mdnsSrv != nil {
+			selfName = mdnsSrv.instance
 			defer mdnsSrv.Shutdown()
 			fmt.Println("done.")
 		} else {
