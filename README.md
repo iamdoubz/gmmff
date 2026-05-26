@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="imgs/gmmff.png" alt="A view from space of a giant worm hole sucking in your favorite file types... oh the horror!">
+  <img src="imgs/gmmff-social.png" alt="A view from space of a giant worm hole sucking in your favorite file types... oh the horror!">
 </p>
 
 # gmmff — peer-to-peer file transfer
