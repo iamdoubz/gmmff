@@ -7,7 +7,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/iamdoubz/gmmff?display_name=tag&style=for-the-badge&logo=refinedgithub&logoColor=fff&label=Latest&color=007EC6)](https://github.com/iamdoubz/gmmff/releases/latest)
 [![GitHub Actions Workflow Docker Status](https://img.shields.io/github/actions/workflow/status/iamdoubz/gmmff/docker.yml?style=for-the-badge&logo=githubactions&logoColor=fff&label=Builds)](https://github.com/iamdoubz/gmmff/actions/workflows/docker.yml)
 [![GitHub Issues](https://img.shields.io/github/issues-raw/iamdoubz/gmmff?style=for-the-badge&logo=freecodecamp&logoColor=fff&color=ec7013&label=Issues)](https://github.com/iamdoubz/gmmff/issues)
-[![GitHub Closed Pulls](https://img.shields.io/github/issues-pr-closed/iamdoubz/gmmff?style=for-the-badge&logo=git&color=000&label=Pulls)](https://github.com/iamdoubz/gmmff/pulls?q=is%3Apr+is%3Aclosed)
+[![GitHub Closed Pulls](https://img.shields.io/github/issues-pr-closed/iamdoubz/gmmff?style=for-the-badge&logo=git&logoColor=fff&color=a64dff&label=Pulls)](https://github.com/iamdoubz/gmmff/pulls?q=is%3Apr+is%3Aclosed)
 [![GitHub License](https://img.shields.io/github/license/iamdoubz/gmmff?style=for-the-badge&logo=readthedocs&color=67AC09)](LICENSE)
 
 > **gmmff** (pronounced *gimph*) is a brutally simple, cryptographically sound
