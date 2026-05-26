@@ -29,10 +29,11 @@ import (
 
 // Config holds all settings for local mode.
 type Config struct {
-	Port     int  // 0 = pick a random available port
-	NoTLS    bool // skip TLS (plain HTTP)
-	MaxPeers int  // 2-10, default 2
-	PeerCfg  peerconfig.Config
+	Port       int  // 0 = pick a random available port
+	NoTLS      bool // skip TLS (plain HTTP)
+	MaxPeers   int  // 2-10, default 2
+	HealthPort int  // when > 0, start a plain HTTP /healthz listener on this port for Docker healthchecks
+	PeerCfg    peerconfig.Config
 }
 
 // Run starts local mode and blocks until the user quits or context is cancelled.
@@ -125,6 +126,28 @@ func Run(cfg Config) error {
 			serverErr <- httpServer.ListenAndServe()
 		}
 	}()
+
+	// Optional plain-HTTP health endpoint for Docker healthchecks.
+	// When gmmff local runs with TLS, the main server is HTTPS on a random port
+	// which the Docker healthcheck can't reach. This starts a minimal HTTP-only
+	// listener on a fixed port that answers GET /healthz with 200 OK.
+	if cfg.HealthPort > 0 {
+		healthMux := http.NewServeMux()
+		healthMux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("ok")) //nolint:errcheck
+		})
+		healthSrv := &http.Server{
+			Addr:    fmt.Sprintf(":%d", cfg.HealthPort),
+			Handler: healthMux,
+		}
+		go func() {
+			if err := healthSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				fmt.Fprintf(os.Stderr, "local: health server error: %v\n", err)
+			}
+		}()
+		fmt.Printf("Health endpoint: http://localhost:%d/healthz\n", cfg.HealthPort)
+	}
 
 	time.Sleep(200 * time.Millisecond)
 	select {

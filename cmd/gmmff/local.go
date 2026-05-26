@@ -7,9 +7,10 @@ import (
 )
 
 var localCfg struct {
-	port     int
-	noTLS    bool
-	maxPeers int
+	port       int
+	noTLS      bool
+	maxPeers   int
+	healthPort int
 }
 
 var localCmd = &cobra.Command{
@@ -28,6 +29,9 @@ By default a self-signed TLS certificate is generated automatically so
 WebRTC works in all browsers including Safari. Pass --no-tls for plain
 HTTP (Chrome and Firefox only — Safari requires HTTPS for WebRTC).
 
+When running in Docker with TLS enabled, use --health-port to start a
+plain HTTP /healthz endpoint on a fixed port for Docker healthchecks.
+
 The session ends and the server shuts down when you type \q.`,
 	Args: cobra.NoArgs,
 	RunE: runLocal,
@@ -43,6 +47,8 @@ func init() {
 		"Disable TLS — use plain HTTP (Chrome/Firefox only; Safari requires HTTPS for WebRTC)")
 	f.IntVar(&localCfg.maxPeers, "max-peers", 2,
 		"Maximum number of participants (2-10, including yourself)")
+	f.IntVar(&localCfg.healthPort, "health-port", 0,
+		"Start a plain HTTP /healthz listener on this port for Docker healthchecks (TLS mode only)")
 }
 
 func runLocal(_ *cobra.Command, _ []string) error {
@@ -55,9 +61,10 @@ func runLocal(_ *cobra.Command, _ []string) error {
 	}
 
 	return localmode.Run(localmode.Config{
-		Port:     localCfg.port,
-		NoTLS:    localCfg.noTLS,
-		MaxPeers: maxPeers,
+		Port:       localCfg.port,
+		NoTLS:      localCfg.noTLS,
+		MaxPeers:   maxPeers,
+		HealthPort: localCfg.healthPort,
 		PeerCfg: peer.Config{
 			LocalMode: true, // host candidates only — no internet needed
 		},
