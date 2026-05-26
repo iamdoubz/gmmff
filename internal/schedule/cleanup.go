@@ -21,7 +21,7 @@ func StartCleanup(ctx context.Context, store *Store, cronExpr string) error {
 	go func() {
 		for {
 			now := time.Now()
-			n   := next(now)
+			n := next(now)
 			wait := n.Sub(now)
 			select {
 			case <-ctx.Done():
@@ -72,11 +72,21 @@ func parseCron(expr string) (func(time.Time) time.Time, error) {
 
 	sched := &cronSchedule{}
 	var err error
-	if sched.minute, err     = parseField(fields[0], 0, 59);  err != nil { return nil, fmt.Errorf("minute: %w", err) }
-	if sched.hour, err       = parseField(fields[1], 0, 23);  err != nil { return nil, fmt.Errorf("hour: %w", err) }
-	if sched.dayOfMonth, err = parseField(fields[2], 1, 31);  err != nil { return nil, fmt.Errorf("dom: %w", err) }
-	if sched.month, err      = parseField(fields[3], 1, 12);  err != nil { return nil, fmt.Errorf("month: %w", err) }
-	if sched.dayOfWeek, err  = parseField(fields[4], 0, 6);   err != nil { return nil, fmt.Errorf("dow: %w", err) }
+	if sched.minute, err = parseField(fields[0], 0, 59); err != nil {
+		return nil, fmt.Errorf("minute: %w", err)
+	}
+	if sched.hour, err = parseField(fields[1], 0, 23); err != nil {
+		return nil, fmt.Errorf("hour: %w", err)
+	}
+	if sched.dayOfMonth, err = parseField(fields[2], 1, 31); err != nil {
+		return nil, fmt.Errorf("dom: %w", err)
+	}
+	if sched.month, err = parseField(fields[3], 1, 12); err != nil {
+		return nil, fmt.Errorf("month: %w", err)
+	}
+	if sched.dayOfWeek, err = parseField(fields[4], 0, 6); err != nil {
+		return nil, fmt.Errorf("dow: %w", err)
+	}
 
 	return func(from time.Time) time.Time {
 		return sched.next(from)
@@ -191,7 +201,7 @@ func dedupSorted(vals []int) []int {
 		return vals
 	}
 	seen := make(map[int]bool, len(vals))
-	out  := make([]int, 0, len(vals))
+	out := make([]int, 0, len(vals))
 	for _, v := range vals {
 		if !seen[v] {
 			seen[v] = true

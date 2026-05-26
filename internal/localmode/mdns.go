@@ -120,8 +120,8 @@ func RegisterMDNSAsync(port int, scheme string) <-chan *MDNSServer {
 		}
 
 		name := instanceName()
-		ty   := zeroconf.NewType(mdnsService)
-		svc  := zeroconf.NewService(ty, name, uint16(port))
+		ty := zeroconf.NewType(mdnsService)
+		svc := zeroconf.NewService(ty, name, uint16(port))
 		svc.Text = []string{"version=1", fmt.Sprintf("scheme=%s", scheme)}
 
 		client, err := zeroconf.New().Network(support.network()).Publish(svc).Open()

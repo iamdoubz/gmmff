@@ -22,8 +22,8 @@ This command runs once and exits, making it suitable for use with cron:
 
 The same cleanup logic also runs automatically in the background when
 GMMFF_SCHEDULE_CLEANUP_INTERVAL is set and gmmff serve is running.`,
-	Args:  cobra.NoArgs,
-	RunE:  runCleanup,
+	Args: cobra.NoArgs,
+	RunE: runCleanup,
 }
 
 func init() {

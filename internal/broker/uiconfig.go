@@ -154,7 +154,7 @@ func UIConfigFromEnv() UIConfig {
 // the list are appended at the end in default order so they still show up.
 func parseTabOrder(raw string) []string {
 	valid := map[string]bool{"files": true, "chat": true, "schedule": true}
-	seen  := map[string]bool{}
+	seen := map[string]bool{}
 	order := []string{}
 
 	for _, part := range strings.Split(raw, ",") {
@@ -247,7 +247,7 @@ func ValidateEnv() []EnvWarning {
 	// ── Tab order ─────────────────────────────────────────────────────────────
 	if raw := strings.TrimSpace(os.Getenv("GMMFF_TAB_ORDER")); raw != "" {
 		valid := map[string]bool{"files": true, "chat": true, "schedule": true}
-		seen  := map[string]bool{}
+		seen := map[string]bool{}
 		for _, part := range strings.Split(raw, ",") {
 			name := strings.ToLower(strings.TrimSpace(part))
 			if name == "" {
@@ -438,4 +438,3 @@ func clampInt(v, min, max int) int {
 	}
 	return v
 }
-

@@ -1,4 +1,4 @@
-.PHONY: build local run-server create join chat dev test test-cover lint tidy docker up down clean wasm wasm-serve cleanup help
+.PHONY: build local run-server create join chat dev test test-cover lint fmt tidy docker up down clean wasm wasm-serve cleanup help
 
 BINARY    := gmmff
 CMD       := ./cmd/gmmff
@@ -59,6 +59,20 @@ test-cover:
 	go test -race -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
+
+## fmt: format all Go source files with gofmt -s (simplify + format)
+fmt:
+	gofmt -s -w $(shell find . -name "*.go" -not -path "./vendor/*")
+
+## fmt-check: verify all Go source files are gofmt -s compliant (non-destructive, use in CI)
+fmt-check:
+	@unformatted=$$(gofmt -s -l $$(find . -name "*.go" -not -path "./vendor/*")); \
+	if [ -n "$$unformatted" ]; then \
+		echo "The following files need gofmt -s:"; \
+		echo "$$unformatted"; \
+		exit 1; \
+	fi
+	@echo "All files are gofmt -s compliant."
 
 ## lint: run golangci-lint (go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
 lint:

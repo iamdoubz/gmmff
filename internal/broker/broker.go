@@ -17,19 +17,19 @@ package broker
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/iamdoubz/gmmff/internal/crypto"
 	applog "github.com/iamdoubz/gmmff/internal/log"
 	"github.com/iamdoubz/gmmff/internal/slot"
 	"github.com/iamdoubz/gmmff/internal/store"
 	"github.com/iamdoubz/gmmff/pkg/protocol"
-	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,8 +61,8 @@ var logger = applog.Component("broker")
 
 // conn represents one live WebSocket connection.
 type conn struct {
-	id     string          // unique connection UUID (not shown to users)
-	slotID string          // slot this connection belongs to (empty until joined)
+	id     string // unique connection UUID (not shown to users)
+	slotID string // slot this connection belongs to (empty until joined)
 	ws     *websocket.Conn
 	send   chan []byte // buffered outbound queue; writePump drains it
 	broker *Broker
@@ -120,7 +120,7 @@ type Broker struct {
 	upgrader websocket.Upgrader
 
 	// All fields below are owned exclusively by the hub goroutine.
-	conns   map[string]*conn   // conn_id → conn
+	conns      map[string]*conn // conn_id → conn
 	register   chan registerMsg
 	unregister chan unregisterMsg
 	inbound    chan inboundMsg
@@ -284,8 +284,12 @@ func (b *Broker) handleSlotCreate(ctx context.Context, c *conn, env protocol.Env
 
 	slotID := uuid.New().String()
 	maxPeers := payload.MaxPeers
-	if maxPeers < 2 { maxPeers = slot.DefaultMaxPeers }
-	if maxPeers > slot.MaxAllowedPeers { maxPeers = slot.MaxAllowedPeers }
+	if maxPeers < 2 {
+		maxPeers = slot.DefaultMaxPeers
+	}
+	if maxPeers > slot.MaxAllowedPeers {
+		maxPeers = slot.MaxAllowedPeers
+	}
 	sl := slot.New(slotID, code, c.id, payload.SessionType, maxPeers)
 	if err := b.store.Create(ctx, sl); err != nil {
 		logger().Error().Str("error_code", "ERR_STORE_CREATE").Str("slot_id", slotID).Msg("failed to persist slot")
@@ -378,7 +382,7 @@ func (b *Broker) handleSlotJoin(ctx context.Context, c *conn, env protocol.Envel
 	}
 
 	peerCount := sl.ConnectedCount()
-	maxPeers  := sl.MaxPeers
+	maxPeers := sl.MaxPeers
 
 	// Tell the new joiner their role and session info.
 	c.sendEnvelope(protocol.MustEnvelope(protocol.MsgSlotReady, protocol.SlotReadyPayload{

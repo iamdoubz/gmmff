@@ -42,19 +42,19 @@ var metrics Metrics
 
 // Server combines the HTTP server, broker, and store.
 type Server struct {
-	broker *Broker
-	store  store.SlotStore
-	router *chi.Mux
-	start  time.Time
-	webDir        string   // path to web/static on disk; empty = plain landing
-	staticFS      fs.FS    // embedded fs.FS; non-nil overrides webDir
-	cspReportOnly bool     // use CSP-Report-Only instead of enforcing
-	localMode     bool     // offline-safe CSP, no external origins
-	uiConfig      UIConfig // feature flags served via /config.json
+	broker          *Broker
+	store           store.SlotStore
+	router          *chi.Mux
+	start           time.Time
+	webDir          string                         // path to web/static on disk; empty = plain landing
+	staticFS        fs.FS                          // embedded fs.FS; non-nil overrides webDir
+	cspReportOnly   bool                           // use CSP-Report-Only instead of enforcing
+	localMode       bool                           // offline-safe CSP, no external origins
+	uiConfig        UIConfig                       // feature flags served via /config.json
 	scheduleHandler interface{ Mount(chi.Router) } // nil when schedule is disabled
 	// ICE push config — populated by SetICEConfig when GMMFF_PUSH_STUN/TURN is set.
-	pushedSTUN []string   // STUN URLs to push to clients
-	pushedTURN []PushedTURN  // TURN servers to push (credentials already resolved)
+	pushedSTUN []string     // STUN URLs to push to clients
+	pushedTURN []PushedTURN // TURN servers to push (credentials already resolved)
 }
 
 // NewServer constructs a Server and registers all routes.
@@ -65,10 +65,10 @@ func NewServer(b *Broker, st store.SlotStore, webDir string, cspReportOnly bool,
 	// Register the .wasm MIME type in case the OS doesn't have it.
 	_ = mime.AddExtensionType(".wasm", "application/wasm")
 	s := &Server{
-		broker: b,
-		store:  st,
-		router: chi.NewRouter(),
-		start:  time.Now(),
+		broker:        b,
+		store:         st,
+		router:        chi.NewRouter(),
+		start:         time.Now(),
 		webDir:        webDir,
 		cspReportOnly: cspReportOnly,
 		uiConfig:      uiCfg,
@@ -105,7 +105,7 @@ func (s *Server) routes() {
 
 	// ── Middleware ────────────────────────────────────────────────────────────
 	r.Use(middleware.RealIP)
-	r.Use(privacyLogger)        // logs only method + path + status — no IPs
+	r.Use(privacyLogger) // logs only method + path + status — no IPs
 	r.Use(middleware.Recoverer)
 	r.Use(s.securityHeaders)
 
@@ -115,7 +115,7 @@ func (s *Server) routes() {
 	r.Get("/readyz", s.handleReadiness)
 	r.Get("/metrics", s.handleMetrics)
 	r.Get("/config.json", s.handleUIConfig)
-	r.Get("/api/ice",     s.handleICE)
+	r.Get("/api/ice", s.handleICE)
 
 	if s.staticFS != nil {
 		// Serve from embedded fs.FS (local mode).
@@ -159,16 +159,16 @@ func (s *Server) handleMetrics(w http.ResponseWriter, _ *http.Request) {
 	runtime.ReadMemStats(&m)
 
 	payload := map[string]any{
-		"uptime_seconds":      time.Since(s.start).Seconds(),
-		"connections_total":   metrics.ConnectionsTotal.Load(),
-		"connections_active":  metrics.ConnectionsActive.Load(),
-		"slots_created":       metrics.SlotsCreated.Load(),
-		"slots_completed":     metrics.SlotsCompleted.Load(),
-		"relayed_messages":    metrics.RelayedMessages.Load(),
-		"errors":              metrics.Errors.Load(),
-		"goroutines":          runtime.NumGoroutine(),
-		"heap_alloc_bytes":    m.HeapAlloc,
-		"heap_sys_bytes":      m.HeapSys,
+		"uptime_seconds":     time.Since(s.start).Seconds(),
+		"connections_total":  metrics.ConnectionsTotal.Load(),
+		"connections_active": metrics.ConnectionsActive.Load(),
+		"slots_created":      metrics.SlotsCreated.Load(),
+		"slots_completed":    metrics.SlotsCompleted.Load(),
+		"relayed_messages":   metrics.RelayedMessages.Load(),
+		"errors":             metrics.Errors.Load(),
+		"goroutines":         runtime.NumGoroutine(),
+		"heap_alloc_bytes":   m.HeapAlloc,
+		"heap_sys_bytes":     m.HeapSys,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -296,7 +296,7 @@ type PushedTURN struct {
 
 // iceResponse is the shape of GET /api/ice.
 type iceResponse struct {
-	STUN []string  `json:"stun"` // may be nil/empty when GMMFF_PUSH_STUN=false
+	STUN []string     `json:"stun"` // may be nil/empty when GMMFF_PUSH_STUN=false
 	TURN []PushedTURN `json:"turn"` // may be nil/empty when GMMFF_PUSH_TURN=false
 }
 

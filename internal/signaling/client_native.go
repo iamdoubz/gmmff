@@ -35,11 +35,11 @@ type Message struct {
 
 // Client is a live WebSocket connection to the gmmff signaling server.
 type Client struct {
-	conn   *websocket.Conn
-	send   chan []byte
-	recv   chan Message
-	done   chan struct{}
-	once   sync.Once
+	conn     *websocket.Conn
+	send     chan []byte
+	recv     chan Message
+	done     chan struct{}
+	once     sync.Once
 	closeErr error
 }
 

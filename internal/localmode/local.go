@@ -20,10 +20,10 @@ import (
 	"github.com/iamdoubz/gmmff/internal/broker"
 	"github.com/iamdoubz/gmmff/internal/peer"
 	"github.com/iamdoubz/gmmff/internal/peerconfig"
-	"github.com/iamdoubz/gmmff/pkg/protocol"
 	"github.com/iamdoubz/gmmff/internal/session"
 	"github.com/iamdoubz/gmmff/internal/signaling"
 	"github.com/iamdoubz/gmmff/internal/store"
+	"github.com/iamdoubz/gmmff/pkg/protocol"
 	"github.com/mdp/qrterminal/v3"
 )
 

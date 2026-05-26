@@ -176,7 +176,7 @@ func addFile(zw *zip.Writer, src, zipPath string) error {
 	if err != nil {
 		return fmt.Errorf("archive: header %q: %w", src, err)
 	}
-	header.Name   = zipPath
+	header.Name = zipPath
 	header.Method = zip.Deflate
 
 	w, err := zw.CreateHeader(header)

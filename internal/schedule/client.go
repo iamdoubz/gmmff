@@ -48,7 +48,7 @@ func NormaliseServerURL(raw string) (string, error) {
 	// Convert WebSocket schemes to HTTP.
 	raw = strings.NewReplacer(
 		"wss://", "https://",
-		"ws://",  "http://",
+		"ws://", "http://",
 	).Replace(raw)
 
 	// Strip trailing /ws path component.
@@ -71,7 +71,7 @@ func NormaliseServerURL(raw string) (string, error) {
 
 // AuthStatus describes the server's upload access requirements for the caller.
 type AuthStatus struct {
-	Allowed      bool // IP is in the upload allowlist
+	Allowed       bool // IP is in the upload allowlist
 	NeedsPassword bool // password is required to proceed
 }
 
@@ -104,13 +104,13 @@ type UploadOptions struct {
 
 // UploadResult is returned by a successful upload.
 type UploadResult struct {
-	FileID     string
-	KeyHex     string
-	DeleteKey  string
-	ExpiresAt  time.Time
-	ShareURL   string // base URL without fragment
-	FullURL    string // ShareURL + #key=KeyHex
-	DeleteURL  string
+	FileID    string
+	KeyHex    string
+	DeleteKey string
+	ExpiresAt time.Time
+	ShareURL  string // base URL without fragment
+	FullURL   string // ShareURL + #key=KeyHex
+	DeleteURL string
 }
 
 // Upload encrypts r (plaintext, size bytes, named filename) and uploads it to
@@ -189,8 +189,8 @@ func (c *Client) Upload(ctx context.Context, r io.Reader, filename string, size 
 		return nil, fmt.Errorf("schedule upload: nonce prefix: %w", err)
 	}
 
-	sha256h    := sha256.New()
-	plainBuf   := make([]byte, chunkSize)
+	sha256h := sha256.New()
+	plainBuf := make([]byte, chunkSize)
 	var uploadedBytes int64
 
 	for i := 0; ; i++ {
@@ -270,8 +270,8 @@ func (c *Client) Upload(ctx context.Context, r io.Reader, filename string, size 
 	}
 
 	// ── 8. Build result ───────────────────────────────────────────────────────
-	shareURL  := fmt.Sprintf("%s/?type=schedule&id=%s", c.BaseURL, finOut.FileID)
-	fullURL   := fmt.Sprintf("%s#key=%s", shareURL, keyHex)
+	shareURL := fmt.Sprintf("%s/?type=schedule&id=%s", c.BaseURL, finOut.FileID)
+	fullURL := fmt.Sprintf("%s#key=%s", shareURL, keyHex)
 	deleteURL := fmt.Sprintf("%s/?type=schedule&id=%s&action=delete&dk=%s",
 		c.BaseURL, finOut.FileID, finOut.DeleteKey)
 
@@ -378,13 +378,13 @@ func (c *Client) Download(ctx context.Context, fileID, keyHex string, meta *Publ
 			chunksTotal = meta.ChunksTotal
 		}
 	}
-	fnEncHex   := resp.Header.Get("X-Filename-Enc")
+	fnEncHex := resp.Header.Get("X-Filename-Enc")
 	fnNonceHex := resp.Header.Get("X-Filename-Nonce")
 
 	// ── 3. Decrypt filename ───────────────────────────────────────────────────
 	filename := "download"
 	if fnEncHex != "" && fnNonceHex != "" {
-		fnEnc, e1   := hex.DecodeString(fnEncHex)
+		fnEnc, e1 := hex.DecodeString(fnEncHex)
 		fnNonce, e2 := hex.DecodeString(fnNonceHex)
 		if e1 == nil && e2 == nil {
 			if plain, err := gcm.Open(nil, fnNonce, fnEnc, nil); err == nil {
@@ -395,8 +395,8 @@ func (c *Client) Download(ctx context.Context, fileID, keyHex string, meta *Publ
 
 	// ── 4. Stream-decrypt chunks → w ──────────────────────────────────────────
 	encChunkSize := NonceSize + chunkSize + TagSize
-	wireBuf      := make([]byte, encChunkSize)
-	var written   int64
+	wireBuf := make([]byte, encChunkSize)
+	var written int64
 
 	for i := 0; i < chunksTotal; i++ {
 		// Read exactly one encrypted chunk from the HTTP body.
@@ -410,7 +410,7 @@ func (c *Client) Download(ctx context.Context, fileID, keyHex string, meta *Publ
 			return nil, fmt.Errorf("schedule download: chunk %d too short (%d bytes)", i, n)
 		}
 
-		nonce      := wire[:NonceSize]
+		nonce := wire[:NonceSize]
 		ciphertext := wire[NonceSize:]
 
 		plain, err := gcm.Open(nil, nonce, ciphertext, nil)
@@ -464,7 +464,7 @@ func ParseDeleteURL(raw string) (fileID, deleteKey string, err error) {
 	if err != nil {
 		return "", "", fmt.Errorf("invalid URL: %w", err)
 	}
-	fileID    = u.Query().Get("id")
+	fileID = u.Query().Get("id")
 	deleteKey = u.Query().Get("dk")
 	if fileID == "" {
 		return "", "", fmt.Errorf("missing file ID in delete URL")
@@ -474,6 +474,7 @@ func ParseDeleteURL(raw string) (fileID, deleteKey string, err error) {
 	}
 	return fileID, deleteKey, nil
 }
+
 // Handles the #key= fragment correctly whether or not the shell stripped it.
 func ParseShareURL(raw string) (fileID, keyHex string, err error) {
 	raw = strings.TrimSpace(raw)
@@ -481,10 +482,10 @@ func ParseShareURL(raw string) (fileID, keyHex string, err error) {
 	// Split on # manually — url.Parse treats fragment differently.
 	hashIdx := strings.Index(raw, "#")
 	fragment := ""
-	urlPart  := raw
+	urlPart := raw
 	if hashIdx != -1 {
 		fragment = raw[hashIdx+1:]
-		urlPart  = raw[:hashIdx]
+		urlPart = raw[:hashIdx]
 	}
 
 	// Extract key from fragment.
@@ -555,7 +556,9 @@ func (c *Client) get(ctx context.Context, path string) (*http.Response, error) {
 }
 
 func readErrorBody(resp *http.Response) string {
-	var e struct{ Error string `json:"error"` }
+	var e struct {
+		Error string `json:"error"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&e); err == nil && e.Error != "" {
 		return e.Error
 	}
@@ -567,11 +570,11 @@ func readErrorBody(resp *http.Response) string {
 // larger files use larger chunks for throughput efficiency.
 func selectChunkSize(fileSize int64) int {
 	switch {
-	case fileSize < 10*1024*1024:   // < 10 MB
-		return 256 * 1024           // 256 KB
-	case fileSize < 100*1024*1024:  // < 100 MB
-		return 512 * 1024           // 512 KB
-	default:                        // ≥ 100 MB
-		return 1024 * 1024          // 1 MB
+	case fileSize < 10*1024*1024: // < 10 MB
+		return 256 * 1024 // 256 KB
+	case fileSize < 100*1024*1024: // < 100 MB
+		return 512 * 1024 // 512 KB
+	default: // ≥ 100 MB
+		return 1024 * 1024 // 1 MB
 	}
 }
