@@ -96,10 +96,10 @@ func GenerateCode() (string, error) {
 
 	// Extract three 10-bit (1024-entry) indices from the 32-bit value.
 	// Using 10 bits each (3×10 = 30 bits used, 2 bits discarded).
-	i0 := (n >> 22) & 0x3FF       // bits 31-22
-	i1 := (n >> 12) & 0x3FF       // bits 21-12
-	i2 := (n >> 2) & 0x3FF        // bits 11-2
-	_ = n & 0x3                   // bits 1-0 (discarded)
+	i0 := (n >> 22) & 0x3FF // bits 31-22
+	i1 := (n >> 12) & 0x3FF // bits 21-12
+	i2 := (n >> 2) & 0x3FF  // bits 11-2
+	_ = n & 0x3             // bits 1-0 (discarded)
 
 	words := []string{
 		wordlist[i0%uint32(len(wordlist))],

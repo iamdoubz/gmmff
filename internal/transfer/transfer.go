@@ -1,7 +1,7 @@
 // Package transfer defines the application-level file transfer protocol
 // that runs over a WebRTC data channel.
 //
-// Wire format
+// # Wire format
 //
 // All messages are length-prefixed binary frames sent over the SCTP data
 // channel.  The first byte is the message type tag.
@@ -26,8 +26,8 @@
 package transfer
 
 import (
-	"context"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
@@ -64,23 +64,23 @@ const (
 
 // Message type tags.
 const (
-	TagFileHeader    byte = 0x01
-	TagChunk         byte = 0x02
-	TagChunkAck      byte = 0x03
-	TagTransferDone  byte = 0x04
-	TagTransferOK    byte = 0x05
-	TagTransferError byte = 0x06
-	TagResumeFrom    byte = 0x07
-	TagCancelled     byte = 0x08 // sender or receiver intentionally stopped
-	TagMessage       byte = 0x09 // UTF-8 chat message
+	TagFileHeader       byte = 0x01
+	TagChunk            byte = 0x02
+	TagChunkAck         byte = 0x03
+	TagTransferDone     byte = 0x04
+	TagTransferOK       byte = 0x05
+	TagTransferError    byte = 0x06
+	TagResumeFrom       byte = 0x07
+	TagCancelled        byte = 0x08 // sender or receiver intentionally stopped
+	TagMessage          byte = 0x09 // UTF-8 chat message
 	TagChatClose        byte = 0x0A // initiator closes session for everyone
-	TagParticipantLeave  byte = 0x0B // one participant leaves; session continues
-	TagSessionReady      byte = 0x0C // peer is connected and ready
-	TagTransferAnnounce  byte = 0x0D // sender is about to open a new data channel
-	TagTransferAccepted  byte = 0x0E // receiver is ready for the announced channel
-	TagSessionClose      byte = 0x0F // initiator ends the session for everyone
-	TagPeerCount         byte = 0x10 // initiator broadcasts current peer count to all peers
-	TagRelayedMessage    byte = 0x11 // initiator relays a message preserving original sender ID
+	TagParticipantLeave byte = 0x0B // one participant leaves; session continues
+	TagSessionReady     byte = 0x0C // peer is connected and ready
+	TagTransferAnnounce byte = 0x0D // sender is about to open a new data channel
+	TagTransferAccepted byte = 0x0E // receiver is ready for the announced channel
+	TagSessionClose     byte = 0x0F // initiator ends the session for everyone
+	TagPeerCount        byte = 0x10 // initiator broadcasts current peer count to all peers
+	TagRelayedMessage   byte = 0x11 // initiator relays a message preserving original sender ID
 )
 
 // SessionType identifies what kind of session a slot holds.
@@ -100,11 +100,11 @@ var ErrCancelled = fmt.Errorf("transfer cancelled by remote peer")
 
 // FileHeader is the first message sent by the initiator.
 type FileHeader struct {
-	Name      string `json:"name"`       // base name only — no path components
-	Size      int64  `json:"size"`       // total bytes
-	ChunkSize int    `json:"chunk_size"` // bytes per chunk
-	SHA256    string `json:"sha256"`     // hex-encoded full-file hash
-	Chunks    int64  `json:"chunks"`     // total number of chunks
+	Name      string `json:"name"`              // base name only — no path components
+	Size      int64  `json:"size"`              // total bytes
+	ChunkSize int    `json:"chunk_size"`        // bytes per chunk
+	SHA256    string `json:"sha256"`            // hex-encoded full-file hash
+	Chunks    int64  `json:"chunks"`            // total number of chunks
 	Message   string `json:"message,omitempty"` // optional message from sender
 }
 
@@ -117,10 +117,10 @@ type ResumeFromPayload struct {
 // PartialMeta is stored alongside a .gmmff_partial file so a future session
 // can validate that the partial belongs to the same transfer.
 type PartialMeta struct {
-	SHA256    string `json:"sha256"`
-	ChunkSize int    `json:"chunk_size"`
-	BytesDone int64  `json:"bytes_done"`
-	ChunksDone int64 `json:"chunks_done"`
+	SHA256     string `json:"sha256"`
+	ChunkSize  int    `json:"chunk_size"`
+	BytesDone  int64  `json:"bytes_done"`
+	ChunksDone int64  `json:"chunks_done"`
 }
 
 // ErrorMsg carries a human-readable error code safe to display.
@@ -153,8 +153,8 @@ type Sender struct {
 	resumeFrom   <-chan uint64 // receives the resume seq from the receiver (buffered, len 1)
 	windowSize   int
 	chunkSize    int
-	onProgress   ProgressFunc  // optional; called after each chunk send
-	message      string        // optional message attached to FileHeader
+	onProgress   ProgressFunc // optional; called after each chunk send
+	message      string       // optional message attached to FileHeader
 }
 
 // NewSender creates a Sender.
@@ -436,8 +436,8 @@ func (rs *ReceiveState) handleHeader(data []byte) (bool, error) {
 
 	safeName := sanitiseName(hdr.Name)
 	rs.partialPath = filepath.Join(rs.outDir, safeName+PartialSuffix)
-	rs.metaPath    = filepath.Join(rs.outDir, safeName+MetaSuffix)
-	rs.finalPath   = filepath.Join(rs.outDir, safeName)
+	rs.metaPath = filepath.Join(rs.outDir, safeName+MetaSuffix)
+	rs.finalPath = filepath.Join(rs.outDir, safeName)
 
 	// ── Check for a usable partial ───────────────────────────────────────────
 	if resumeSeq, bytesAlready := rs.checkPartial(hdr); resumeSeq > 0 {
@@ -454,8 +454,8 @@ func (rs *ReceiveState) handleHeader(data []byte) (bool, error) {
 			goto freshStart
 		}
 
-		rs.f        = f
-		rs.h        = h
+		rs.f = f
+		rs.h = h
 		rs.received = bytesAlready
 		rs.resumeSeq = resumeSeq
 		rs.bar = progressbar.DefaultBytes(hdr.Size, "receiving")
@@ -483,8 +483,8 @@ freshStart:
 		return false, err
 	}
 
-	rs.f        = f
-	rs.h        = sha256.New()
+	rs.f = f
+	rs.h = sha256.New()
 	rs.received = 0
 	rs.resumeSeq = 0
 	rs.bar = progressbar.DefaultBytes(hdr.Size, "receiving")
@@ -821,9 +821,9 @@ func (r *ReceiveStateMem) Feed(frame []byte) (done bool, err error) {
 		if err := json.Unmarshal(frame[1:], &hdr); err != nil {
 			return false, fmt.Errorf("transfer: decode header: %w", err)
 		}
-		r.Header   = &hdr
+		r.Header = &hdr
 		r.fileName = sanitiseName(hdr.Name)
-		r.h        = sha256.New()
+		r.h = sha256.New()
 		r.buf.Reset()
 		// No resume in-memory — always start fresh.
 		return false, nil
@@ -835,8 +835,8 @@ func (r *ReceiveStateMem) Feed(frame []byte) (done bool, err error) {
 		if len(frame[1:]) < 8 {
 			return false, fmt.Errorf("transfer: chunk frame too short")
 		}
-		data    := frame[1:]
-		seq     := binary.BigEndian.Uint64(data[:8])
+		data := frame[1:]
+		seq := binary.BigEndian.Uint64(data[:8])
 		payload := data[8:]
 		r.buf.Write(payload)
 		r.h.Write(payload)

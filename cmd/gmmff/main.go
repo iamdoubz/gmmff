@@ -13,17 +13,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/iamdoubz/gmmff/internal/broker"
-	"github.com/iamdoubz/gmmff/internal/schedule"
 	applog "github.com/iamdoubz/gmmff/internal/log"
 	"github.com/iamdoubz/gmmff/internal/peer"
+	"github.com/iamdoubz/gmmff/internal/schedule"
 	"github.com/iamdoubz/gmmff/internal/store"
 	"github.com/iamdoubz/gmmff/internal/turn"
 	"github.com/redis/go-redis/v9"
@@ -73,14 +73,14 @@ func init() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 type serveConfig struct {
-	addr        string
-	redisURL    string
-	memoryStore bool
-	logLevel    string
-	logPretty   bool
-	slotTTL     time.Duration
-	webDir         string
-	cspReportOnly  bool
+	addr          string
+	redisURL      string
+	memoryStore   bool
+	logLevel      string
+	logPretty     bool
+	slotTTL       time.Duration
+	webDir        string
+	cspReportOnly bool
 	// TLS (optional — use a reverse proxy like Caddy/nginx in production)
 	tlsCert string
 	tlsKey  string

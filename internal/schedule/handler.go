@@ -32,15 +32,15 @@ func NewHandler(cfg *Config) (*Handler, error) {
 // All routes are under /api/schedule/.
 func (h *Handler) Mount(r chi.Router) {
 	r.Route("/api/schedule", func(r chi.Router) {
-		r.Post("/auth",            h.handleAuth)
-		r.Post("/probe",           h.handleProbe)
-		r.Post("/upload/init",     h.handleUploadInit)
-		r.Post("/upload/chunk",    h.handleUploadChunk)
+		r.Post("/auth", h.handleAuth)
+		r.Post("/probe", h.handleProbe)
+		r.Post("/upload/init", h.handleUploadInit)
+		r.Post("/upload/chunk", h.handleUploadChunk)
 		r.Post("/upload/complete", h.handleUploadComplete)
 		r.Get("/download/{fileID}", h.handleDownload)
-		r.Get("/meta/{fileID}",     h.handleMeta)
+		r.Get("/meta/{fileID}", h.handleMeta)
 		r.Delete("/delete/{fileID}/{deleteKey}", h.handleDelete)
-		r.Get("/ttl-options",      h.handleTTLOptions)
+		r.Get("/ttl-options", h.handleTTLOptions)
 	})
 }
 
@@ -49,7 +49,7 @@ func (h *Handler) Mount(r chi.Router) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 type authResponse struct {
-	Allowed      bool `json:"allowed"`       // IP is in upload allowlist
+	Allowed       bool `json:"allowed"`        // IP is in upload allowlist
 	NeedsPassword bool `json:"needs_password"` // password required to proceed
 }
 
@@ -78,16 +78,16 @@ func (h *Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 	ip := remoteIP(r)
 
 	ipAllowed := h.cfg.IPAllowedToUpload(ip)
-	needsPw   := !ipAllowed && h.cfg.UploadPassword != ""
+	needsPw := !ipAllowed && h.cfg.UploadPassword != ""
 
 	// If neither IP allowlist nor password — allow everyone.
 	if len(h.cfg.UploadIPs) == 0 && h.cfg.UploadPassword == "" {
 		ipAllowed = true
-		needsPw   = false
+		needsPw = false
 	}
 
 	writeJSON(w, http.StatusOK, authResponse{
-		Allowed:      ipAllowed,
+		Allowed:       ipAllowed,
 		NeedsPassword: needsPw,
 	})
 }
@@ -186,7 +186,7 @@ func (h *Handler) handleUploadInit(w http.ResponseWriter, r *http.Request) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (h *Handler) handleUploadChunk(w http.ResponseWriter, r *http.Request) {
-	uploadID   := r.FormValue("upload_id")
+	uploadID := r.FormValue("upload_id")
 	chunkIndexS := r.FormValue("chunk_index")
 
 	if uploadID == "" || chunkIndexS == "" {
@@ -281,7 +281,7 @@ func (h *Handler) handleUploadComplete(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 	fileID := chi.URLParam(r, "fileID")
-	ip     := remoteIP(r)
+	ip := remoteIP(r)
 
 	if !h.cfg.IPAllowedToDownload(ip) {
 		writeError(w, http.StatusForbidden, "download not permitted from your IP")
@@ -302,7 +302,7 @@ func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", strconv.FormatInt(meta.EncryptedSize, 10))
 	w.Header().Set("X-Chunks-Total", strconv.Itoa(meta.ChunksTotal))
-	w.Header().Set("X-Chunk-Size",   strconv.Itoa(meta.ChunkSize))
+	w.Header().Set("X-Chunk-Size", strconv.Itoa(meta.ChunkSize))
 	w.Header().Set("X-Filename-Enc", meta.FileNameEnc)
 	w.Header().Set("X-Filename-Nonce", meta.FileNameNonce)
 	w.Header().Set("Cache-Control", "no-store")
@@ -326,7 +326,7 @@ type publicMeta struct {
 
 func (h *Handler) handleMeta(w http.ResponseWriter, r *http.Request) {
 	fileID := chi.URLParam(r, "fileID")
-	ip     := remoteIP(r)
+	ip := remoteIP(r)
 
 	if !h.cfg.IPAllowedToDownload(ip) {
 		writeError(w, http.StatusForbidden, "not permitted")
@@ -364,7 +364,7 @@ func (h *Handler) handleMeta(w http.ResponseWriter, r *http.Request) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
-	fileID    := chi.URLParam(r, "fileID")
+	fileID := chi.URLParam(r, "fileID")
 	deleteKey := chi.URLParam(r, "deleteKey")
 
 	if err := h.store.Delete(fileID, deleteKey); err != nil {
