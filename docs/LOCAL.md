@@ -86,3 +86,25 @@ network_mode: host
 command: /gmmff local --port 8080 #change port to what you want or omit entirely
 ...
 ```
+
+**Change healthcheck endpoint**:
+
+Because we may or may not be using https, we use the dedicated healthcheck endpoint and separate profile for those wanting to use docker and `gmmff local`:
+
+```yml
+  gmmff-local:
+    image: ghcr.io/iamdoubz/gmmff:latest
+    container_name: gmmff-local
+    mem_limit: 64M
+    restart: unless-stopped
+    network_mode: host
+    profiles:
+      - local
+    command: ["/gmmff", "local", "--health-port", "8081"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 8s
+```
