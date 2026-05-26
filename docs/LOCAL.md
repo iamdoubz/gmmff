@@ -61,3 +61,28 @@ requires HTTPS with a trusted certificate.
 | `send <file\|dir>` | Send file(s) to all connected peers |
 | `message <text>` | Send a text message |
 | `\q` | End session and shut down the local server |
+
+## Docker
+
+If using docker to run local mode, we need to change a few things in the `docker-compose.yml`:
+
+**Replace ports with network mode**:
+
+This is needed because Docker's default bridge network (`docker0`) does not forward multicast traffic between containers or between containers and the host.
+
+```yml
+    network_mode: host
+    #ports:
+    #  - "8080:8080"
+```
+
+**Change the default command**:
+
+The default command in the Dockerfile is `/gmmff serve --web /web/static`. Because we are using `local`, we must add a command line:
+
+```yml
+...
+network_mode: host
+command: /gmmff local --port 8080 #change port to what you want or omit entirely
+...
+```
