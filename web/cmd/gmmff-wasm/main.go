@@ -269,40 +269,44 @@ func readJSFile(jsFile js.Value) ([]byte, error) {
 // Chat
 // ─────────────────────────────────────────────────────────────────────────────
 
-// activeChatSession holds the live chat session so jsChatSend can reach it.
-var activeChatSession *peer.ChatSession
+// ─────────────────────────────────────────────────────────────────────────────
+// Chat session (multi-peer, same architecture as Files)
+// ─────────────────────────────────────────────────────────────────────────────
 
-// jsChat — initiator: creates slot, shows code, opens chat session.
+// activeChatSession holds the live session so jsChatSend/Quit/Leave can reach it.
+var activeChatSession *session.Session
+
+// jsChat — initiator: creates a chat slot, waits for peers, runs session.
 func jsChat(_ js.Value, args []js.Value) any {
 	if len(args) < 1 {
 		return nil
 	}
 	serverURL := args[0].String()
-	maxPeers := 2
-	if len(args) > 1 && !args[1].IsUndefined() && !args[1].IsNull() {
-		if n := args[1].Int(); n >= 2 {
-			maxPeers = n
-		}
-	}
+	maxPeers := getJSInt(args, 1, 2)
 	var iceCfg js.Value
 	if len(args) > 2 {
 		iceCfg = args[2]
 	}
+
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	cancelFn := js.FuncOf(func(_ js.Value, _ []js.Value) any { cancelCtx(); return nil })
 	js.Global().Call("uiRegisterCancel", cancelFn)
+
 	go func() {
 		defer cancelCtx()
 		defer cancelFn.Release()
+
 		sig, err := signaling.Connect(ctx, serverURL)
 		if err != nil {
 			js.Global().Call("uiChatError", err.Error())
 			return
 		}
+
 		if err := sig.CreateSlot("chat", maxPeers); err != nil {
 			js.Global().Call("uiChatError", err.Error())
 			return
 		}
+
 		createdMsg, err := sig.WaitFor(ctx, protocol.MsgSlotCreated)
 		if err != nil {
 			js.Global().Call("uiChatError", err.Error())
@@ -314,27 +318,23 @@ func jsChat(_ js.Value, args []js.Value) any {
 			return
 		}
 		js.Global().Call("uiChatShowCode", created.Code)
-		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil {
-			js.Global().Call("uiChatError", err.Error())
-			return
-		}
-		session, err := peer.ChatWithCallback(ctx, sig, created.Code, "Sender",
-			configFromJS(iceCfg),
-			func(from, text string) { js.Global().Call("uiChatMessage", from, text) },
-			func(reason string) { js.Global().Call("uiChatClosed", reason) },
-			func(who string) { js.Global().Call("uiChatParticipantLeft", who) },
-		)
+
+		// StartChatSession waits for slot.ready and the first peer internally.
+		sess, err := peer.StartChatSession(context.Background(), sig, created.Code, configFromJS(iceCfg), maxPeers)
 		if err != nil {
 			js.Global().Call("uiChatError", err.Error())
 			return
 		}
-		activeChatSession = session
-		js.Global().Call("uiChatOpen", "Receiver")
+
+		activeChatSession = sess
+		go runWasmChatSession(sess)
+		js.Global().Call("uiChatOpen", "Initiator")
+		js.Global().Call("uiChatPeerCount", sess.PeerCount(), sess.MaxPeers)
 	}()
 	return nil
 }
 
-// jsChatJoin — responder: joins an existing slot by code.
+// jsChatJoin — responder: joins a chat session by code.
 func jsChatJoin(_ js.Value, args []js.Value) any {
 	if len(args) < 2 {
 		return nil
@@ -344,74 +344,103 @@ func jsChatJoin(_ js.Value, args []js.Value) any {
 	if len(args) > 2 {
 		iceCfg = args[2]
 	}
+
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	cancelFn := js.FuncOf(func(_ js.Value, _ []js.Value) any { cancelCtx(); return nil })
 	js.Global().Call("uiRegisterCancel", cancelFn)
+
 	go func() {
 		defer cancelCtx()
 		defer cancelFn.Release()
+
 		sig, err := signaling.Connect(ctx, serverURL)
 		if err != nil {
 			js.Global().Call("uiChatError", err.Error())
 			return
 		}
+
 		if err := sig.JoinSlot(code); err != nil {
 			js.Global().Call("uiChatError", err.Error())
 			return
 		}
-		if _, err = sig.WaitFor(ctx, protocol.MsgSlotReady); err != nil {
-			js.Global().Call("uiChatError", err.Error())
-			return
-		}
-		session, err := peer.ChatWithCallback(ctx, sig, code, "Receiver",
-			configFromJS(iceCfg),
-			func(from, text string) { js.Global().Call("uiChatMessage", from, text) },
-			func(reason string) { js.Global().Call("uiChatClosed", reason) },
-			func(who string) { js.Global().Call("uiChatParticipantLeft", who) },
-		)
+
+		sess, err := peer.JoinChatSession(context.Background(), sig, code, configFromJS(iceCfg))
 		if err != nil {
 			js.Global().Call("uiChatError", err.Error())
 			return
 		}
-		activeChatSession = session
-		js.Global().Call("uiChatOpen", "Sender")
+
+		activeChatSession = sess
+		go runWasmChatSession(sess)
+		js.Global().Call("uiChatOpen", "Responder")
+		js.Global().Call("uiChatPeerCount", sess.PeerCount(), sess.MaxPeers)
 	}()
 	return nil
 }
 
-// jsChatQuit — initiator ends session for everyone; responder leaves quietly.
+// jsChatQuit — initiator ends for everyone; responder leaves quietly.
 func jsChatQuit(_ js.Value, _ []js.Value) any {
-	if activeChatSession == nil {
+	sess := activeChatSession
+	activeChatSession = nil
+	if sess == nil {
 		return nil
 	}
-	if activeChatSession.IsInitiator {
-		activeChatSession.Close() // TagChatClose — ends for everyone
+	if sess.IsInitiator() {
+		sess.Close() // TagSessionClose — ends for everyone
 		js.Global().Call("uiChatClosed", "You ended the session.")
 	} else {
-		activeChatSession.Leave() // TagParticipantLeave — quiet exit
+		sess.Leave() // TagParticipantLeave — quiet exit
 		js.Global().Call("uiChatClosed", "You left the session.")
 	}
-	activeChatSession = nil
 	return nil
 }
 
 // jsChatLeave — any participant leaves quietly ("End session" button).
 func jsChatLeave(_ js.Value, _ []js.Value) any {
-	if activeChatSession == nil {
+	sess := activeChatSession
+	activeChatSession = nil
+	if sess == nil {
 		return nil
 	}
-	activeChatSession.Leave()
-	activeChatSession = nil
+	sess.Leave()
 	return nil
 }
 
-// jsChatSend sends a message on the active chat session.
+// jsChatSend sends a text message to all peers in the chat session.
 func jsChatSend(_ js.Value, args []js.Value) any {
 	if len(args) < 1 || activeChatSession == nil {
 		return nil
 	}
-	_ = activeChatSession.Send(args[0].String())
+	_ = activeChatSession.SendMessage(args[0].String())
 	return nil
+}
+
+// runWasmChatSession drains the session event channel and dispatches to JS.
+func runWasmChatSession(sess *session.Session) {
+	go func() {
+		for ev := range sess.Events {
+			dispatchChatEvent(ev)
+		}
+	}()
+	sess.Run()
+}
+
+// dispatchChatEvent maps session events to uiChat* JS callbacks.
+func dispatchChatEvent(ev session.Event) {
+	switch ev.Type {
+	case session.EventMessage:
+		js.Global().Call("uiChatMessage", ev.From, ev.Message)
+	case session.EventPeerJoined:
+		js.Global().Call("uiChatPeerCount", ev.PeerCount, ev.MaxPeers)
+	case session.EventPeerLeft:
+		js.Global().Call("uiChatParticipantLeft", ev.From)
+		js.Global().Call("uiChatPeerCount", ev.PeerCount, ev.MaxPeers)
+	case session.EventSessionClosed:
+		js.Global().Call("uiChatClosed", ev.Message)
+		activeChatSession = nil
+	case session.EventError:
+		js.Global().Call("uiChatError", ev.Message)
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

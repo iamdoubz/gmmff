@@ -1018,7 +1018,7 @@ const TAB_IDS = {
     input:     'chat-input',
     extraBtn:  null,
     closeBtn:  'chat-close-btn',
-    peerCount: null,
+    peerCount: 'chat-peer-count',
   },
 };
 
@@ -1148,7 +1148,7 @@ window.uiChatShowCode = function(code) {
 window.uiChatOpen = function(remoteRole) {
   document.getElementById('chat-messages').innerHTML = '';
   peerNames = new Map();
-  // Announce our name — same 300 ms delay as Files.
+  // Announce our name via the session message channel — same 300 ms delay as Files.
   setTimeout(() => {
     if (typeof window.gmmffChatSend === 'function') {
       window.gmmffChatSend(NAME_PREFIX + (myName || ''));
@@ -1165,6 +1165,10 @@ window.uiChatOpen = function(remoteRole) {
   showChatState('active');
   document.getElementById('chat-input').focus();
   appendSystemMsg('chat', t('chat_session_open') || 'Session open. Messages are end-to-end encrypted.');
+};
+
+window.uiChatPeerCount = function(peerCount, maxPeers) {
+  updatePeerCount('chat', peerCount, maxPeers);
 };
 
 window.uiChatMessage = function(from, text) {
