@@ -194,16 +194,21 @@ function applyUIConfig(cfg, allLangs) {
       document.getElementById(id)?.closest('.field')?.classList.add('hidden'));
   }
 
-  // ── Max peers slider ──────────────────────────────────────────────────────
+  // ── Max peers slider (files + chat) ──────────────────────────────────────
   const showPeers  = cfg.show_peers_limit !== false;
   const maxPeers   = typeof cfg.max_peers_limit === 'number' ? cfg.max_peers_limit : 10;
-  const peerSlider = document.getElementById('files-max-peers');
-  if (!showPeers) peerSlider?.closest('.field')?.classList.add('hidden');
-  if (peerSlider) {
-    peerSlider.max = String(maxPeers);
-    if (parseInt(peerSlider.value) > maxPeers) {
-      peerSlider.value = String(maxPeers);
-      const label = document.getElementById('files-max-peers-value');
+
+  for (const [sliderId, labelId] of [
+    ['files-max-peers', 'files-max-peers-value'],
+    ['chat-max-peers',  'chat-max-peers-value'],
+  ]) {
+    const slider = document.getElementById(sliderId);
+    if (!slider) continue;
+    if (!showPeers) slider.closest('.field')?.classList.add('hidden');
+    slider.max = String(maxPeers);
+    if (parseInt(slider.value) > maxPeers) {
+      slider.value = String(maxPeers);
+      const label = document.getElementById(labelId);
       if (label) label.textContent = String(maxPeers);
     }
   }
@@ -577,6 +582,12 @@ filesFileInput?.addEventListener('change', () => { if (filesFileInput.files.leng
 filesFolderInput?.addEventListener('change', () => { if (filesFolderInput.files.length) setFilesSelectedFiles(filesFolderInput.files); });
 
 // Max peers slider
+const chatMaxPeersSlider = document.getElementById('chat-max-peers');
+const chatMaxPeersValue  = document.getElementById('chat-max-peers-value');
+chatMaxPeersSlider?.addEventListener('input', () => {
+  if (chatMaxPeersValue) chatMaxPeersValue.textContent = chatMaxPeersSlider.value;
+});
+
 const maxPeersSlider = document.getElementById('files-max-peers');
 const maxPeersValue  = document.getElementById('files-max-peers-value');
 maxPeersSlider?.addEventListener('input', () => {
@@ -997,8 +1008,9 @@ document.getElementById('chat-start-btn')?.addEventListener('click', () => {
   errEl.textContent = '';
   if (!server) { errEl.textContent = t('error_no_server'); return; }
   if (nameVal) myName = nameVal;
+  const chatMaxPeers = parseInt(document.getElementById('chat-max-peers')?.value || '2', 10);
   buildIceConfig().then(ice => {
-    if (typeof window.gmmffChat === 'function') window.gmmffChat(server, ice);
+    if (typeof window.gmmffChat === 'function') window.gmmffChat(server, chatMaxPeers, ice);
   });
 });
 
