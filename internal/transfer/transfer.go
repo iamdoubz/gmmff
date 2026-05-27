@@ -36,6 +36,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/schollz/progressbar/v3"
@@ -767,7 +768,7 @@ func BuildErrorFrame(code, message string) []byte {
 	return frame
 }
 
-// sanitiseName strips all path separators from a filename.
+// sanitiseName strips all path separators and traversal sequences from a filename.
 func sanitiseName(name string) string {
 	safe := make([]byte, 0, len(name))
 	for i := 0; i < len(name); i++ {
@@ -777,10 +778,17 @@ func sanitiseName(name string) string {
 		}
 		safe = append(safe, c)
 	}
-	if len(safe) == 0 {
+	// Remove any ".." traversal sequences that remain after separator stripping.
+	// e.g. "../../foo" → "....foo" → "foo"
+	result := string(safe)
+	for strings.Contains(result, "..") {
+		result = strings.ReplaceAll(result, "..", "")
+	}
+	result = strings.TrimSpace(result)
+	if len(result) == 0 {
 		return "gmmff_received_file"
 	}
-	return string(safe)
+	return result
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
