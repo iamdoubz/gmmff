@@ -1012,7 +1012,19 @@ func Chat(ctx context.Context, sig *signaling.Client, code, role string, cfg Con
 // ChatWithCallback — chat session for Wasm (no stdin REPL)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ChatSession is the handle returned by ChatWithCallback.
+// StartChatSession creates a chat slot, waits for peers, and returns a live
+// multi-peer session using the same PAKE+WebRTC infrastructure as file sessions.
+// The caller must call sess.Run() in a goroutine.
+func StartChatSession(ctx context.Context, sig *signaling.Client, code string, cfg Config, maxPeers int) (*session.Session, error) {
+	return StartSession(ctx, sig, code, cfg, maxPeers)
+}
+
+// JoinChatSession joins a chat slot by code and returns a live session.
+// The caller must call sess.Run() in a goroutine.
+func JoinChatSession(ctx context.Context, sig *signaling.Client, code string, cfg Config) (*session.Session, error) {
+	return JoinSession(ctx, sig, code, cfg, nil)
+}
+
 // The caller sends messages via Send(), leaves quietly via Leave(),
 // or ends the session for everyone via Close() (initiator only).
 type ChatSession struct {
@@ -1201,19 +1213,27 @@ func ChatWithCallback(
 			switch m.Data[0] {
 			case transfer.TagMessage:
 				if onMessage != nil {
-					onMessage("Participant", transfer.ParseMessageFrame(m.Data))
+					// Label the sender by their role — the simplified chat path
+					// does not use the full name-announcement roster protocol.
+					from := "Sender"
+					if role == "Sender" {
+						from = "Receiver"
+					}
+					onMessage(from, transfer.ParseMessageFrame(m.Data))
 				}
 			case transfer.TagChatClose, transfer.TagCancelled:
 				// Initiator ended the session for everyone.
 				if onClose != nil {
-					onClose("Session ended by Participant.")
+					onClose("Session ended.")
 				}
 				cancel()
 			case transfer.TagParticipantLeave:
-				// Participant left quietly — notify but do NOT cancel the session.
-				if onLeave != nil {
-					onLeave("Participant")
+				// Peer left — chat uses a 1-to-1 data channel so a leave
+				// always ends this session regardless of max peers.
+				if onClose != nil {
+					onClose("The other participant left.")
 				}
+				cancel()
 			}
 		})
 		dc.OnClose(func() {
