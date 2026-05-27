@@ -1,4 +1,4 @@
-.PHONY: build local run-server create join chat dev test test-cover lint fmt tidy docker up down clean wasm wasm-serve cleanup help
+.PHONY: build local run-server create join chat dev test test-race test-cover cover lint fmt fmt-check tidy docker up down clean wasm wasm-serve cleanup help
 
 BINARY    := gmmff
 CMD       := ./cmd/gmmff
@@ -50,13 +50,22 @@ chat: build
 dev:
 	air
 
-## test: run all tests
+## test: run all tests (Wasm package excluded via build constraints)
 test:
-	go test -race -count=1 ./...
+	go test -count=1 ./...
+
+## test-race: run tests with race detector (requires clang/gcc with CGO; not supported on Windows MSVC)
+test-race:
+	CGO_ENABLED=1 CC=clang go test -race -count=1 ./...
 
 ## test-cover: run tests with coverage report
 test-cover:
-	go test -race -coverprofile=coverage.out ./...
+	go test -count=1 -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out
+
+## cover: open visual coverage report in browser (run after test-cover)
+cover: test-cover
+	go tool cover -html=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 
