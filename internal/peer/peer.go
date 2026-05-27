@@ -1201,19 +1201,27 @@ func ChatWithCallback(
 			switch m.Data[0] {
 			case transfer.TagMessage:
 				if onMessage != nil {
-					onMessage("Participant", transfer.ParseMessageFrame(m.Data))
+					// Label the sender by their role — the simplified chat path
+					// does not use the full name-announcement roster protocol.
+					from := "Sender"
+					if role == "Sender" {
+						from = "Receiver"
+					}
+					onMessage(from, transfer.ParseMessageFrame(m.Data))
 				}
 			case transfer.TagChatClose, transfer.TagCancelled:
 				// Initiator ended the session for everyone.
 				if onClose != nil {
-					onClose("Session ended by Participant.")
+					onClose("Session ended.")
 				}
 				cancel()
 			case transfer.TagParticipantLeave:
-				// Participant left quietly — notify but do NOT cancel the session.
-				if onLeave != nil {
-					onLeave("Participant")
+				// Peer left — chat uses a 1-to-1 data channel so a leave
+				// always ends this session regardless of max peers.
+				if onClose != nil {
+					onClose("The other participant left.")
 				}
+				cancel()
 			}
 		})
 		dc.OnClose(func() {

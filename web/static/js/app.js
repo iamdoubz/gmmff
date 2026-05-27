@@ -678,7 +678,7 @@ function sendFilesMessage() {
   const text  = input?.value.trim();
   if (!text) return;
   if (typeof window.gmmffSessionSendMessage === 'function') window.gmmffSessionSendMessage(text);
-  appendFilesMessage('me', myName || 'Me', text);
+  appendBubble('files', 'me', myName || 'Me', text);
   input.value = '';
   input.focus();
 }
@@ -691,7 +691,7 @@ document.getElementById('files-close-btn')?.addEventListener('click', () => {
     window.gmmffSessionLeave();
   }
   filesDisableInput();
-  appendFilesSystem(t('chat_you_left') || 'You left the session.');
+  appendSystemMsg('files', t('chat_you_left') || 'You left the session.');
 });
 
 // ── Files transfer progress bars ──────────────────────────────────────────────
@@ -738,12 +738,7 @@ window.uiFilesShowCode = function(code) {
 window.uiFilesSessionReady = function(isInitiator, peerCount, maxPeers) {
   filesIsInitiator = isInitiator;
   peerNames = new Map();
-  peerCount = 0;
-  if (peerCount && maxPeers) {
-    window.uiFilesPeerCount(peerCount, maxPeers);
-  }
-  // Announce our name to the other side.
-  // Send empty string if no name set — receiver will use 'Participant N'.
+  updatePeerCount('files', peerCount || 0, maxPeers || 0);
   setTimeout(() => {
     if (typeof window.gmmffSessionSendMessage === 'function') {
       window.gmmffSessionSendMessage(NAME_PREFIX + (myName || ''));
@@ -756,7 +751,7 @@ window.uiFilesSessionReady = function(isInitiator, peerCount, maxPeers) {
   document.getElementById('files-send-btn').disabled = false;
   document.getElementById('files-close-btn').classList.remove('hidden');
   showFilesState('active');
-  appendFilesSystem(t('files_session_open') || 'Session open. End-to-end encrypted.');
+  appendSystemMsg('files', t('files_session_open') || 'Session open. End-to-end encrypted.');
 };
 
 window.uiFilesProgress = function(label, pct, done, total) {
@@ -785,83 +780,34 @@ window.uiFilesTransferDone = function(label, filename) {
     if (bar) bar.style.width = '100%';
     setTimeout(() => removeTransferBar(label), 2000);
   }
-  appendFilesSystem((t('files_transfer_done') || 'Transfer complete') + (filename ? ': ' + filename : ''));
+  appendSystemMsg('files', (t('files_transfer_done') || 'Transfer complete') + (filename ? ': ' + filename : ''));
 };
 
 window.uiFilesTransferError = function(label, msg) {
   removeTransferBar(label);
-  appendFilesSystem('Transfer error: ' + msg);
+  appendSystemMsg('files', 'Transfer error: ' + msg);
 };
 
 window.uiFilesInboundStarted = function(label, total) {
   getOrCreateTransferBar(label);
-  appendFilesSystem(t('files_receiving') || 'Receiving file…');
+  appendSystemMsg('files', t('files_receiving') || 'Receiving file…');
 };
 
 window.uiFilesMessage = function(from, text) {
-  if (text.startsWith(ROSTER_PREFIX)) {
-    // Roster broadcast from initiator — populate all peer names at once.
-    // Format: \x01roster:initiator=FFName,peerID=MobName,...
-    const entries = text.slice(ROSTER_PREFIX.length).split(',');
-    entries.forEach(entry => {
-      const eq = entry.indexOf('=');
-      if (eq === -1) return;
-      const pid  = entry.slice(0, eq); // 'initiator' or a UUID
-      const name = entry.slice(eq + 1).trim() || null;
-      if (!peerNames.has(pid)) {
-        peerNames.set(pid, name || 'Participant');
-      }
-    });
-    return;
-  }
-  if (text.startsWith(NAME_PREFIX)) {
-    // Name announcement — record name keyed by peer ID (from).
-    const announcedName = text.slice(NAME_PREFIX.length).trim();
-    if (from && announcedName) {
-      peerNames.set(from, announcedName);
-      appendFilesSystem(announcedName + ' joined.');
-    } else if (from) {
-      // No name set — assign a numbered fallback.
-      const n = peerNames.size + 1;
-      peerNames.set(from, 'Participant ' + n);
-      appendFilesSystem('Participant ' + n + ' joined.');
-    }
-    return;
-  }
-  // Look up the sender by peer ID; fall back to Participant if unknown.
-  const label = (from && peerNames.has(from))
-    ? peerNames.get(from)
-    : 'Participant';
-  appendFilesMessage('them', label, text);
+  handleIncomingMessage('files', from, text);
 };
 
 window.uiFilesPeerCount = function(peerCount, maxPeers) {
-  const el = document.getElementById('files-peer-count');
-  if (!el) return;
-  el.textContent = peerCount + '/' + maxPeers;
-  el.classList.toggle('hidden', peerCount <= 0 || maxPeers <= 0);
+  updatePeerCount('files', peerCount, maxPeers);
 };
 
 window.uiFilesParticipantLeft = function(msg, from) {
-  const label = (from && peerNames.has(from))
-    ? peerNames.get(from)
-    : (peerNames.size > 0 ? [...peerNames.values()].at(-1) : 'Participant');
-  if (from) peerNames.delete(from);
-  appendFilesSystem(msg || (label + ' left.'));
+  const label = handleParticipantLeft('files', from);
+  if (msg && msg !== label + ' left.') appendSystemMsg('files', msg);
 };
 
 window.uiFilesSessionClosed = function(msg) {
-  appendFilesSystem(msg || 'Session ended.');
-  filesDisableInput();
-  // Scroll the message into view so the user sees it.
-  const list = document.getElementById('files-messages');
-  if (list) list.scrollTop = list.scrollHeight;
-  // Update status prominently.
-  const statusEl = document.getElementById('files-active-status');
-  if (statusEl) {
-    statusEl.textContent = t('session_ended') || 'Session ended';
-    statusEl.style.color = 'var(--color-error, #e53e3e)';
-  }
+  setTabSessionEnded('files', msg);
 };
 
 window.uiFilesError = function(msg) {
@@ -875,46 +821,11 @@ window.uiFilesError = function(msg) {
   showFilesState('form');
 };
 
-function filesDisableInput() {
-  const statusEl = document.getElementById('files-active-status');
-  if (statusEl) { statusEl.textContent = t('chat_disconnected') || 'Disconnected'; statusEl.style.color = 'var(--color-text-muted)'; }
-  const sendBtn  = document.getElementById('files-send-btn');
-  const msgBtn   = document.getElementById('files-msg-btn');
-  const msgInput = document.getElementById('files-msg-input');
-  const closeBtn = document.getElementById('files-close-btn');
-  if (sendBtn)  sendBtn.disabled  = true;
-  if (msgBtn)   msgBtn.disabled   = true;
-  if (msgInput) msgInput.disabled = true;
-  if (closeBtn) closeBtn.classList.add('hidden');
-}
+function filesDisableInput() { disableTabInput('files'); }
 
-function appendFilesMessage(side, from, text) {
-  const list = document.getElementById('files-messages');
-  if (!list) return;
-  const wrap = document.createElement('div');
-  wrap.className = 'chat-bubble chat-bubble--' + side;
-  if (side === 'them') {
-    const meta = document.createElement('div');
-    meta.className = 'chat-bubble__meta';
-    meta.textContent = from;
-    wrap.appendChild(meta);
-  }
-  const body = document.createElement('div');
-  body.textContent = text;
-  wrap.appendChild(body);
-  list.appendChild(wrap);
-  list.scrollTop = list.scrollHeight;
-}
+function appendFilesMessage(side, from, text) { appendBubble('files', side, from, text); }
 
-function appendFilesSystem(text) {
-  const list = document.getElementById('files-messages');
-  if (!list) return;
-  const el = document.createElement('div');
-  el.className = 'chat-system';
-  el.textContent = text;
-  list.appendChild(el);
-  list.scrollTop = list.scrollHeight;
-}
+function appendFilesSystem(text) { appendSystemMsg('files', text); }
 
 // Drag and drop for files panel — set filesSelectedFiles
 
@@ -1074,33 +985,55 @@ function sendChatMessage() {
     return;
   }
   if (typeof window.gmmffChatSend === 'function') window.gmmffChatSend(text);
-  appendChatBubble('me', myName || 'Me', text);
+  appendBubble('chat', 'me', myName || 'Me', text);
   input.value = '';
   input.focus();
 }
 
 document.getElementById('chat-close-btn')?.addEventListener('click', () => {
   if (typeof window.gmmffChatLeave === 'function') window.gmmffChatLeave();
-  appendChatSystem(t('chat_you_left') || 'You left the session.');
-  chatDisableInput();
+  appendSystemMsg('chat', t('chat_you_left') || 'You left the session.');
+  disableTabInput('chat');
 });
 
-function chatDisableInput() {
-  const statusEl = document.getElementById('chat-active-status');
-  if (statusEl) {
-    statusEl.textContent = t('chat_disconnected') || 'Disconnected';
-    statusEl.style.color = 'var(--color-text-muted)';
-  }
-  const sendBtn  = document.getElementById('chat-send-btn');
-  const input    = document.getElementById('chat-input');
-  const closeBtn = document.getElementById('chat-close-btn');
-  if (sendBtn)  sendBtn.disabled = true;
-  if (input)    input.disabled = true;
-  if (closeBtn) closeBtn.classList.add('hidden');
+// ── Shared messaging helpers ──────────────────────────────────────────────────
+// Both the Files and Chat tabs render messages, system notices, and peer state
+// the same way. These helpers are parameterised by tab ('files' | 'chat') so
+// the logic lives in one place.
+
+const TAB_IDS = {
+  files: {
+    messages:  'files-messages',
+    status:    'files-active-status',
+    sendBtn:   'files-send-btn',
+    input:     'files-msg-input',
+    extraBtn:  'files-msg-btn',   // Files has a separate message button
+    closeBtn:  'files-close-btn',
+    peerCount: 'files-peer-count',
+  },
+  chat: {
+    messages:  'chat-messages',
+    status:    'chat-active-status',
+    sendBtn:   'chat-send-btn',
+    input:     'chat-input',
+    extraBtn:  null,
+    closeBtn:  'chat-close-btn',
+    peerCount: null,
+  },
+};
+
+function appendSystemMsg(tab, text) {
+  const list = document.getElementById(TAB_IDS[tab].messages);
+  if (!list) return;
+  const el = document.createElement('div');
+  el.className = 'chat-system';
+  el.textContent = text;
+  list.appendChild(el);
+  list.scrollTop = list.scrollHeight;
 }
 
-function appendChatBubble(side, from, text) {
-  const list = document.getElementById('chat-messages');
+function appendBubble(tab, side, from, text) {
+  const list = document.getElementById(TAB_IDS[tab].messages);
   if (!list) return;
   const wrap = document.createElement('div');
   wrap.className = 'chat-bubble chat-bubble--' + side;
@@ -1117,14 +1050,91 @@ function appendChatBubble(side, from, text) {
   list.scrollTop = list.scrollHeight;
 }
 
-function appendChatSystem(text) {
-  const list = document.getElementById('chat-messages');
-  if (!list) return;
-  const el = document.createElement('div');
-  el.className = 'chat-system';
-  el.textContent = text;
-  list.appendChild(el);
-  list.scrollTop = list.scrollHeight;
+function disableTabInput(tab) {
+  const ids = TAB_IDS[tab];
+  const statusEl = document.getElementById(ids.status);
+  if (statusEl) {
+    statusEl.textContent = t('chat_disconnected') || 'Disconnected';
+    statusEl.style.color = 'var(--color-text-muted)';
+  }
+  const sendBtn  = document.getElementById(ids.sendBtn);
+  const input    = document.getElementById(ids.input);
+  const extraBtn = ids.extraBtn ? document.getElementById(ids.extraBtn) : null;
+  const closeBtn = document.getElementById(ids.closeBtn);
+  if (sendBtn)  sendBtn.disabled  = true;
+  if (input)    input.disabled    = true;
+  if (extraBtn) extraBtn.disabled = true;
+  if (closeBtn) closeBtn.classList.add('hidden');
+}
+
+function setTabSessionEnded(tab, msg) {
+  appendSystemMsg(tab, msg || t('session_ended') || 'Session ended.');
+  disableTabInput(tab);
+  const statusEl = document.getElementById(TAB_IDS[tab].status);
+  if (statusEl) {
+    statusEl.textContent = t('session_ended') || 'Session ended';
+    statusEl.style.color = 'var(--color-error)';
+  }
+  const list = document.getElementById(TAB_IDS[tab].messages);
+  if (list) list.scrollTop = list.scrollHeight;
+}
+
+// handleIncomingMessage processes a raw message string for either tab.
+// Handles the name-announcement protocol (\x01name:) and roster protocol
+// (\x01roster:) used by Files, keying names by peer ID (from).
+function handleIncomingMessage(tab, from, text) {
+  if (text.startsWith(ROSTER_PREFIX)) {
+    // Roster broadcast — populate all peer names at once.
+    const entries = text.slice(ROSTER_PREFIX.length).split(',');
+    entries.forEach(entry => {
+      const eq = entry.indexOf('=');
+      if (eq === -1) return;
+      const pid  = entry.slice(0, eq);
+      const name = entry.slice(eq + 1).trim() || null;
+      if (!peerNames.has(pid)) {
+        peerNames.set(pid, name || 'Participant');
+      }
+    });
+    return;
+  }
+  if (text.startsWith(NAME_PREFIX)) {
+    // Name announcement — record keyed by peer ID.
+    const announcedName = text.slice(NAME_PREFIX.length).trim();
+    if (from && announcedName) {
+      peerNames.set(from, announcedName);
+      appendSystemMsg(tab, announcedName + ' joined.');
+    } else if (from) {
+      const n = peerNames.size + 1;
+      peerNames.set(from, 'Participant ' + n);
+      appendSystemMsg(tab, 'Participant ' + n + ' joined.');
+    }
+    return;
+  }
+  const label = (from && peerNames.has(from))
+    ? peerNames.get(from)
+    : 'Participant';
+  appendBubble(tab, 'them', label, text);
+}
+
+// handleParticipantLeft looks up the leaving peer's name, removes them from the
+// roster, and appends a system notice. Returns the display name used.
+function handleParticipantLeft(tab, from) {
+  const label = (from && peerNames.has(from))
+    ? peerNames.get(from)
+    : (peerNames.size > 0 ? [...peerNames.values()].at(-1) : 'Participant');
+  if (from) peerNames.delete(from);
+  appendSystemMsg(tab, label + ' left.');
+  return label;
+}
+
+// updatePeerCount updates the peer count badge if the tab has one.
+function updatePeerCount(tab, peerCount, maxPeers) {
+  const id = TAB_IDS[tab].peerCount;
+  if (!id) return;
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = peerCount + '/' + maxPeers;
+  el.classList.toggle('hidden', peerCount <= 0 || maxPeers <= 0);
 }
 
 // ── Chat Wasm → JS callbacks ──────────────────────────────────────────────────
@@ -1137,42 +1147,40 @@ window.uiChatShowCode = function(code) {
 
 window.uiChatOpen = function(remoteRole) {
   document.getElementById('chat-messages').innerHTML = '';
-  // Announce our name.
+  peerNames = new Map();
+  // Announce our name — same 300 ms delay as Files.
   setTimeout(() => {
     if (typeof window.gmmffChatSend === 'function') {
-      window.gmmffChatSend(NAME_PREFIX + myName);
+      window.gmmffChatSend(NAME_PREFIX + (myName || ''));
     }
   }, 300);
   const statusEl = document.getElementById('chat-active-status');
-  statusEl.textContent = t('chat_connected') || 'Connected';
-  statusEl.style.color = 'var(--color-success)';
+  if (statusEl) {
+    statusEl.textContent = t('chat_connected') || 'Connected';
+    statusEl.style.color = 'var(--color-success)';
+  }
   document.getElementById('chat-send-btn').disabled = false;
   document.getElementById('chat-input').disabled = false;
   document.getElementById('chat-close-btn').classList.remove('hidden');
   showChatState('active');
   document.getElementById('chat-input').focus();
-  appendChatSystem(t('chat_session_open') || 'Session open. Messages are end-to-end encrypted.');
+  appendSystemMsg('chat', t('chat_session_open') || 'Session open. Messages are end-to-end encrypted.');
 };
 
 window.uiChatMessage = function(from, text) {
-  if (text.startsWith(NAME_PREFIX)) {
-    const announcedName = text.slice(NAME_PREFIX.length).trim() || 'Participant';
-    peerNames.set(1, announcedName);
-    appendChatSystem(announcedName + ' joined.');
-    return;
-  }
-  const label = peerNames.get(1) || 'Participant';
-  appendChatBubble('them', label, text);
+  handleIncomingMessage('chat', from, text);
 };
 
 window.uiChatClosed = function(reason) {
-  appendChatSystem(reason);
-  chatDisableInput();
+  setTabSessionEnded('chat', reason);
 };
 
 window.uiChatParticipantLeft = function(who) {
-  const label = peerNames.get(1) || 'Participant';
-  appendChatSystem((who || label) + ' left the session.');
+  handleParticipantLeft('chat', who);
+  // In a chat session the data channel is 1-to-1 — no peers left means session over.
+  if (peerNames.size === 0) {
+    setTabSessionEnded('chat', t('session_ended') || 'Session ended — no participants remain.');
+  }
 };
 
 window.uiChatError = function(message) {
