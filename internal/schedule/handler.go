@@ -77,19 +77,26 @@ func (h *Handler) handleProbe(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
 	ip := remoteIP(r)
 
-	ipAllowed := h.cfg.IPAllowedToUpload(ip)
-	needsPw := !ipAllowed && h.cfg.UploadPassword != ""
-
-	// If neither IP allowlist nor password — allow everyone.
+	// If neither IP allowlist nor password configured — allow everyone.
 	if len(h.cfg.UploadIPs) == 0 && h.cfg.UploadPassword == "" {
-		ipAllowed = true
-		needsPw = false
+		writeJSON(w, http.StatusOK, authResponse{Allowed: true, NeedsPassword: false})
+		return
 	}
 
-	writeJSON(w, http.StatusOK, authResponse{
-		Allowed:       ipAllowed,
-		NeedsPassword: needsPw,
-	})
+	// If IP is in the allowlist it always wins — no password needed.
+	if h.cfg.IPAllowedToUpload(ip) && len(h.cfg.UploadIPs) > 0 {
+		writeJSON(w, http.StatusOK, authResponse{Allowed: true, NeedsPassword: false})
+		return
+	}
+
+	// IP not in allowlist (or no allowlist) — check whether a password gates access.
+	if h.cfg.UploadPassword != "" {
+		writeJSON(w, http.StatusOK, authResponse{Allowed: false, NeedsPassword: true})
+		return
+	}
+
+	// IP allowlist set, no password, IP not in list — blocked entirely.
+	writeJSON(w, http.StatusOK, authResponse{Allowed: false, NeedsPassword: false})
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -415,20 +422,20 @@ func (h *Handler) handleTTLOptions(w http.ResponseWriter, r *http.Request) {
 // authorizeUpload checks IP allowlist and password from the request.
 // Writes an error response and returns false if not authorized.
 func (h *Handler) authorizeUpload(w http.ResponseWriter, r *http.Request, ip net.IP) bool {
-	// IP in allowlist → no password needed.
-	if h.cfg.IPAllowedToUpload(ip) {
-		return true
-	}
-	// No restrictions at all → allow everyone.
+	// No restrictions at all — allow everyone.
 	if len(h.cfg.UploadIPs) == 0 && h.cfg.UploadPassword == "" {
 		return true
 	}
-	// Password required.
+
+	// IP in allowlist always wins — no password needed.
+	if len(h.cfg.UploadIPs) > 0 && h.cfg.IPAllowedToUpload(ip) {
+		return true
+	}
+
+	// Password required — check header then form value.
 	if h.cfg.UploadPassword != "" {
-		// Accept password from header or JSON body field.
 		pw := r.Header.Get("X-Schedule-Password")
 		if pw == "" {
-			// Try to peek from already-decoded JSON — callers pass it explicitly.
 			pw = r.FormValue("password")
 		}
 		if pw == h.cfg.UploadPassword {
@@ -437,6 +444,8 @@ func (h *Handler) authorizeUpload(w http.ResponseWriter, r *http.Request, ip net
 		writeError(w, http.StatusForbidden, "invalid upload password")
 		return false
 	}
+
+	// IP allowlist set, no password, IP not in list — blocked.
 	writeError(w, http.StatusForbidden, "upload not permitted from your IP")
 	return false
 }
