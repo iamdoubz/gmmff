@@ -2,12 +2,13 @@
 // gmmff signaling server.
 //
 // Routes:
-//   GET  /ws                 — WebSocket upgrade (handled by Broker)
-//   GET  /healthz            — liveness probe (returns 200 + "ok")
-//   GET  /readyz             — readiness probe (checks Redis reachability)
-//   GET  /metrics            — plaintext operational counters (no user data)
-//   GET  /*                  — browser UI file server (when --web is set)
-//   GET  /                   — plain landing page (when --web is not set)
+//
+//	GET  /ws                 — WebSocket upgrade (handled by Broker)
+//	GET  /healthz            — liveness probe (returns 200 + "ok")
+//	GET  /readyz             — readiness probe (checks Redis reachability)
+//	GET  /metrics            — plaintext operational counters (no user data)
+//	GET  /*                  — browser UI file server (when --web is set)
+//	GET  /                   — plain landing page (when --web is not set)
 package broker
 
 import (

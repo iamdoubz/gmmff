@@ -1,3 +1,5 @@
+//go:build js && wasm
+
 // Command gmmff-wasm is the WebAssembly build of gmmff for browser use.
 //
 // It exposes two JavaScript functions:

@@ -222,6 +222,9 @@ func ParseFuzzyDuration(s string) (time.Duration, string, error) {
 }
 
 func formatDurationLabel(d time.Duration) string {
+	if d == 0 {
+		return d.String() // "0s"
+	}
 	switch {
 	case d%(7*24*time.Hour) == 0:
 		n := int(d / (7 * 24 * time.Hour))
@@ -282,24 +285,29 @@ func parseIntEnv(key string, def int) int {
 }
 
 // parseByteSize parses a size string like "1gb", "512mb", "1073741824".
+// Suffixes are checked longest-first to avoid "gb" matching as "b".
 func parseByteSize(s string, def int64) int64 {
 	s = strings.ToLower(strings.TrimSpace(s))
 	if s == "" {
 		return def
 	}
-	multipliers := map[string]int64{
-		"gb": 1 << 30,
-		"mb": 1 << 20,
-		"kb": 1 << 10,
-		"b":  1,
+	// Ordered longest-to-shortest so "gb" is checked before "b".
+	suffixes := []struct {
+		suffix string
+		mult   int64
+	}{
+		{"gb", 1 << 30},
+		{"mb", 1 << 20},
+		{"kb", 1 << 10},
+		{"b", 1},
 	}
-	for suffix, mult := range multipliers {
-		if strings.HasSuffix(s, suffix) {
-			n, err := strconv.ParseInt(strings.TrimSuffix(s, suffix), 10, 64)
-			if err != nil {
+	for _, sm := range suffixes {
+		if strings.HasSuffix(s, sm.suffix) {
+			n, err := strconv.ParseInt(strings.TrimSuffix(s, sm.suffix), 10, 64)
+			if err != nil || n < 0 {
 				return def
 			}
-			return n * mult
+			return n * sm.mult
 		}
 	}
 	n, err := strconv.ParseInt(s, 10, 64)
