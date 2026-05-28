@@ -319,8 +319,10 @@ func jsChat(_ js.Value, args []js.Value) any {
 		}
 		js.Global().Call("uiChatShowCode", created.Code)
 
+		// Re-fetch ICE config with the slot code as Bearer token.
+		cfg := configFromJSWithCode(iceCfg, created.Code)
 		// StartChatSession waits for slot.ready and the first peer internally.
-		sess, err := peer.StartChatSession(context.Background(), sig, created.Code, configFromJS(iceCfg), maxPeers)
+		sess, err := peer.StartChatSession(context.Background(), sig, created.Code, cfg, maxPeers)
 		if err != nil {
 			js.Global().Call("uiChatError", err.Error())
 			return
@@ -486,9 +488,12 @@ func jsCreateSession(_ js.Value, args []js.Value) any {
 			return
 		}
 		js.Global().Call("uiFilesShowCode", created.Code)
+		// Re-fetch ICE config now that we have the slot code — the server
+		// requires the code as a Bearer token to issue TURN credentials.
+		cfg := configFromJSWithCode(iceCfg, created.Code)
 		// StartSession waits for slot.ready internally.
 		sessCtx := context.Background()
-		sess, err := peer.StartSession(sessCtx, sig, created.Code, configFromJS(iceCfg), maxPeers)
+		sess, err := peer.StartSession(sessCtx, sig, created.Code, cfg, maxPeers)
 		if err != nil {
 			js.Global().Call("uiFilesError", err.Error())
 			return
@@ -666,6 +671,62 @@ func getJSInt(args []js.Value, idx, defaultVal int) int {
 // ─────────────────────────────────────────────────────────────────────────────
 // ICE configuration helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+// configFromJSWithCode is like configFromJS but additionally calls /api/ice
+// with the slot code as a Bearer token to obtain server-pushed ICE credentials.
+// Falls back to configFromJS if the fetch fails or push is not enabled.
+func configFromJSWithCode(iceCfg js.Value, code string) peer.Config {
+	cfg := configFromJS(iceCfg)
+	if code == "" {
+		return cfg
+	}
+	return fetchICEWithCode(cfg, code)
+}
+
+// fetchICEWithCode performs a synchronous XMLHttpRequest to /api/ice with the
+// Bearer token and merges the result into the existing peer.Config.
+// This is safe to call from a goroutine in Wasm since it doesn't block the
+// JS main thread — it blocks only the Go goroutine.
+func fetchICEWithCode(base peer.Config, code string) peer.Config {
+	xhr := js.Global().Get("XMLHttpRequest").New()
+	xhr.Call("open", "GET", "/api/ice", false) // false = synchronous
+	xhr.Call("setRequestHeader", "Authorization", "Bearer "+code)
+	xhr.Call("setRequestHeader", "Cache-Control", "no-store")
+	xhr.Call("send")
+
+	status := xhr.Get("status").Int()
+	if status != 200 {
+		return base // 401 or error — fall back to local config
+	}
+
+	body := xhr.Get("responseText").String()
+	var resp struct {
+		STUN []string `json:"stun"`
+		TURN []struct {
+			URL      string `json:"url"`
+			Username string `json:"username"`
+			Password string `json:"password"`
+		} `json:"turn"`
+	}
+	if err := json.Unmarshal([]byte(body), &resp); err != nil {
+		return base
+	}
+
+	if len(resp.STUN) > 0 {
+		base.STUNServers = resp.STUN
+	}
+	if len(resp.TURN) > 0 {
+		base.TURNServers = nil
+		for _, t := range resp.TURN {
+			base.TURNServers = append(base.TURNServers, turn.Server{
+				URL:      t.URL,
+				Username: t.Username,
+				Password: t.Password,
+			})
+		}
+	}
+	return base
+}
 
 // configFromJS builds a peer.Config from a JS object {stun: [...], turn: [...]}.
 // If iceCfg is zero/undefined the default config is returned.

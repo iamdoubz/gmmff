@@ -148,6 +148,149 @@ those down to your load balancer or uptime monitor only.
 
 ---
 
+## `/api/ice` — ICE credential endpoint
+
+`GET /api/ice` returns pushed STUN/TURN server config to the browser Wasm
+client. When `GMMFF_PUSH_TURN=true` with ephemeral credentials, this endpoint
+returns a time-limited TURN username and password derived from your shared
+secret.
+
+### Two layers of protection
+
+#### Layer 1 — Slot code authentication (Go handler)
+
+The Go handler requires an `Authorization: Bearer <slot-code>` header on every
+request. The slot code is the human-readable session code (e.g.
+`bear-cozy-cone`) that was issued by the signaling server when the slot was
+created or joined.
+
+The server looks up the code in Redis. If no slot exists in `waiting`,
+`active`, or `full` state, the request is rejected with `401 Unauthorized`.
+
+This means only peers that have successfully gone through the signaling
+handshake can obtain TURN credentials. A random HTTP client without a valid
+slot code receives:
+
+```json
+{"error":"missing Authorization: Bearer <slot-code>"}
+```
+
+or
+
+```json
+{"error":"invalid or expired slot code"}
+```
+
+#### Layer 2 — nginx rate limiting
+
+Even with slot code gating, rate limiting at the nginx layer provides a
+cheap first line of defence before requests reach Go. It protects against:
+
+- Token-stuffing attacks (trying many slot codes rapidly)
+- Accidental hammering from misconfigured clients
+- Any future bypass of the application-level auth
+
+The rate limit is configured in `gmmff.conf`:
+
+```nginx
+# Zone definition (outside server block, in http context)
+limit_req_zone $binary_remote_addr zone=ice_limit:1m rate=5r/h;
+
+# Applied in the location block
+location = /api/ice {
+    limit_req zone=ice_limit burst=2 nodelay;
+    limit_req_status 429;
+    ...
+}
+```
+
+**Parameters:**
+
+| Parameter | Value | Meaning |
+|---|---|---|
+| `rate` | `5r/h` | 5 requests per hour per IP address |
+| `burst` | `2` | Allow up to 2 requests to queue before rejecting |
+| `nodelay` | — | Process bursted requests immediately, don't delay them |
+| `limit_req_status` | `429` | Return HTTP 429 Too Many Requests when limit is hit |
+
+A typical gmmff session makes exactly one `/api/ice` call (before creating
+the peer connection). Five requests per hour per IP gives ample headroom for
+legitimate use while blocking automated scraping.
+
+**Why `burst=2` with `nodelay`?**
+
+Without burst, the first request after the limit resets would also be delayed
+by the leaky-bucket algorithm. `burst=2 nodelay` means up to 2 requests can
+arrive close together and be served immediately — covering the case where a
+user starts two sessions in quick succession — while still enforcing the hourly
+rate over time.
+
+### What happens when the limit is hit
+
+nginx returns `429 Too Many Requests` before the request reaches Go. The
+browser's `buildIceConfig` function treats any non-200 response as a failure
+and falls back to the user's locally configured ICE state (from the ICE
+settings panel). The session can still proceed — it just won't use the
+server-pushed TURN config for that connection.
+
+---
+
+## Security recommendations
+
+When `GMMFF_PUSH_TURN=true`:
+
+```bash
+# Hide the ICE settings panel — users cannot override pushed servers
+GMMFF_SHOW_ICE_SETTINGS=false
+GMMFF_ALLOW_STUN=false
+GMMFF_ALLOW_TURN=false
+
+# Use ephemeral credentials (master secret never sent to clients)
+GMMFF_TURN=turn:your-server:3478?transport=tcp&secret=your-shared-secret
+
+# Set a short TTL — credentials expire before they can be meaningfully reused
+GMMFF_PUSH_TTL=30m
+```
+
+**Ephemeral vs static credentials:**
+
+| Type | Secret exposure | Recommended |
+|---|---|---|
+| Ephemeral (`secret=`) | Only short-lived derived credential sent to clients | Yes |
+| Static (`user=`/`pass=`) | Full credentials sent to every peer | Only for public/anonymous TURN |
+
+---
+
+## Applying the config
+
+```bash
+sudo ln -s /etc/nginx/sites-available/gmmff.conf /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Verify the rate limit zone loaded:
+
+```bash
+sudo nginx -T | grep limit_req_zone
+```
+
+Test the auth requirement (should return 401):
+
+```bash
+curl -i https://your.domain.com/api/ice
+# HTTP/2 401
+
+curl -i -H "Authorization: Bearer invalid-code" https://your.domain.com/api/ice
+# HTTP/2 401
+
+# With a valid slot code (while a session is active):
+curl -i -H "Authorization: Bearer bear-cozy-cone" https://your.domain.com/api/ice
+# HTTP/2 200
+```
+
+---
+
 ## Verifying the proxy
 
 ```bash

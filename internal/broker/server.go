@@ -25,6 +25,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/iamdoubz/gmmff/internal/store"
+	"github.com/iamdoubz/gmmff/internal/turn"
 )
 
 // Metrics holds privacy-safe operational counters.
@@ -54,8 +55,9 @@ type Server struct {
 	uiConfig        UIConfig                       // feature flags served via /config.json
 	scheduleHandler interface{ Mount(chi.Router) } // nil when schedule is disabled
 	// ICE push config — populated by SetICEConfig when GMMFF_PUSH_STUN/TURN is set.
-	pushedSTUN []string     // STUN URLs to push to clients
-	pushedTURN []PushedTURN // TURN servers to push (credentials already resolved)
+	pushedSTUN  []string      // STUN URLs to push to clients
+	rawTURN     []string      // raw TURN URL strings (e.g. "turn:host?secret=s") — credentials derived per-request
+	pushTURNTTL time.Duration // TTL for ephemeral TURN credentials
 }
 
 // NewServer constructs a Server and registers all routes.
@@ -297,37 +299,102 @@ type PushedTURN struct {
 
 // iceResponse is the shape of GET /api/ice.
 type iceResponse struct {
-	STUN []string     `json:"stun"` // may be nil/empty when GMMFF_PUSH_STUN=false
-	TURN []PushedTURN `json:"turn"` // may be nil/empty when GMMFF_PUSH_TURN=false
+	STUN []string     `json:"stun"` // nil/empty when GMMFF_PUSH_STUN=false
+	TURN []PushedTURN `json:"turn"` // nil/empty when GMMFF_PUSH_TURN=false
 }
 
-// SetICEConfig stores the pushed ICE servers on the Server so /api/ice can
-// serve them.  Called from main after parsing GMMFF_STUN / GMMFF_TURN env vars.
-func (s *Server) SetICEConfig(stun []string, turn []PushedTURN) {
+// SetICEConfig stores the ICE push configuration on the Server.
+// For TURN, raw URL strings are stored and credentials are derived fresh on
+// each /api/ice request so every caller gets a full-TTL credential.
+func (s *Server) SetICEConfig(stun []string, rawTURN []string, turnTTL time.Duration) {
 	s.pushedSTUN = stun
-	s.pushedTURN = turn
+	s.rawTURN = rawTURN
+	s.pushTURNTTL = turnTTL
 }
 
 // handleICE serves GET /api/ice — called by the browser right before creating
 // a peer connection when push_stun or push_turn is enabled in /config.json.
-// Returns only the portions that are enabled; empty slices for disabled parts.
+//
+// Authentication: the caller must present the slot code in the Authorization
+// header as a Bearer token:
+//
+//	Authorization: Bearer <slot-code>
+//
+// The server looks up the code in the slot store. If no active slot is found
+// the request is rejected with 401. This ensures only peers that have already
+// gone through the signaling handshake can obtain TURN credentials.
+//
+// Credentials are generated fresh on every call (Option 1) so each caller
+// receives a full-TTL credential regardless of server uptime.
 func (s *Server) handleICE(w http.ResponseWriter, r *http.Request) {
+	// ── Authentication: validate slot code ───────────────────────────────────
+	if s.uiConfig.PushTURN || s.uiConfig.PushSTUN {
+		code := bearerToken(r)
+		if code == "" {
+			http.Error(w, `{"error":"missing Authorization: Bearer <slot-code>"}`, http.StatusUnauthorized)
+			return
+		}
+		sl, err := s.store.GetByCode(r.Context(), code)
+		if err != nil || sl == nil {
+			http.Error(w, `{"error":"invalid or expired slot code"}`, http.StatusUnauthorized)
+			return
+		}
+		// Only active slots — closed/expired slots cannot obtain new credentials.
+		switch sl.State {
+		case "waiting", "active", "full":
+			// valid
+		default:
+			http.Error(w, `{"error":"slot is no longer active"}`, http.StatusUnauthorized)
+			return
+		}
+	}
+
+	// ── Build response ────────────────────────────────────────────────────────
 	resp := iceResponse{}
+
 	if s.uiConfig.PushSTUN {
 		resp.STUN = s.pushedSTUN
 		if resp.STUN == nil {
 			resp.STUN = []string{}
 		}
 	}
+
 	if s.uiConfig.PushTURN {
-		resp.TURN = s.pushedTURN
+		// Generate fresh credentials now — every caller gets a full-TTL credential.
+		ttl := s.pushTURNTTL
+		if ttl <= 0 {
+			ttl = 30 * time.Minute
+		}
+		servers, err := turn.ParseAllWithTTL(s.rawTURN, ttl)
+		if err != nil {
+			http.Error(w, `{"error":"TURN config error"}`, http.StatusInternalServerError)
+			return
+		}
+		for _, sv := range servers {
+			resp.TURN = append(resp.TURN, PushedTURN{
+				URL:      sv.URL,
+				Username: sv.Username,
+				Password: sv.Password,
+			})
+		}
 		if resp.TURN == nil {
 			resp.TURN = []PushedTURN{}
 		}
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	json.NewEncoder(w).Encode(resp) //nolint:errcheck
+}
+
+// bearerToken extracts the token from an "Authorization: Bearer <token>" header.
+// Returns empty string if the header is absent or malformed.
+func bearerToken(r *http.Request) string {
+	auth := r.Header.Get("Authorization")
+	if len(auth) > 7 && auth[:7] == "Bearer " {
+		return auth[7:]
+	}
+	return ""
 }
 
 // SetScheduleHandler attaches the schedule feature handler.

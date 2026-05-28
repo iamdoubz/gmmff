@@ -625,7 +625,8 @@ document.getElementById('files-create-btn')?.addEventListener('click', () => {
   const createBtn = document.getElementById('files-create-btn');
   if (createBtn) { createBtn.disabled = true; createBtn.textContent = t('create_creating') || 'Creating…'; }
   if (typeof window.gmmffCreateSession === 'function') {
-    buildIceConfig().then(ice => window.gmmffCreateSession(server, maxPeers, ice));
+    // ICE config is fetched by Wasm after slot code is known (with Bearer token).
+    window.gmmffCreateSession(server, maxPeers, {});
   }
 });
 
@@ -694,7 +695,7 @@ document.getElementById('files-join-btn')?.addEventListener('click', () => {
   const joinBtn = document.getElementById('files-join-btn');
   if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = t('join_connecting') || 'Connecting…'; }
   if (typeof window.gmmffJoinSession === 'function') {
-    buildIceConfig().then(ice => window.gmmffJoinSession(code, server, ice));
+    buildIceConfig(code).then(ice => window.gmmffJoinSession(code, server, ice));
   }
 });
 
@@ -972,9 +973,8 @@ document.getElementById('chat-start-btn')?.addEventListener('click', () => {
   if (!server) { errEl.textContent = t('error_no_server'); return; }
   if (nameVal) myName = nameVal;
   const chatMaxPeers = parseInt(document.getElementById('chat-max-peers')?.value || '2', 10);
-  buildIceConfig().then(ice => {
-    if (typeof window.gmmffChat === 'function') window.gmmffChat(server, chatMaxPeers, ice);
-  });
+  // ICE config is fetched by Wasm after slot code is known (with Bearer token).
+  if (typeof window.gmmffChat === 'function') window.gmmffChat(server, chatMaxPeers, {});
 });
 
 // Dynamically add "Join with a code" link below Start button
@@ -1017,7 +1017,7 @@ document.getElementById('chat-join-btn')?.addEventListener('click', () => {
   if (chatNameVal) myName = chatNameVal;
   const chatJoinBtn = document.getElementById('chat-join-btn');
   if (chatJoinBtn) { chatJoinBtn.disabled = true; chatJoinBtn.textContent = t('join_connecting') || 'Connecting…'; }
-  buildIceConfig().then(ice => {
+  buildIceConfig(code).then(ice => {
     if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, ice);
   });
 });
@@ -1275,11 +1275,11 @@ function saveIceState() {
 }
 
 // buildIceConfig returns a promise resolving to the ICE config object.
-// When push_stun or push_turn is enabled in the server config, a fresh
-// /api/ice request is made and the pushed values replace user-defined entries.
-// This is async because the per-session fetch generates fresh ephemeral TURN
-// credentials server-side with a 30-minute TTL.
-async function buildIceConfig() {
+// When push_stun or push_turn is enabled, a fresh /api/ice request is made.
+// slotCode must be provided when push is enabled — it is sent as the
+// Authorization: Bearer token so the server can validate the caller has
+// an active slot before issuing TURN credentials.
+async function buildIceConfig(slotCode) {
   const base = { stun: [...iceState.stun], turn: [...iceState.turn] };
 
   if (!uiConfig.push_stun && !uiConfig.push_turn) {
@@ -1287,7 +1287,10 @@ async function buildIceConfig() {
   }
 
   try {
-    const resp = await fetch('/api/ice', { cache: 'no-store' });
+    const headers = { 'Cache-Control': 'no-store' };
+    if (slotCode) headers['Authorization'] = 'Bearer ' + slotCode;
+
+    const resp = await fetch('/api/ice', { cache: 'no-store', headers });
     if (!resp.ok) throw new Error(`/api/ice returned ${resp.status}`);
     const pushed = await resp.json();
 
@@ -1486,7 +1489,7 @@ function checkURLParams() {
     if (input) input.value = code;
     if (autoconnect) {
       const server = normaliseServerURL(location.origin.replace(/^http/, 'ws') + '/ws');
-      buildIceConfig().then(ice => {
+      buildIceConfig(code).then(ice => {
         if (typeof window.gmmffChatJoin === 'function') window.gmmffChatJoin(code, server, ice);
       });
     } else {
@@ -1505,7 +1508,7 @@ function checkURLParams() {
       const server = normaliseServerURL(location.origin.replace(/^http/, 'ws') + '/ws');
       setTimeout(() => {
         if (typeof window.gmmffJoinSession === 'function') {
-          buildIceConfig().then(ice => window.gmmffJoinSession(code, server, ice));
+          buildIceConfig(code).then(ice => window.gmmffJoinSession(code, server, ice));
         }
       }, 100);
     } else {
