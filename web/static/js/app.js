@@ -454,19 +454,31 @@ function hideLoading() {
   renderIceLists();
 
   // Pre-fill the signaling server fields using the current page URL.
-  // Converts http(s):// → ws(s):// and appends /ws.
   const serverURL = location.origin.replace(/^http/, 'ws') + '/ws';
   const filesField = document.getElementById('files-server');
   if (filesField && !filesField.value) filesField.value = serverURL;
 
-  // Check for ?code= in the URL — pre-fill the join form.
+  // Cache schedule URL params NOW before checkURLParams wipes location.search
+  // and location.hash with history.replaceState.
+  const _sp      = new URLSearchParams(location.search);
+  const _hash    = location.hash;
+  window._schedURLCache = null;
+  if (_sp.get('type') === 'schedule') {
+    window._schedURLCache = {
+      fileID: _sp.get('id')     || '',
+      action: _sp.get('action') || '',
+      dk:     _sp.get('dk')     || '',
+      dl:     _sp.get('dl') === '1',
+      keyHex: _hash.startsWith('#key=') ? _hash.slice(5) : '',
+    };
+  }
+
+  // Check for ?code= in the URL — also wipes the URL via replaceState.
   checkURLParams();
 
-  // If this is a schedule URL (?type=schedule), click the Schedule tab so
-  // schedShowTab → schedInit → schedCheckAuth → schedHandleURLParams fires
-  // in the correct order after the tab is fully initialised.
-  const _schedParams = new URLSearchParams(location.search);
-  if (_schedParams.get('type') === 'schedule') {
+  // If this is a schedule URL, click the Schedule tab after schedInit registers
+  // its listener. schedInit runs synchronously after hideLoading returns.
+  if (window._schedURLCache) {
     setTimeout(() => document.getElementById('tab-schedule')?.click(), 0);
   }
 
@@ -2139,17 +2151,11 @@ async function schedStartDownload() {
 
 // ── Auto-download from URL params (?type=schedule&id=X#key=Y&dl=1) ────────────
 function schedHandleURLParams() {
-  const params = new URLSearchParams(location.search);
-  if (params.get('type') !== 'schedule') return;
+  const cache = window._schedURLCache;
+  if (!cache) return;
+  window._schedURLCache = null; // consume — only process once
 
-  const fileID = params.get('id');
-  const action = params.get('action');
-  const dk     = params.get('dk');
-  const dl     = params.get('dl') === '1';
-  const keyHex = location.hash.startsWith('#key=') ? location.hash.slice(5) : '';
-
-  // Clean URL.
-  history.replaceState({}, '', location.origin + location.pathname);
+  const { fileID, action, dk, dl, keyHex } = cache;
 
   if (!fileID) return;
 
@@ -2159,8 +2165,7 @@ function schedHandleURLParams() {
     return;
   }
 
-  // Tab is already active — schedHandleURLParams is called from schedCheckAuth
-  // which is called from schedShowTab, so the Schedule tab is always visible here.
+  // Fill join fields if we have a key.
   if (keyHex) {
     schedSetState('join');
     document.getElementById('schedule-join-id').value  = fileID;
