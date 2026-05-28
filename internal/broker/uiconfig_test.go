@@ -147,7 +147,7 @@ func TestValidateEnv_CleanEnvironment(t *testing.T) {
 		"GMMFF_SHOW_ICE_SETTINGS", "GMMFF_ALLOW_STUN", "GMMFF_ALLOW_TURN",
 		"GMMFF_SHOW_SHARE_LINK", "GMMFF_SHOW_QR_CODE",
 		"GMMFF_ALLOW_CUSTOM_SERVER", "GMMFF_SHOW_PEERS_LIMIT",
-		"GMMFF_PUSH_STUN", "GMMFF_PUSH_TURN",
+		"GMMFF_PUSH_STUN", "GMMFF_PUSH_TURN", "GMMFF_PUSH_TTL",
 		"GMMFF_MAX_PEERS_LIMIT", "GMMFF_MAX_WINDOW", "GMMFF_MAX_CHUNK_SIZE",
 		"GMMFF_SCHEDULE_MAX_DOWNLOADS",
 		"GMMFF_TAB_ORDER", "GMMFF_TAB_DEFAULT",
@@ -416,6 +416,71 @@ func TestValidateEnv_ValidCronExpressions(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GMMFF_PUSH_TTL
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestValidateEnv_InvalidPushTTL(t *testing.T) {
+	cases := []string{"notaduration", "0", "-5m", "0s"}
+	for _, val := range cases {
+		val := val
+		t.Run(val, func(t *testing.T) {
+			setEnv(t, "GMMFF_PUSH_TTL", val)
+			warns := ValidateEnv()
+			found := false
+			for _, w := range warns {
+				if w.Key == "GMMFF_PUSH_TTL" {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("expected warning for GMMFF_PUSH_TTL=%q, got: %v", val, warns)
+			}
+		})
+	}
+}
+
+func TestValidateEnv_ValidPushTTL(t *testing.T) {
+	cases := []string{"30m", "1h", "2h30m", "15m", "45m"}
+	for _, val := range cases {
+		val := val
+		t.Run(val, func(t *testing.T) {
+			setEnv(t, "GMMFF_PUSH_TTL", val)
+			warns := ValidateEnv()
+			for _, w := range warns {
+				if w.Key == "GMMFF_PUSH_TTL" {
+					t.Errorf("valid GMMFF_PUSH_TTL=%q should not warn: %v", val, w)
+				}
+			}
+		})
+	}
+}
+
+func TestUIConfigFromEnv_PushTTLDefault(t *testing.T) {
+	os.Unsetenv("GMMFF_PUSH_TTL")
+	cfg := UIConfigFromEnv()
+	if cfg.PushTURNTTL != 30*time.Minute {
+		t.Errorf("default PushTURNTTL: got %v, want 30m", cfg.PushTURNTTL)
+	}
+}
+
+func TestUIConfigFromEnv_PushTTLCustom(t *testing.T) {
+	setEnv(t, "GMMFF_PUSH_TTL", "1h")
+	cfg := UIConfigFromEnv()
+	if cfg.PushTURNTTL != time.Hour {
+		t.Errorf("custom PushTURNTTL: got %v, want 1h", cfg.PushTURNTTL)
+	}
+}
+
+func TestUIConfigFromEnv_PushTTLInvalidKeepsDefault(t *testing.T) {
+	setEnv(t, "GMMFF_PUSH_TTL", "notaduration")
+	cfg := UIConfigFromEnv()
+	if cfg.PushTURNTTL != 30*time.Minute {
+		t.Errorf("invalid GMMFF_PUSH_TTL should keep 30m default, got %v", cfg.PushTURNTTL)
 	}
 }
 

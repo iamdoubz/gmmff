@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // UIConfig holds all server-side feature flags that are served to the browser
@@ -63,10 +64,17 @@ type UIConfig struct {
 
 	// PushTURN — when true the server pushes its TURN config to the browser
 	// via /api/ice, replacing user-defined TURN servers.
-	// If TURN uses ephemeral credentials (secret=) a 30-minute credential is
-	// generated server-side. Static user/pass credentials are forwarded as-is —
-	// the admin accepts that all peers will receive them.
+	// If TURN uses ephemeral credentials (secret=) a short-lived credential is
+	// generated server-side using PushTURNTTL. Static user/pass credentials are
+	// forwarded as-is — the admin accepts that all peers will receive them.
 	PushTURN bool `json:"push_turn"`
+
+	// PushTURNTTL is the lifetime of ephemeral TURN credentials generated
+	// server-side when PushTURN=true and the TURN server uses a shared secret.
+	// Parsed from GMMFF_PUSH_TTL. Default: 30 minutes.
+	// Ignored when using static user/pass credentials.
+	// Not sent to the browser — tagged json:"-".
+	PushTURNTTL time.Duration `json:"-"`
 }
 
 // knownTabs is the canonical set of valid tab names and their default order.
@@ -145,6 +153,12 @@ func UIConfigFromEnv() UIConfig {
 
 	cfg.PushSTUN = boolEnv("GMMFF_PUSH_STUN", false)
 	cfg.PushTURN = boolEnv("GMMFF_PUSH_TURN", false)
+	cfg.PushTURNTTL = 30 * time.Minute // default
+	if raw := strings.TrimSpace(os.Getenv("GMMFF_PUSH_TTL")); raw != "" {
+		if d, err := time.ParseDuration(raw); err == nil && d > 0 {
+			cfg.PushTURNTTL = d
+		}
+	}
 
 	return cfg
 }
@@ -261,6 +275,22 @@ func ValidateEnv() []EnvWarning {
 					fmt.Sprintf("duplicate tab name %q — each tab should appear at most once", name))
 			}
 			seen[name] = true
+		}
+	}
+
+	// ── GMMFF_PUSH_STUN / GMMFF_PUSH_TURN already covered in bool vars above.
+
+	// ── GMMFF_PUSH_TTL ────────────────────────────────────────────────────────
+	if raw := strings.TrimSpace(os.Getenv("GMMFF_PUSH_TTL")); raw != "" {
+		d, err := time.ParseDuration(raw)
+		if err != nil {
+			add("GMMFF_PUSH_TTL", raw,
+				fmt.Sprintf("must be a Go duration (e.g. 30m, 1h, 2h30m); got %q", raw))
+		} else if d <= 0 {
+			add("GMMFF_PUSH_TTL", raw, "must be a positive duration")
+		} else if d > 24*time.Hour {
+			add("GMMFF_PUSH_TTL", raw,
+				fmt.Sprintf("TTL of %v is unusually long — TURN credentials are typically short-lived (≤24h)", d))
 		}
 	}
 

@@ -198,7 +198,7 @@ func runServe(_ *cobra.Command, _ []string) error {
 		if uiCfg.PushTURN {
 			rawTURN := turnServersDefault()
 			// Parse with 30-minute TTL for pushed ephemeral credentials.
-			servers, err := turn.ParseAllWithTTL(rawTURN, 30*time.Minute)
+			servers, err := turn.ParseAllWithTTL(rawTURN, uiCfg.PushTURNTTL)
 			if err != nil {
 				l().Warn().Err(err).Msg("TURN push: failed to parse TURN servers — push disabled")
 			} else {
