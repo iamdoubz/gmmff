@@ -427,7 +427,7 @@ function applyI18n(strings) {
     if (strings[key] !== undefined) el.placeholder = strings[key];
   });
   // Page title
-  if (strings.app_name) document.title = strings.app_name;
+  if (strings.app_name) { /* page title intentionally unchanged — set in index.html */ }
 }
 
 function t(key, vars = {}) {
@@ -454,15 +454,33 @@ function hideLoading() {
   renderIceLists();
 
   // Pre-fill the signaling server fields using the current page URL.
-  // Converts http(s):// → ws(s):// and appends /ws.
   const serverURL = location.origin.replace(/^http/, 'ws') + '/ws';
   const filesField = document.getElementById('files-server');
   if (filesField && !filesField.value) filesField.value = serverURL;
 
-  // Check for ?code= in the URL — pre-fill the join form.
+  // Cache schedule URL params NOW before checkURLParams wipes location.search
+  // and location.hash with history.replaceState.
+  const _sp      = new URLSearchParams(location.search);
+  const _hash    = location.hash;
+  window._schedURLCache = null;
+  if (_sp.get('type') === 'schedule') {
+    window._schedURLCache = {
+      fileID: _sp.get('id')     || '',
+      action: _sp.get('action') || '',
+      dk:     _sp.get('dk')     || '',
+      dl:     _sp.get('dl') === '1',
+      keyHex: _hash.startsWith('#key=') ? _hash.slice(5) : '',
+    };
+  }
+
+  // Check for ?code= in the URL — also wipes the URL via replaceState.
   checkURLParams();
-  // Check for ?type=schedule in the URL.
-  if (typeof window.schedHandleURLParams === 'function') window.schedHandleURLParams();
+
+  // If this is a schedule URL, click the Schedule tab after schedInit registers
+  // its listener. schedInit runs synchronously after hideLoading returns.
+  if (window._schedURLCache) {
+    setTimeout(() => document.getElementById('tab-schedule')?.click(), 0);
+  }
 
   // ── Theme toggle button ──────────────────────────────────────────────────
   initThemeToggle();
@@ -610,6 +628,40 @@ document.getElementById('files-create-btn')?.addEventListener('click', () => {
     buildIceConfig().then(ice => window.gmmffCreateSession(server, maxPeers, ice));
   }
 });
+
+// ── Enter-key form submission ─────────────────────────────────────────────────
+// Pressing Enter in any form input triggers the primary button for that form.
+// This mirrors normal browser form behaviour — fields that already have their
+// own keydown handlers (message inputs, ICE URL inputs) are not affected.
+(function bindEnterKeys() {
+  function onEnter(fieldId, btnId) {
+    document.getElementById(fieldId)?.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' || e.shiftKey) return;
+      e.preventDefault();
+      document.getElementById(btnId)?.click();
+    });
+  }
+
+  // Files — start session form
+  onEnter('files-my-name',  'files-create-btn');
+  onEnter('files-server',   'files-create-btn');
+
+  // Files — join session form
+  onEnter('files-join-code', 'files-join-btn');
+  onEnter('files-join-name', 'files-join-btn');
+
+  // Chat — start session form
+  onEnter('chat-my-name',  'chat-start-btn');
+  onEnter('chat-server',   'chat-start-btn');
+
+  // Chat — join session form
+  onEnter('chat-join-code',   'chat-join-btn');
+  onEnter('chat-join-name',   'chat-join-btn');
+
+  // Schedule — receive form (both fields submit the download)
+  onEnter('schedule-join-id',  'schedule-download-btn');
+  onEnter('schedule-join-key', 'schedule-download-btn');
+}());
 
 // Join link (shown below create button)
 (function ensureFilesJoinLink() {
@@ -1499,6 +1551,10 @@ function schedCheckMaxDl() {
   if (!isNaN(val) && val > 0 && val > schedMaxDownloadsCap) {
     warning.textContent = (t('schedule_max_dl_capped') || 'Exceeds server limit — will be capped at') + ' ' + schedMaxDownloadsCap + '.';
     warning.classList.remove('hidden');
+  } else if (!isNaN(val) && val === 0 && schedMaxDownloadsCap > 0) {
+    // 0 means unlimited — but server has a cap, so 0 is not allowed.
+    warning.textContent = (t('schedule_max_dl_zero_not_allowed') || 'Unlimited not permitted — server maximum is') + ' ' + schedMaxDownloadsCap + '.';
+    warning.classList.remove('hidden');
   } else {
     warning.classList.add('hidden');
   }
@@ -1599,18 +1655,35 @@ function bindScheduleEvents() {
   document.getElementById('schedule-create-back-btn')?.addEventListener('click', () => schedSetState('landing'));
 
   // Success.
-  document.getElementById('schedule-copy-url-btn')?.addEventListener('click',    () => schedCopyField('schedule-share-url'));
-  document.getElementById('schedule-copy-delete-btn')?.addEventListener('click', () => schedCopyField('schedule-delete-url'));
-  document.getElementById('schedule-qr-toggle')?.addEventListener('click',       schedToggleQR);
+  document.getElementById('schedule-copy-url-btn')?.addEventListener('click',
+    () => schedCopyField('schedule-share-url',    document.getElementById('schedule-copy-url-btn')));
+  document.getElementById('schedule-copy-dl-url-btn')?.addEventListener('click',
+    () => schedCopyField('schedule-share-dl-url', document.getElementById('schedule-copy-dl-url-btn')));
+  document.getElementById('schedule-copy-delete-btn')?.addEventListener('click',
+    () => schedCopyField('schedule-delete-url',   document.getElementById('schedule-copy-delete-btn')));
+  document.getElementById('schedule-qr-toggle')?.addEventListener('click',
+    () => schedToggleQR('schedule-qr-container',     'schedule-qr-toggle',     'schedule-share-url'));
+  document.getElementById('schedule-qr-dl-toggle')?.addEventListener('click',
+    () => schedToggleQR('schedule-qr-dl-container',  'schedule-qr-dl-toggle',  'schedule-share-dl-url'));
+  document.getElementById('schedule-qr-del-toggle')?.addEventListener('click',
+    () => schedToggleQR('schedule-qr-del-container', 'schedule-qr-del-toggle', 'schedule-delete-url'));
   document.getElementById('schedule-success-back-btn')?.addEventListener('click', schedResetCreate);
 
   // Join / download.
   document.getElementById('schedule-download-btn')?.addEventListener('click', schedStartDownload);
   document.getElementById('schedule-join-back-btn')?.addEventListener('click', () => schedSetState('landing'));
-  document.getElementById('schedule-join-url')?.addEventListener('input', () => {
-    document.getElementById('schedule-join-error').textContent = '';
-    // Auto-parse URL from fragment.
-    schedAutoFillFromURL();
+  // Smart paste on either field — if user pastes a full URL, split it.
+  ['schedule-join-id', 'schedule-join-key'].forEach(fieldId => {
+    document.getElementById(fieldId)?.addEventListener('input', () => {
+      document.getElementById('schedule-join-error').textContent = '';
+    });
+    document.getElementById(fieldId)?.addEventListener('paste', e => {
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').trim();
+      if (pasted.startsWith('http') && pasted.includes('id=')) {
+        e.preventDefault();
+        schedFillFieldsFromURL(pasted, false);
+      }
+    });
   });
 }
 
@@ -1637,7 +1710,8 @@ function schedCheckAuth() {
         schedSetState('password');
       } else {
         schedSetState('landing');
-        schedAutoFillFromURL();
+        // Handle ?type=schedule URL params now that the tab is fully initialised.
+        schedHandleURLParams();
       }
     })
     .catch(() => schedSetState('landing'));
@@ -1670,11 +1744,12 @@ function schedPasswordSubmit() {
 function schedSetState(state) {
   schedState = state;
   const ids = {
-    landing:  'schedule-landing',
-    create:   'schedule-create',
-    success:  'schedule-success',
-    join:     'schedule-join',
-    password: 'schedule-password-gate',
+    landing:        'schedule-landing',
+    create:         'schedule-create',
+    success:        'schedule-success',
+    join:           'schedule-join',
+    password:       'schedule-password-gate',
+    'delete-confirm': 'schedule-delete-confirm',
   };
   Object.entries(ids).forEach(([s, id]) => {
     const el = document.getElementById(id);
@@ -1760,6 +1835,13 @@ async function schedStartUpload() {
   const maxDlRaw  = parseInt(document.getElementById('schedule-max-dl')?.value || '1', 10);
   const maxDl     = isNaN(maxDlRaw) ? 1 : maxDlRaw;
   const uploadBtn = document.getElementById('schedule-upload-btn');
+
+  // Block if the user entered 0 (unlimited) but the server enforces a cap.
+  if (maxDl === 0 && schedMaxDownloadsCap > 0) {
+    const errEl = document.getElementById('schedule-create-error');
+    if (errEl) errEl.textContent = (t('schedule_max_dl_zero_not_allowed') || 'Unlimited not permitted — server maximum is') + ' ' + schedMaxDownloadsCap + '.';
+    return;
+  }
   if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.textContent = t('schedule_uploading') || 'Uploading…'; }
 
   try {
@@ -1953,12 +2035,14 @@ async function schedStartUpload() {
     const { file_id: fileID, delete_key: deleteKey, expires_at: expiresAt } = await finResp.json();
 
     // ── 9. Build share URLs ───────────────────────────────────────────────────
-    const base      = location.origin + location.pathname;
-    const shareURL  = `${base}?type=schedule&id=${fileID}#key=${keyHex}`;
-    const deleteURL = `${base}?type=schedule&id=${fileID}&action=delete&dk=${deleteKey}`;
+    const base       = location.origin + location.pathname;
+    const shareURL   = `${base}?type=schedule&id=${fileID}#key=${keyHex}`;
+    const shareDLURL = `${base}?type=schedule&id=${fileID}&dl=1#key=${keyHex}`;
+    const deleteURL  = `${base}?type=schedule&id=${fileID}&action=delete&dk=${deleteKey}`;
 
-    document.getElementById('schedule-share-url').value  = shareURL;
-    document.getElementById('schedule-delete-url').value = deleteURL;
+    document.getElementById('schedule-share-url').value    = shareURL;
+    document.getElementById('schedule-share-dl-url').value = shareDLURL;
+    document.getElementById('schedule-delete-url').value   = deleteURL;
 
     const expDate = new Date(expiresAt);
     document.getElementById('schedule-expires-label').textContent =
@@ -1981,23 +2065,24 @@ async function schedStartUpload() {
 
 // ── Download + Decrypt ────────────────────────────────────────────────────────
 async function schedStartDownload() {
-  const urlInput = document.getElementById('schedule-join-url');
+  const idInput  = document.getElementById('schedule-join-id');
+  const keyInput = document.getElementById('schedule-join-key');
   const errEl    = document.getElementById('schedule-join-error');
   errEl.textContent = '';
 
-  const raw = urlInput?.value.trim();
-  if (!raw) {
-    errEl.textContent = t('schedule_join_url_required') || 'Please paste the share URL.';
+  const fileID = idInput?.value.trim();
+  const keyHex = keyInput?.value.trim();
+
+  if (!fileID) {
+    errEl.textContent = t('schedule_join_id_required') || 'Please enter the file ID.';
     return;
   }
-
-  let fileID, keyHex;
-  try {
-    const parsed = schedParseShareURL(raw);
-    fileID = parsed.fileID;
-    keyHex = parsed.keyHex;
-  } catch (e) {
-    errEl.textContent = e.message;
+  if (!keyHex) {
+    errEl.textContent = t('schedule_join_key_required') || 'Please enter the decryption key.';
+    return;
+  }
+  if (!/^[0-9a-f]+$/i.test(keyHex)) {
+    errEl.textContent = t('schedule_invalid_key') || 'Invalid decryption key format.';
     return;
   }
 
@@ -2100,17 +2185,11 @@ async function schedStartDownload() {
 
 // ── Auto-download from URL params (?type=schedule&id=X#key=Y&dl=1) ────────────
 function schedHandleURLParams() {
-  const params = new URLSearchParams(location.search);
-  if (params.get('type') !== 'schedule') return;
+  const cache = window._schedURLCache;
+  if (!cache) return;
+  window._schedURLCache = null; // consume — only process once
 
-  const fileID = params.get('id');
-  const action = params.get('action');
-  const dk     = params.get('dk');
-  const dl     = params.get('dl') === '1';
-  const keyHex = location.hash.startsWith('#key=') ? location.hash.slice(5) : '';
-
-  // Clean URL.
-  history.replaceState({}, '', location.origin + location.pathname);
+  const { fileID, action, dk, dl, keyHex } = cache;
 
   if (!fileID) return;
 
@@ -2120,49 +2199,124 @@ function schedHandleURLParams() {
     return;
   }
 
-  // Activate schedule tab.
-  document.getElementById('tab-schedule')?.click();
-
+  // Fill join fields if we have a key.
   if (keyHex) {
-    const shareURL = `${location.origin}${location.pathname}?type=schedule&id=${fileID}#key=${keyHex}`;
-    const inp = document.getElementById('schedule-join-url');
-    if (inp) inp.value = shareURL;
     schedSetState('join');
+    document.getElementById('schedule-join-id').value  = fileID;
+    document.getElementById('schedule-join-key').value = keyHex;
     if (dl) {
       setTimeout(schedStartDownload, 200);
     }
   }
 }
 
+// schedHandleDeleteURL — called when the page loads with ?action=delete&dk=...
+// 1. Fetches /api/schedule/meta/:fileID to check if the file exists.
+// 2. If not found → shows "already deleted" on the landing card.
+// 3. If found → shows the confirm card with Yes/No buttons.
 function schedHandleDeleteURL(fileID, dk) {
-  fetch(`/api/schedule/delete/${fileID}/${dk}`, { method: 'DELETE' })
-    .then(r => r.json())
-    .then(d => {
-      document.getElementById('tab-schedule')?.click();
+  // Tab is already active when this is called from schedCheckAuth.
+  fetch(`/api/schedule/meta/${fileID}`)
+    .then(r => {
+      if (r.status === 404 || r.status === 410) {
+        // File already gone.
+        schedSetState('landing');
+        const landingEl = document.getElementById('schedule-landing');
+        if (landingEl) {
+          const note = document.createElement('p');
+          note.className = 'status';
+          note.textContent = t('schedule_already_deleted') || 'This file has already been deleted.';
+          landingEl.prepend(note);
+          setTimeout(() => note.remove(), 6000);
+        }
+        return null; // signal: stop processing
+      }
+      return r.json();
+    })
+    .then(meta => {
+      if (!meta) return; // already handled above
+
+      // File exists — show confirm card.
+      document.getElementById('schedule-delete-confirm-error').textContent = '';
+      schedSetState('delete-confirm');
+
+      // Wire up Yes button — fires the actual DELETE.
+      const yesBtn = document.getElementById('schedule-delete-yes-btn');
+      const noBtn  = document.getElementById('schedule-delete-no-btn');
+
+      // Clone buttons to remove any prior listeners.
+      const yesBtnNew = yesBtn.cloneNode(true);
+      const noBtnNew  = noBtn.cloneNode(true);
+      yesBtn.replaceWith(yesBtnNew);
+      noBtn.replaceWith(noBtnNew);
+
+      yesBtnNew.addEventListener('click', () => {
+        yesBtnNew.disabled = true;
+        yesBtnNew.textContent = t('schedule_deleting') || 'Deleting…';
+
+        fetch(`/api/schedule/delete/${fileID}/${dk}`, { method: 'DELETE' })
+          .then(r => r.json())
+          .then(d => {
+            schedSetState('landing');
+            const landingEl = document.getElementById('schedule-landing');
+            if (landingEl) {
+              const note = document.createElement('p');
+              note.className = 'status';
+              note.textContent = d.deleted
+                ? (t('schedule_deleted') || 'File deleted successfully.')
+                : (t('schedule_delete_failed') || 'Could not delete file.');
+              landingEl.prepend(note);
+              setTimeout(() => note.remove(), 6000);
+            }
+          })
+          .catch(() => {
+            const errEl = document.getElementById('schedule-delete-confirm-error');
+            if (errEl) errEl.textContent = t('schedule_delete_failed') || 'Could not delete file.';
+            yesBtnNew.disabled = false;
+            yesBtnNew.textContent = t('schedule_delete_yes_btn') || 'Yes, delete';
+          });
+      });
+
+      noBtnNew.addEventListener('click', () => {
+        schedSetState('landing');
+      });
+    })
+    .catch(() => {
+      // Network error — go to landing with a generic message.
       schedSetState('landing');
-      // Show a brief system notice in the landing area.
-      const msg = d.deleted
-        ? (t('schedule_deleted') || 'File deleted successfully.')
-        : (t('schedule_delete_failed') || 'Could not delete file.');
-      const el = document.getElementById('schedule-landing');
-      if (el) {
+      const errEl = document.getElementById('schedule-landing');
+      if (errEl) {
         const note = document.createElement('p');
         note.className = 'status';
-        note.textContent = msg;
-        el.prepend(note);
-        setTimeout(() => note.remove(), 5000);
+        note.textContent = t('schedule_delete_failed') || 'Could not delete file.';
+        errEl.prepend(note);
+        setTimeout(() => note.remove(), 6000);
       }
-    })
-    .catch(() => {});
+    });
 }
 
-function schedAutoFillFromURL() {
-  const raw = document.getElementById('schedule-join-url')?.value.trim();
-  if (!raw) return;
+// schedFillFieldsFromURL parses a share URL and fills the two join fields.
+// If autoDownload is true, starts the download immediately after filling.
+function schedFillFieldsFromURL(raw, autoDownload) {
   try {
-    schedParseShareURL(raw); // validates format
+    const { fileID, keyHex } = schedParseShareURL(raw);
+    const idEl  = document.getElementById('schedule-join-id');
+    const keyEl = document.getElementById('schedule-join-key');
+    if (idEl)  idEl.value  = fileID;
+    if (keyEl) keyEl.value = keyHex;
     document.getElementById('schedule-join-error').textContent = '';
-  } catch { /* ignore — user still typing */ }
+    if (autoDownload) setTimeout(schedStartDownload, 100);
+  } catch (e) {
+    const errEl = document.getElementById('schedule-join-error');
+    if (errEl) errEl.textContent = e.message;
+  }
+}
+
+// schedAutoFillFromURL — called after auth completes, reads URL params.
+// Delegates to schedHandleURLParams which already handles the full flow.
+function schedAutoFillFromURL() {
+  // URL params are already processed by schedHandleURLParams on page load.
+  // This is a no-op stub kept for compatibility with any future call sites.
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -2395,22 +2549,21 @@ function schedCloseDropdown() {
   btn?.setAttribute('aria-expanded', 'false');
 }
 
-function schedCopyField(id) {
+function schedCopyField(id, btn) {
   const el = document.getElementById(id);
-  if (!el) return;
-  el.select();
-  navigator.clipboard?.writeText(el.value).catch(() => document.execCommand('copy'));
-  el.blur();
+  if (!el || !el.value) return;
+  const originalLabel = btn ? btn.textContent : (t('share_copy_url') || 'Copy');
+  copyToClipboard(el.value, btn, originalLabel);
 }
 
-function schedToggleQR() {
-  const container = document.getElementById('schedule-qr-container');
-  const btn       = document.getElementById('schedule-qr-toggle');
+function schedToggleQR(containerId, btnId, urlInputId) {
+  const container = document.getElementById(containerId);
+  const btn       = document.getElementById(btnId);
   if (!container) return;
   const hidden = container.classList.toggle('hidden');
   if (btn) btn.textContent = hidden ? (t('share_show_qr') || 'Show QR') : (t('share_hide_qr') || 'Hide QR');
   if (!hidden && container.children.length === 0) {
-    const url = document.getElementById('schedule-share-url')?.value;
+    const url = document.getElementById(urlInputId)?.value;
     if (url && typeof QRCode !== 'undefined') {
       new QRCode(container, { text: url, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
     }

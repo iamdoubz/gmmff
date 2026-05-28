@@ -377,8 +377,8 @@
       <h2 data-i18n="schedule_heading">Scheduled Transfer</h2>
       <p data-i18n="schedule_instruction">Upload an encrypted file to the server, then share the download link.</p>
       <div class="schedule-action-row">
-        <button class="btn-primary" id="schedule-create-btn" data-i18n="schedule_create_btn">Create</button>
-        <button class="btn-ghost"   id="schedule-join-btn"   data-i18n="schedule_join_btn">Join</button>
+        <button class="btn-primary" id="schedule-create-btn" data-i18n="schedule_create_btn">Send</button>
+        <button class="btn-ghost"   id="schedule-join-btn"   data-i18n="schedule_join_btn">Receive</button>
       </div>
     </div>
 
@@ -442,39 +442,78 @@
       <h2 data-i18n="schedule_success_heading">Upload complete!</h2>
       <p class="status" id="schedule-expires-label"></p>
 
+      <!-- Share URL -->
       <div class="field">
         <label data-i18n="schedule_share_url_label">Share URL (includes decrypt key)</label>
         <div class="share-row">
           <input type="text" id="schedule-share-url" readonly class="share-url-input">
-          <button class="btn-ghost" id="schedule-copy-url-btn" data-i18n="share_copy_url">Copy</button>
+          <button class="btn-ghost" id="schedule-copy-url-btn"    data-i18n="share_copy_url">Copy</button>
+        </div>
+        <div class="share-qr-row">
+          <button class="btn-ghost btn-sm" id="schedule-qr-toggle"    data-i18n="share_show_qr">Show QR</button>
+          <div id="schedule-qr-container" class="hidden qr-wrap"></div>
         </div>
       </div>
 
-      <div class="field" id="schedule-qr-field">
-        <button class="btn-ghost" id="schedule-qr-toggle" data-i18n="share_show_qr">Show QR</button>
-        <div id="schedule-qr-container" class="hidden qr-wrap"></div>
+      <!-- Share DL URL (direct download, no key prompt) -->
+      <div class="field">
+        <label data-i18n="schedule_share_dl_url_label">Direct download URL (auto-downloads)</label>
+        <div class="share-row">
+          <input type="text" id="schedule-share-dl-url" readonly class="share-url-input">
+          <button class="btn-ghost" id="schedule-copy-dl-url-btn" data-i18n="share_copy_url">Copy</button>
+        </div>
+        <div class="share-qr-row">
+          <button class="btn-ghost btn-sm" id="schedule-qr-dl-toggle"  data-i18n="share_show_qr">Show QR</button>
+          <div id="schedule-qr-dl-container" class="hidden qr-wrap"></div>
+        </div>
       </div>
 
+      <!-- Delete URL -->
       <div class="field">
         <label data-i18n="schedule_delete_label">Delete link</label>
         <div class="share-row">
           <input type="text" id="schedule-delete-url" readonly class="share-url-input">
           <button class="btn-ghost" id="schedule-copy-delete-btn" data-i18n="share_copy_url">Copy</button>
         </div>
+        <div class="share-qr-row">
+          <button class="btn-ghost btn-sm" id="schedule-qr-del-toggle"  data-i18n="share_show_qr">Show QR</button>
+          <div id="schedule-qr-del-container" class="hidden qr-wrap"></div>
+        </div>
       </div>
 
       <button class="btn-ghost" id="schedule-success-back-btn" data-i18n="schedule_upload_another">Upload another</button>
     </div>
 
-    <!-- Join: paste URL or key, then download -->
+    <!-- Delete confirmation -->
+    <div class="card hidden" id="schedule-delete-confirm">
+      <h2 data-i18n="schedule_delete_confirm_heading">Delete file?</h2>
+      <p id="schedule-delete-confirm-msg" data-i18n="schedule_delete_confirm_msg">Are you sure you want to permanently delete this file? This cannot be undone.</p>
+      <p class="status" id="schedule-delete-confirm-error" role="alert"></p>
+      <div class="schedule-action-row">
+        <button class="btn-primary btn-danger" id="schedule-delete-yes-btn" data-i18n="schedule_delete_yes_btn">Yes, delete</button>
+        <button class="btn-ghost"              id="schedule-delete-no-btn"  data-i18n="schedule_delete_no_btn">No, go back</button>
+      </div>
+    </div>
+
+    <!-- Join: enter file ID + key, then download -->
     <div class="card hidden" id="schedule-join">
       <h2 data-i18n="schedule_join_heading">Download a file</h2>
+      <p class="field-hint" data-i18n="schedule_join_paste_hint">Paste either share URL into either field and both will fill automatically.</p>
+
       <div class="field">
-        <label for="schedule-join-url" data-i18n="schedule_join_url_label">Paste the share URL</label>
-        <input type="text" id="schedule-join-url" autocomplete="off" autocorrect="off"
+        <label for="schedule-join-id" data-i18n="schedule_join_id_label">File ID</label>
+        <input type="text" id="schedule-join-id" autocomplete="off" autocorrect="off"
                autocapitalize="none" spellcheck="false"
-               data-i18n-placeholder="schedule_join_url_placeholder">
+               data-i18n-placeholder="schedule_join_id_placeholder">
       </div>
+
+      <div class="field">
+        <label for="schedule-join-key" data-i18n="schedule_join_key_label">Decrypt key</label>
+        <input type="text" id="schedule-join-key" autocomplete="off" autocorrect="off"
+               autocapitalize="none" spellcheck="false"
+               data-i18n-placeholder="schedule_join_key_placeholder">
+      </div>
+
       <p class="status" id="schedule-join-error" role="alert"></p>
       <button class="btn-primary" id="schedule-download-btn" data-i18n="schedule_download_btn">Download &amp; Decrypt</button>
       <button class="btn-ghost"   id="schedule-join-back-btn" data-i18n="chat_back_btn">Back</button>
@@ -498,7 +537,7 @@
        data-i18n="footer_source">Source code</a>
     <div class="footer__right">
       <button class="theme-toggle" id="theme-toggle" aria-label="Toggle light/dark theme">
-      <!-- Moon: shown in dark mode  ^`^t click to switch to light -->
+      <!-- Moon: shown in dark mode — click to switch to light -->
       <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
         <defs>
           <linearGradient id="moonFillGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -513,8 +552,7 @@
         </defs>
         <path class="moon-path" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
       </svg>
-
-      <!-- Sun: shown in light mode  ^`^t click to switch to dark -->
+      <!-- Sun: shown in light mode — click to switch to dark -->
       <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
         <circle class="sun-core" cx="12" cy="12" r="5"></circle>
         <line class="sun-ray" x1="12" y1="1" x2="12" y2="3"></line>
