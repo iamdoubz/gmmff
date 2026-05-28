@@ -189,32 +189,25 @@ func runServe(_ *cobra.Command, _ []string) error {
 	// ── ICE push config ───────────────────────────────────────────────────────
 	if uiCfg.PushSTUN || uiCfg.PushTURN {
 		var pushedSTUN []string
-		var pushedTURN []broker.PushedTURN
+		var rawTURN []string
 
 		if uiCfg.PushSTUN {
 			pushedSTUN = stunServersDefault()
 			l().Info().Strs("servers", pushedSTUN).Msg("STUN push enabled")
 		}
 		if uiCfg.PushTURN {
-			rawTURN := turnServersDefault()
-			// Parse with 30-minute TTL for pushed ephemeral credentials.
-			servers, err := turn.ParseAllWithTTL(rawTURN, uiCfg.PushTURNTTL)
-			if err != nil {
+			rawTURN = turnServersDefault()
+			// Validate the raw strings are parseable before accepting them.
+			if _, err := turn.ParseAllWithTTL(rawTURN, uiCfg.PushTURNTTL); err != nil {
 				l().Warn().Err(err).Msg("TURN push: failed to parse TURN servers — push disabled")
-			} else {
-				for _, s := range servers {
-					pushedTURN = append(pushedTURN, broker.PushedTURN{
-						URL:      s.URL,
-						Username: s.Username,
-						Password: s.Password,
-					})
-				}
-				if len(servers) > 0 {
-					l().Warn().Msg("⚠  TURN push enabled — TURN credentials will be sent to all peers")
-				}
+				rawTURN = nil
+			} else if len(rawTURN) > 0 {
+				l().Warn().
+					Dur("credential_ttl", uiCfg.PushTURNTTL).
+					Msg("⚠  TURN push enabled — TURN credentials will be sent to all peers (per-session, slot-gated)")
 			}
 		}
-		srv.SetICEConfig(pushedSTUN, pushedTURN)
+		srv.SetICEConfig(pushedSTUN, rawTURN, uiCfg.PushTURNTTL)
 	}
 
 	if schedCfg.Enabled {
