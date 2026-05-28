@@ -328,6 +328,13 @@
     .btn-ghost:hover { border-color: var(--color-text-muted); color: var(--color-text); }
     .btn-ghost:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
+    .btn-danger {
+      background: var(--color-error) !important;
+      border-color: var(--color-error) !important;
+    }
+    .btn-danger:hover  { filter: brightness(1.1); }
+    .btn-danger:active { filter: brightness(0.9); }
+
     /* ── Code display ───────────────────────────────────────────────────── */
     .code-display {
       display: flex;

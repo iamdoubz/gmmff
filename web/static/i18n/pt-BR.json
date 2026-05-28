@@ -140,5 +140,12 @@
   "schedule_max_dl_capped": "Excede o limite do servidor — será limitado a",
   "schedule_file_too_large": "Arquivo muito grande — tamanho máximo permitido é",
   "schedule_file_size_is": "Tamanho selecionado:",
-  "schedule_share_dl_url_label": "URL de download direto (download automático)"
+  "schedule_share_dl_url_label": "URL de download direto (download automático)",
+  "schedule_max_dl_zero_not_allowed": "Ilimitado não permitido — máximo do servidor é",
+  "schedule_already_deleted": "Este arquivo já foi excluído.",
+  "schedule_delete_confirm_heading": "Excluir arquivo?",
+  "schedule_delete_confirm_msg": "Tem certeza de que deseja excluir permanentemente este arquivo? Esta ação não pode ser desfeita.",
+  "schedule_delete_yes_btn": "Sim, excluir",
+  "schedule_delete_no_btn": "Não, voltar",
+  "schedule_deleting": "Excluindo…"
 }

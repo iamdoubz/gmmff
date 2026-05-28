@@ -140,5 +140,12 @@
   "schedule_max_dl_capped": "يتجاوز حد الخادم — سيتم تقليصه إلى",
   "schedule_file_too_large": "الملف كبير جداً — الحجم الأقصى المسموح به هو",
   "schedule_file_size_is": "الحجم المحدد:",
-  "schedule_share_dl_url_label": "رابط التنزيل المباشر (تنزيل تلقائي)"
+  "schedule_share_dl_url_label": "رابط التنزيل المباشر (تنزيل تلقائي)",
+  "schedule_max_dl_zero_not_allowed": "غير محدود غير مسموح به — الحد الأقصى للخادم هو",
+  "schedule_already_deleted": "تم حذف هذا الملف بالفعل.",
+  "schedule_delete_confirm_heading": "حذف الملف؟",
+  "schedule_delete_confirm_msg": "هل أنت متأكد أنك تريد حذف هذا الملف نهائيًا؟ لا يمكن التراجع عن هذا.",
+  "schedule_delete_yes_btn": "نعم، احذف",
+  "schedule_delete_no_btn": "لا، ارجع",
+  "schedule_deleting": "جارٍ الحذف…"
 }

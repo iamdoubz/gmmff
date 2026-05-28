@@ -140,5 +140,12 @@
   "schedule_max_dl_capped": "Sunucu limitini aşıyor — şuna sınırlanacak",
   "schedule_file_too_large": "Dosya çok büyük — izin verilen maksimum boyut:",
   "schedule_file_size_is": "Seçilen boyut:",
-  "schedule_share_dl_url_label": "Doğrudan indirme URL'si (otomatik indirir)"
+  "schedule_share_dl_url_label": "Doğrudan indirme URL'si (otomatik indirir)",
+  "schedule_max_dl_zero_not_allowed": "Sınırsız izin verilmiyor — sunucu maksimumu",
+  "schedule_already_deleted": "Bu dosya zaten silindi.",
+  "schedule_delete_confirm_heading": "Dosya silinsin mi?",
+  "schedule_delete_confirm_msg": "Bu dosyayı kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+  "schedule_delete_yes_btn": "Evet, sil",
+  "schedule_delete_no_btn": "Hayır, geri git",
+  "schedule_deleting": "Siliniyor…"
 }

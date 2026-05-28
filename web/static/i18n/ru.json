@@ -140,5 +140,12 @@
   "schedule_max_dl_capped": "Превышает лимит сервера — будет ограничено до",
   "schedule_file_too_large": "Файл слишком большой — максимально допустимый размер:",
   "schedule_file_size_is": "Выбранный размер:",
-  "schedule_share_dl_url_label": "Прямая ссылка для скачивания (авто-загрузка)"
+  "schedule_share_dl_url_label": "Прямая ссылка для скачивания (авто-загрузка)",
+  "schedule_max_dl_zero_not_allowed": "Неограниченное не разрешено — максимум сервера:",
+  "schedule_already_deleted": "Этот файл уже был удалён.",
+  "schedule_delete_confirm_heading": "Удалить файл?",
+  "schedule_delete_confirm_msg": "Вы уверены, что хотите навсегда удалить этот файл? Это действие нельзя отменить.",
+  "schedule_delete_yes_btn": "Да, удалить",
+  "schedule_delete_no_btn": "Нет, назад",
+  "schedule_deleting": "Удаление…"
 }

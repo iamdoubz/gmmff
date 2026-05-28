@@ -1499,6 +1499,10 @@ function schedCheckMaxDl() {
   if (!isNaN(val) && val > 0 && val > schedMaxDownloadsCap) {
     warning.textContent = (t('schedule_max_dl_capped') || 'Exceeds server limit — will be capped at') + ' ' + schedMaxDownloadsCap + '.';
     warning.classList.remove('hidden');
+  } else if (!isNaN(val) && val === 0 && schedMaxDownloadsCap > 0) {
+    // 0 means unlimited — but server has a cap, so 0 is not allowed.
+    warning.textContent = (t('schedule_max_dl_zero_not_allowed') || 'Unlimited not permitted — server maximum is') + ' ' + schedMaxDownloadsCap + '.';
+    warning.classList.remove('hidden');
   } else {
     warning.classList.add('hidden');
   }
@@ -1679,11 +1683,12 @@ function schedPasswordSubmit() {
 function schedSetState(state) {
   schedState = state;
   const ids = {
-    landing:  'schedule-landing',
-    create:   'schedule-create',
-    success:  'schedule-success',
-    join:     'schedule-join',
-    password: 'schedule-password-gate',
+    landing:        'schedule-landing',
+    create:         'schedule-create',
+    success:        'schedule-success',
+    join:           'schedule-join',
+    password:       'schedule-password-gate',
+    'delete-confirm': 'schedule-delete-confirm',
   };
   Object.entries(ids).forEach(([s, id]) => {
     const el = document.getElementById(id);
@@ -1769,6 +1774,13 @@ async function schedStartUpload() {
   const maxDlRaw  = parseInt(document.getElementById('schedule-max-dl')?.value || '1', 10);
   const maxDl     = isNaN(maxDlRaw) ? 1 : maxDlRaw;
   const uploadBtn = document.getElementById('schedule-upload-btn');
+
+  // Block if the user entered 0 (unlimited) but the server enforces a cap.
+  if (maxDl === 0 && schedMaxDownloadsCap > 0) {
+    const errEl = document.getElementById('schedule-create-error');
+    if (errEl) errEl.textContent = (t('schedule_max_dl_zero_not_allowed') || 'Unlimited not permitted — server maximum is') + ' ' + schedMaxDownloadsCap + '.';
+    return;
+  }
   if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.textContent = t('schedule_uploading') || 'Uploading…'; }
 
   try {
@@ -2145,26 +2157,90 @@ function schedHandleURLParams() {
   }
 }
 
+// schedHandleDeleteURL — called when the page loads with ?action=delete&dk=...
+// 1. Fetches /api/schedule/meta/:fileID to check if the file exists.
+// 2. If not found → shows "already deleted" on the landing card.
+// 3. If found → shows the confirm card with Yes/No buttons.
 function schedHandleDeleteURL(fileID, dk) {
-  fetch(`/api/schedule/delete/${fileID}/${dk}`, { method: 'DELETE' })
-    .then(r => r.json())
-    .then(d => {
-      document.getElementById('tab-schedule')?.click();
+  document.getElementById('tab-schedule')?.click();
+
+  fetch(`/api/schedule/meta/${fileID}`)
+    .then(r => {
+      if (r.status === 404 || r.status === 410) {
+        // File already gone.
+        schedSetState('landing');
+        const landingEl = document.getElementById('schedule-landing');
+        if (landingEl) {
+          const note = document.createElement('p');
+          note.className = 'status';
+          note.textContent = t('schedule_already_deleted') || 'This file has already been deleted.';
+          landingEl.prepend(note);
+          setTimeout(() => note.remove(), 6000);
+        }
+        return null; // signal: stop processing
+      }
+      return r.json();
+    })
+    .then(meta => {
+      if (!meta) return; // already handled above
+
+      // File exists — show confirm card.
+      document.getElementById('schedule-delete-confirm-error').textContent = '';
+      schedSetState('delete-confirm');
+
+      // Wire up Yes button — fires the actual DELETE.
+      const yesBtn = document.getElementById('schedule-delete-yes-btn');
+      const noBtn  = document.getElementById('schedule-delete-no-btn');
+
+      // Clone buttons to remove any prior listeners.
+      const yesBtnNew = yesBtn.cloneNode(true);
+      const noBtnNew  = noBtn.cloneNode(true);
+      yesBtn.replaceWith(yesBtnNew);
+      noBtn.replaceWith(noBtnNew);
+
+      yesBtnNew.addEventListener('click', () => {
+        yesBtnNew.disabled = true;
+        yesBtnNew.textContent = t('schedule_deleting') || 'Deleting…';
+
+        fetch(`/api/schedule/delete/${fileID}/${dk}`, { method: 'DELETE' })
+          .then(r => r.json())
+          .then(d => {
+            schedSetState('landing');
+            const landingEl = document.getElementById('schedule-landing');
+            if (landingEl) {
+              const note = document.createElement('p');
+              note.className = 'status';
+              note.textContent = d.deleted
+                ? (t('schedule_deleted') || 'File deleted successfully.')
+                : (t('schedule_delete_failed') || 'Could not delete file.');
+              landingEl.prepend(note);
+              setTimeout(() => note.remove(), 6000);
+            }
+          })
+          .catch(() => {
+            const errEl = document.getElementById('schedule-delete-confirm-error');
+            if (errEl) errEl.textContent = t('schedule_delete_failed') || 'Could not delete file.';
+            yesBtnNew.disabled = false;
+            yesBtnNew.textContent = t('schedule_delete_yes_btn') || 'Yes, delete';
+          });
+      });
+
+      noBtnNew.addEventListener('click', () => {
+        schedSetState('landing');
+      });
+    })
+    .catch(() => {
+      // Network error — go to landing with a generic message.
       schedSetState('landing');
-      // Show a brief system notice in the landing area.
-      const msg = d.deleted
-        ? (t('schedule_deleted') || 'File deleted successfully.')
-        : (t('schedule_delete_failed') || 'Could not delete file.');
-      const el = document.getElementById('schedule-landing');
-      if (el) {
+      const errEl = document.getElementById('schedule-landing');
+      if (errEl) {
         const note = document.createElement('p');
         note.className = 'status';
-        note.textContent = msg;
-        el.prepend(note);
-        setTimeout(() => note.remove(), 5000);
+        note.textContent = t('schedule_delete_failed') || 'Could not delete file.';
+        errEl.prepend(note);
+        setTimeout(() => note.remove(), 6000);
       }
-    })
-    .catch(() => {});
+    });
 }
 
 function schedAutoFillFromURL() {

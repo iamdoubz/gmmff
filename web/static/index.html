@@ -484,6 +484,17 @@
       <button class="btn-ghost" id="schedule-success-back-btn" data-i18n="schedule_upload_another">Upload another</button>
     </div>
 
+    <!-- Delete confirmation -->
+    <div class="card hidden" id="schedule-delete-confirm">
+      <h2 data-i18n="schedule_delete_confirm_heading">Delete file?</h2>
+      <p id="schedule-delete-confirm-msg" data-i18n="schedule_delete_confirm_msg">Are you sure you want to permanently delete this file? This cannot be undone.</p>
+      <p class="status" id="schedule-delete-confirm-error" role="alert"></p>
+      <div class="schedule-action-row">
+        <button class="btn-primary btn-danger" id="schedule-delete-yes-btn" data-i18n="schedule_delete_yes_btn">Yes, delete</button>
+        <button class="btn-ghost"              id="schedule-delete-no-btn"  data-i18n="schedule_delete_no_btn">No, go back</button>
+      </div>
+    </div>
+
     <!-- Join: paste URL or key, then download -->
     <div class="card hidden" id="schedule-join">
       <h2 data-i18n="schedule_join_heading">Download a file</h2>

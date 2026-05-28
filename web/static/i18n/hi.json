@@ -140,5 +140,12 @@
   "schedule_max_dl_capped": "सर्वर सीमा से अधिक — अधिकतम होगा",
   "schedule_file_too_large": "फ़ाइल बहुत बड़ी है — अधिकतम अनुमत आकार है",
   "schedule_file_size_is": "चुना गया आकार:",
-  "schedule_share_dl_url_label": "सीधा डाउनलोड URL (स्वतः डाउनलोड)"
+  "schedule_share_dl_url_label": "सीधा डाउनलोड URL (स्वतः डाउनलोड)",
+  "schedule_max_dl_zero_not_allowed": "असीमित अनुमति नहीं — सर्वर अधिकतम है",
+  "schedule_already_deleted": "यह फ़ाइल पहले ही हटा दी गई है।",
+  "schedule_delete_confirm_heading": "फ़ाइल हटाएं?",
+  "schedule_delete_confirm_msg": "क्या आप वाकई इस फ़ाइल को स्थायी रूप से हटाना चाहते हैं? यह पूर्ववत नहीं किया जा सकता।",
+  "schedule_delete_yes_btn": "हाँ, हटाएं",
+  "schedule_delete_no_btn": "नहीं, वापस जाएं",
+  "schedule_deleting": "हटाया जा रहा है…"
 }

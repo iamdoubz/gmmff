@@ -140,5 +140,12 @@
   "schedule_max_dl_capped": "Overschrijdt serverlimiet — wordt beperkt tot",
   "schedule_file_too_large": "Bestand te groot — maximaal toegestane grootte is",
   "schedule_file_size_is": "Geselecteerde grootte:",
-  "schedule_share_dl_url_label": "Directe download-URL (automatisch downloaden)"
+  "schedule_share_dl_url_label": "Directe download-URL (automatisch downloaden)",
+  "schedule_max_dl_zero_not_allowed": "Onbeperkt niet toegestaan — servermaximum is",
+  "schedule_already_deleted": "Dit bestand is al verwijderd.",
+  "schedule_delete_confirm_heading": "Bestand verwijderen?",
+  "schedule_delete_confirm_msg": "Weet u zeker dat u dit bestand permanent wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",
+  "schedule_delete_yes_btn": "Ja, verwijderen",
+  "schedule_delete_no_btn": "Nee, ga terug",
+  "schedule_deleting": "Verwijderen…"
 }

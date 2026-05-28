@@ -140,5 +140,12 @@
   "schedule_max_dl_capped": "超过服务器限制 — 将上限为",
   "schedule_file_too_large": "文件过大 — 最大允许大小为",
   "schedule_file_size_is": "选择的大小:",
-  "schedule_share_dl_url_label": "直接下载链接（自动下载）"
+  "schedule_share_dl_url_label": "直接下载链接（自动下载）",
+  "schedule_max_dl_zero_not_allowed": "不允许无限制 — 服务器最大值为",
+  "schedule_already_deleted": "此文件已被删除。",
+  "schedule_delete_confirm_heading": "删除文件？",
+  "schedule_delete_confirm_msg": "您确定要永久删除此文件吗？此操作无法撤销。",
+  "schedule_delete_yes_btn": "是，删除",
+  "schedule_delete_no_btn": "否，返回",
+  "schedule_deleting": "正在删除…"
 }

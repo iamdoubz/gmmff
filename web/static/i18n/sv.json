@@ -140,5 +140,12 @@
   "schedule_max_dl_capped": "Överskrider servergränsen — kommer begränsas till",
   "schedule_file_too_large": "Filen är för stor — maximal tillåten storlek är",
   "schedule_file_size_is": "Vald storlek:",
-  "schedule_share_dl_url_label": "Direkt nedladdnings-URL (automatisk nedladdning)"
+  "schedule_share_dl_url_label": "Direkt nedladdnings-URL (automatisk nedladdning)",
+  "schedule_max_dl_zero_not_allowed": "Obegränsat ej tillåtet — servermaximum är",
+  "schedule_already_deleted": "Den här filen har redan tagits bort.",
+  "schedule_delete_confirm_heading": "Ta bort filen?",
+  "schedule_delete_confirm_msg": "Är du säker på att du vill ta bort den här filen permanent? Det går inte att ångra.",
+  "schedule_delete_yes_btn": "Ja, ta bort",
+  "schedule_delete_no_btn": "Nej, gå tillbaka",
+  "schedule_deleting": "Tar bort…"
 }

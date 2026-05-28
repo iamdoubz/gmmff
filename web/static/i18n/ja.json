@@ -140,5 +140,12 @@
   "schedule_max_dl_capped": "サーバー上限を超えています — 上限は",
   "schedule_file_too_large": "ファイルが大きすぎます — 最大許容サイズ:",
   "schedule_file_size_is": "選択したサイズ:",
-  "schedule_share_dl_url_label": "直接ダウンロードURL（自動ダウンロード）"
+  "schedule_share_dl_url_label": "直接ダウンロードURL（自動ダウンロード）",
+  "schedule_max_dl_zero_not_allowed": "無制限は許可されていません — サーバーの最大は",
+  "schedule_already_deleted": "このファイルはすでに削除されています。",
+  "schedule_delete_confirm_heading": "ファイルを削除しますか？",
+  "schedule_delete_confirm_msg": "このファイルを完全に削除してもよろしいですか？この操作は元に戻せません。",
+  "schedule_delete_yes_btn": "はい、削除",
+  "schedule_delete_no_btn": "いいえ、戻る",
+  "schedule_deleting": "削除中…"
 }
