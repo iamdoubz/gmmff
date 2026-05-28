@@ -648,6 +648,7 @@ document.getElementById('files-create-btn')?.addEventListener('click', () => {
 
   // Files — join session form
   onEnter('files-join-code', 'files-join-btn');
+  onEnter('files-join-name', 'files-join-btn');
 
   // Chat — start session form
   onEnter('chat-my-name',  'chat-start-btn');
