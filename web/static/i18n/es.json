@@ -105,8 +105,8 @@
   "nav_schedule": "Schedule",
   "schedule_heading": "Scheduled Transfer",
   "schedule_instruction": "Upload an encrypted file to the server and share the download link.",
-  "schedule_create_btn": "Create",
-  "schedule_join_btn": "Join",
+  "schedule_create_btn": "Enviar",
+  "schedule_join_btn": "Recibir",
   "schedule_create_heading": "Upload a file",
   "schedule_file_label": "File",
   "schedule_max_dl_label": "Max downloads",
@@ -139,5 +139,6 @@
   "schedule_estimating": "Estimando…",
   "schedule_max_dl_capped": "Supera el límite del servidor — se limitará a",
   "schedule_file_too_large": "Archivo demasiado grande — el tamaño máximo permitido es",
-  "schedule_file_size_is": "Tamaño seleccionado:"
+  "schedule_file_size_is": "Tamaño seleccionado:",
+  "schedule_share_dl_url_label": "URL de descarga directa (descarga automática)"
 }

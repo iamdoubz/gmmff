@@ -1599,9 +1599,18 @@ function bindScheduleEvents() {
   document.getElementById('schedule-create-back-btn')?.addEventListener('click', () => schedSetState('landing'));
 
   // Success.
-  document.getElementById('schedule-copy-url-btn')?.addEventListener('click',    () => schedCopyField('schedule-share-url'));
-  document.getElementById('schedule-copy-delete-btn')?.addEventListener('click', () => schedCopyField('schedule-delete-url'));
-  document.getElementById('schedule-qr-toggle')?.addEventListener('click',       schedToggleQR);
+  document.getElementById('schedule-copy-url-btn')?.addEventListener('click',
+    () => schedCopyField('schedule-share-url',    document.getElementById('schedule-copy-url-btn')));
+  document.getElementById('schedule-copy-dl-url-btn')?.addEventListener('click',
+    () => schedCopyField('schedule-share-dl-url', document.getElementById('schedule-copy-dl-url-btn')));
+  document.getElementById('schedule-copy-delete-btn')?.addEventListener('click',
+    () => schedCopyField('schedule-delete-url',   document.getElementById('schedule-copy-delete-btn')));
+  document.getElementById('schedule-qr-toggle')?.addEventListener('click',
+    () => schedToggleQR('schedule-qr-container',     'schedule-qr-toggle',     'schedule-share-url'));
+  document.getElementById('schedule-qr-dl-toggle')?.addEventListener('click',
+    () => schedToggleQR('schedule-qr-dl-container',  'schedule-qr-dl-toggle',  'schedule-share-dl-url'));
+  document.getElementById('schedule-qr-del-toggle')?.addEventListener('click',
+    () => schedToggleQR('schedule-qr-del-container', 'schedule-qr-del-toggle', 'schedule-delete-url'));
   document.getElementById('schedule-success-back-btn')?.addEventListener('click', schedResetCreate);
 
   // Join / download.
@@ -1953,12 +1962,14 @@ async function schedStartUpload() {
     const { file_id: fileID, delete_key: deleteKey, expires_at: expiresAt } = await finResp.json();
 
     // ── 9. Build share URLs ───────────────────────────────────────────────────
-    const base      = location.origin + location.pathname;
-    const shareURL  = `${base}?type=schedule&id=${fileID}#key=${keyHex}`;
-    const deleteURL = `${base}?type=schedule&id=${fileID}&action=delete&dk=${deleteKey}`;
+    const base       = location.origin + location.pathname;
+    const shareURL   = `${base}?type=schedule&id=${fileID}#key=${keyHex}`;
+    const shareDLURL = `${base}?type=schedule&id=${fileID}&dl=1#key=${keyHex}`;
+    const deleteURL  = `${base}?type=schedule&id=${fileID}&action=delete&dk=${deleteKey}`;
 
-    document.getElementById('schedule-share-url').value  = shareURL;
-    document.getElementById('schedule-delete-url').value = deleteURL;
+    document.getElementById('schedule-share-url').value    = shareURL;
+    document.getElementById('schedule-share-dl-url').value = shareDLURL;
+    document.getElementById('schedule-delete-url').value   = deleteURL;
 
     const expDate = new Date(expiresAt);
     document.getElementById('schedule-expires-label').textContent =
@@ -2395,22 +2406,21 @@ function schedCloseDropdown() {
   btn?.setAttribute('aria-expanded', 'false');
 }
 
-function schedCopyField(id) {
+function schedCopyField(id, btn) {
   const el = document.getElementById(id);
-  if (!el) return;
-  el.select();
-  navigator.clipboard?.writeText(el.value).catch(() => document.execCommand('copy'));
-  el.blur();
+  if (!el || !el.value) return;
+  const originalLabel = btn ? btn.textContent : (t('share_copy_url') || 'Copy');
+  copyToClipboard(el.value, btn, originalLabel);
 }
 
-function schedToggleQR() {
-  const container = document.getElementById('schedule-qr-container');
-  const btn       = document.getElementById('schedule-qr-toggle');
+function schedToggleQR(containerId, btnId, urlInputId) {
+  const container = document.getElementById(containerId);
+  const btn       = document.getElementById(btnId);
   if (!container) return;
   const hidden = container.classList.toggle('hidden');
   if (btn) btn.textContent = hidden ? (t('share_show_qr') || 'Show QR') : (t('share_hide_qr') || 'Hide QR');
   if (!hidden && container.children.length === 0) {
-    const url = document.getElementById('schedule-share-url')?.value;
+    const url = document.getElementById(urlInputId)?.value;
     if (url && typeof QRCode !== 'undefined') {
       new QRCode(container, { text: url, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
     }

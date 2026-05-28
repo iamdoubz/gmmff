@@ -105,8 +105,8 @@
   "nav_schedule": "Schedule",
   "schedule_heading": "Scheduled Transfer",
   "schedule_instruction": "Upload an encrypted file to the server and share the download link.",
-  "schedule_create_btn": "Create",
-  "schedule_join_btn": "Join",
+  "schedule_create_btn": "送信",
+  "schedule_join_btn": "受信",
   "schedule_create_heading": "Upload a file",
   "schedule_file_label": "File",
   "schedule_max_dl_label": "Max downloads",
@@ -139,5 +139,6 @@
   "schedule_estimating": "計測中…",
   "schedule_max_dl_capped": "サーバー上限を超えています — 上限は",
   "schedule_file_too_large": "ファイルが大きすぎます — 最大許容サイズ:",
-  "schedule_file_size_is": "選択したサイズ:"
+  "schedule_file_size_is": "選択したサイズ:",
+  "schedule_share_dl_url_label": "直接ダウンロードURL（自動ダウンロード）"
 }
