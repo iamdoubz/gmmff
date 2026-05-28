@@ -625,7 +625,8 @@ document.getElementById('files-create-btn')?.addEventListener('click', () => {
   const createBtn = document.getElementById('files-create-btn');
   if (createBtn) { createBtn.disabled = true; createBtn.textContent = t('create_creating') || 'Creating…'; }
   if (typeof window.gmmffCreateSession === 'function') {
-    buildIceConfig(null).then(ice => window.gmmffCreateSession(server, maxPeers, ice));
+    // ICE config is fetched by Wasm after slot code is known (with Bearer token).
+    window.gmmffCreateSession(server, maxPeers, {});
   }
 });
 
@@ -972,9 +973,8 @@ document.getElementById('chat-start-btn')?.addEventListener('click', () => {
   if (!server) { errEl.textContent = t('error_no_server'); return; }
   if (nameVal) myName = nameVal;
   const chatMaxPeers = parseInt(document.getElementById('chat-max-peers')?.value || '2', 10);
-  buildIceConfig(null).then(ice => {
-    if (typeof window.gmmffChat === 'function') window.gmmffChat(server, chatMaxPeers, ice);
-  });
+  // ICE config is fetched by Wasm after slot code is known (with Bearer token).
+  if (typeof window.gmmffChat === 'function') window.gmmffChat(server, chatMaxPeers, {});
 });
 
 // Dynamically add "Join with a code" link below Start button

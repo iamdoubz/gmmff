@@ -680,15 +680,6 @@ func configFromJSWithCode(iceCfg js.Value, code string) peer.Config {
 	if code == "" {
 		return cfg
 	}
-	// Call /api/ice with Authorization header — same origin fetch.
-	result := js.Global().Call("buildIceConfig", code)
-	if result.IsUndefined() || result.IsNull() {
-		return cfg
-	}
-	// buildIceConfig returns a Promise; we can't await it from Go directly.
-	// The JS side already fetched and merged the ICE config into iceCfg before
-	// calling into Wasm for joiner paths. For initiator paths where we call this
-	// helper, we use a synchronous fetch via XMLHttpRequest from Go/Wasm.
 	return fetchICEWithCode(cfg, code)
 }
 
