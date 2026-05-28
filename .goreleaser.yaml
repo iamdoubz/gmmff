@@ -19,7 +19,21 @@ builds:
     goarch:
       - amd64
       - arm64
-      #- 386
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+  - id: gmmff-wasm
+    main: ./web/cmd/gmmff-wasm
+    binary: gmmff.wasm
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - js
+    goarch:
+      - wasm
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
@@ -29,8 +43,9 @@ builds:
 
 archives:
   - id: gmmff
-    builds:
+    ids:
       - gmmff
+      - gmmff-wasm
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
@@ -44,6 +59,9 @@ archives:
         formats:
           - zip
       - goos: darwin
+        formats:
+          - zip
+      - goos: js
         formats:
           - zip
     files:
