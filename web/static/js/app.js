@@ -427,7 +427,7 @@ function applyI18n(strings) {
     if (strings[key] !== undefined) el.placeholder = strings[key];
   });
   // Page title
-  if (strings.app_name) document.title = strings.app_name;
+  if (strings.app_name) { /* page title intentionally unchanged — set in index.html */ }
 }
 
 function t(key, vars = {}) {
@@ -628,6 +628,39 @@ document.getElementById('files-create-btn')?.addEventListener('click', () => {
     buildIceConfig().then(ice => window.gmmffCreateSession(server, maxPeers, ice));
   }
 });
+
+// ── Enter-key form submission ─────────────────────────────────────────────────
+// Pressing Enter in any form input triggers the primary button for that form.
+// This mirrors normal browser form behaviour — fields that already have their
+// own keydown handlers (message inputs, ICE URL inputs) are not affected.
+(function bindEnterKeys() {
+  function onEnter(fieldId, btnId) {
+    document.getElementById(fieldId)?.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' || e.shiftKey) return;
+      e.preventDefault();
+      document.getElementById(btnId)?.click();
+    });
+  }
+
+  // Files — start session form
+  onEnter('files-my-name',  'files-create-btn');
+  onEnter('files-server',   'files-create-btn');
+
+  // Files — join session form
+  onEnter('files-join-code', 'files-join-btn');
+
+  // Chat — start session form
+  onEnter('chat-my-name',  'chat-start-btn');
+  onEnter('chat-server',   'chat-start-btn');
+
+  // Chat — join session form
+  onEnter('chat-join-code',   'chat-join-btn');
+  onEnter('chat-join-name',   'chat-join-btn');
+
+  // Schedule — receive form (both fields submit the download)
+  onEnter('schedule-join-id',  'schedule-download-btn');
+  onEnter('schedule-join-key', 'schedule-download-btn');
+}());
 
 // Join link (shown below create button)
 (function ensureFilesJoinLink() {
