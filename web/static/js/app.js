@@ -461,8 +461,14 @@ function hideLoading() {
 
   // Check for ?code= in the URL — pre-fill the join form.
   checkURLParams();
-  // Check for ?type=schedule in the URL.
-  if (typeof window.schedHandleURLParams === 'function') window.schedHandleURLParams();
+
+  // If this is a schedule URL (?type=schedule), click the Schedule tab so
+  // schedShowTab → schedInit → schedCheckAuth → schedHandleURLParams fires
+  // in the correct order after the tab is fully initialised.
+  const _schedParams = new URLSearchParams(location.search);
+  if (_schedParams.get('type') === 'schedule') {
+    setTimeout(() => document.getElementById('tab-schedule')?.click(), 0);
+  }
 
   // ── Theme toggle button ──────────────────────────────────────────────────
   initThemeToggle();
@@ -1658,7 +1664,8 @@ function schedCheckAuth() {
         schedSetState('password');
       } else {
         schedSetState('landing');
-        schedAutoFillFromURL();
+        // Handle ?type=schedule URL params now that the tab is fully initialised.
+        schedHandleURLParams();
       }
     })
     .catch(() => schedSetState('landing'));
@@ -2152,9 +2159,8 @@ function schedHandleURLParams() {
     return;
   }
 
-  // Activate schedule tab.
-  document.getElementById('tab-schedule')?.click();
-
+  // Tab is already active — schedHandleURLParams is called from schedCheckAuth
+  // which is called from schedShowTab, so the Schedule tab is always visible here.
   if (keyHex) {
     schedSetState('join');
     document.getElementById('schedule-join-id').value  = fileID;
@@ -2170,8 +2176,7 @@ function schedHandleURLParams() {
 // 2. If not found → shows "already deleted" on the landing card.
 // 3. If found → shows the confirm card with Yes/No buttons.
 function schedHandleDeleteURL(fileID, dk) {
-  document.getElementById('tab-schedule')?.click();
-
+  // Tab is already active when this is called from schedCheckAuth.
   fetch(`/api/schedule/meta/${fileID}`)
     .then(r => {
       if (r.status === 404 || r.status === 410) {
