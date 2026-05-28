@@ -147,5 +147,12 @@
   "schedule_delete_confirm_msg": "Bu dosyayı kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
   "schedule_delete_yes_btn": "Evet, sil",
   "schedule_delete_no_btn": "Hayır, geri git",
-  "schedule_deleting": "Siliniyor…"
+  "schedule_deleting": "Siliniyor…",
+  "schedule_join_paste_hint": "Paylaşım URL'lerinden herhangi birini herhangi bir alana yapıştırın, her ikisi otomatik dolacak.",
+  "schedule_join_id_label": "Dosya ID'si",
+  "schedule_join_id_placeholder": "ör. a1b2c3d4e5f6…",
+  "schedule_join_key_label": "Şifre çözme anahtarı",
+  "schedule_join_key_placeholder": "Paylaşım URL'sinden hex dizesi",
+  "schedule_join_id_required": "Lütfen dosya ID'sini girin.",
+  "schedule_join_key_required": "Lütfen şifre çözme anahtarını girin."
 }

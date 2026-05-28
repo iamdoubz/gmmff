@@ -495,15 +495,25 @@
       </div>
     </div>
 
-    <!-- Join: paste URL or key, then download -->
+    <!-- Join: enter file ID + key, then download -->
     <div class="card hidden" id="schedule-join">
       <h2 data-i18n="schedule_join_heading">Download a file</h2>
+      <p class="field-hint" data-i18n="schedule_join_paste_hint">Paste either share URL into either field and both will fill automatically.</p>
+
       <div class="field">
-        <label for="schedule-join-url" data-i18n="schedule_join_url_label">Paste the share URL</label>
-        <input type="text" id="schedule-join-url" autocomplete="off" autocorrect="off"
+        <label for="schedule-join-id" data-i18n="schedule_join_id_label">File ID</label>
+        <input type="text" id="schedule-join-id" autocomplete="off" autocorrect="off"
                autocapitalize="none" spellcheck="false"
-               data-i18n-placeholder="schedule_join_url_placeholder">
+               data-i18n-placeholder="schedule_join_id_placeholder">
       </div>
+
+      <div class="field">
+        <label for="schedule-join-key" data-i18n="schedule_join_key_label">Decrypt key</label>
+        <input type="text" id="schedule-join-key" autocomplete="off" autocorrect="off"
+               autocapitalize="none" spellcheck="false"
+               data-i18n-placeholder="schedule_join_key_placeholder">
+      </div>
+
       <p class="status" id="schedule-join-error" role="alert"></p>
       <button class="btn-primary" id="schedule-download-btn" data-i18n="schedule_download_btn">Download &amp; Decrypt</button>
       <button class="btn-ghost"   id="schedule-join-back-btn" data-i18n="chat_back_btn">Back</button>

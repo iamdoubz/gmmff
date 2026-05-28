@@ -147,5 +147,12 @@
   "schedule_delete_confirm_msg": "Tem a certeza de que pretende eliminar permanentemente este ficheiro? Esta ação não pode ser revertida.",
   "schedule_delete_yes_btn": "Sim, eliminar",
   "schedule_delete_no_btn": "Não, voltar",
-  "schedule_deleting": "A eliminar…"
+  "schedule_deleting": "A eliminar…",
+  "schedule_join_paste_hint": "Cole qualquer URL de partilha em qualquer campo e ambos serão preenchidos automaticamente.",
+  "schedule_join_id_label": "ID do ficheiro",
+  "schedule_join_id_placeholder": "ex. a1b2c3d4e5f6…",
+  "schedule_join_key_label": "Chave de desencriptação",
+  "schedule_join_key_placeholder": "String hex do URL de partilha",
+  "schedule_join_id_required": "Por favor, insira o ID do ficheiro.",
+  "schedule_join_key_required": "Por favor, insira a chave de desencriptação."
 }

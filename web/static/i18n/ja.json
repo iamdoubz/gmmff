@@ -147,5 +147,12 @@
   "schedule_delete_confirm_msg": "このファイルを完全に削除してもよろしいですか？この操作は元に戻せません。",
   "schedule_delete_yes_btn": "はい、削除",
   "schedule_delete_no_btn": "いいえ、戻る",
-  "schedule_deleting": "削除中…"
+  "schedule_deleting": "削除中…",
+  "schedule_join_paste_hint": "どちらかの共有URLをどちらかのフィールドに貼り付けると、両方が自動的に入力されます。",
+  "schedule_join_id_label": "ファイルID",
+  "schedule_join_id_placeholder": "例：a1b2c3d4e5f6…",
+  "schedule_join_key_label": "復号キー",
+  "schedule_join_key_placeholder": "共有URLのhex文字列",
+  "schedule_join_id_required": "ファイルIDを入力してください。",
+  "schedule_join_key_required": "復号キーを入力してください。"
 }

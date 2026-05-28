@@ -1620,10 +1620,18 @@ function bindScheduleEvents() {
   // Join / download.
   document.getElementById('schedule-download-btn')?.addEventListener('click', schedStartDownload);
   document.getElementById('schedule-join-back-btn')?.addEventListener('click', () => schedSetState('landing'));
-  document.getElementById('schedule-join-url')?.addEventListener('input', () => {
-    document.getElementById('schedule-join-error').textContent = '';
-    // Auto-parse URL from fragment.
-    schedAutoFillFromURL();
+  // Smart paste on either field — if user pastes a full URL, split it.
+  ['schedule-join-id', 'schedule-join-key'].forEach(fieldId => {
+    document.getElementById(fieldId)?.addEventListener('input', () => {
+      document.getElementById('schedule-join-error').textContent = '';
+    });
+    document.getElementById(fieldId)?.addEventListener('paste', e => {
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').trim();
+      if (pasted.startsWith('http') && pasted.includes('id=')) {
+        e.preventDefault();
+        schedFillFieldsFromURL(pasted, false);
+      }
+    });
   });
 }
 
@@ -2004,23 +2012,24 @@ async function schedStartUpload() {
 
 // ── Download + Decrypt ────────────────────────────────────────────────────────
 async function schedStartDownload() {
-  const urlInput = document.getElementById('schedule-join-url');
+  const idInput  = document.getElementById('schedule-join-id');
+  const keyInput = document.getElementById('schedule-join-key');
   const errEl    = document.getElementById('schedule-join-error');
   errEl.textContent = '';
 
-  const raw = urlInput?.value.trim();
-  if (!raw) {
-    errEl.textContent = t('schedule_join_url_required') || 'Please paste the share URL.';
+  const fileID = idInput?.value.trim();
+  const keyHex = keyInput?.value.trim();
+
+  if (!fileID) {
+    errEl.textContent = t('schedule_join_id_required') || 'Please enter the file ID.';
     return;
   }
-
-  let fileID, keyHex;
-  try {
-    const parsed = schedParseShareURL(raw);
-    fileID = parsed.fileID;
-    keyHex = parsed.keyHex;
-  } catch (e) {
-    errEl.textContent = e.message;
+  if (!keyHex) {
+    errEl.textContent = t('schedule_join_key_required') || 'Please enter the decryption key.';
+    return;
+  }
+  if (!/^[0-9a-f]+$/i.test(keyHex)) {
+    errEl.textContent = t('schedule_invalid_key') || 'Invalid decryption key format.';
     return;
   }
 
@@ -2147,10 +2156,9 @@ function schedHandleURLParams() {
   document.getElementById('tab-schedule')?.click();
 
   if (keyHex) {
-    const shareURL = `${location.origin}${location.pathname}?type=schedule&id=${fileID}#key=${keyHex}`;
-    const inp = document.getElementById('schedule-join-url');
-    if (inp) inp.value = shareURL;
     schedSetState('join');
+    document.getElementById('schedule-join-id').value  = fileID;
+    document.getElementById('schedule-join-key').value = keyHex;
     if (dl) {
       setTimeout(schedStartDownload, 200);
     }
@@ -2243,13 +2251,28 @@ function schedHandleDeleteURL(fileID, dk) {
     });
 }
 
-function schedAutoFillFromURL() {
-  const raw = document.getElementById('schedule-join-url')?.value.trim();
-  if (!raw) return;
+// schedFillFieldsFromURL parses a share URL and fills the two join fields.
+// If autoDownload is true, starts the download immediately after filling.
+function schedFillFieldsFromURL(raw, autoDownload) {
   try {
-    schedParseShareURL(raw); // validates format
+    const { fileID, keyHex } = schedParseShareURL(raw);
+    const idEl  = document.getElementById('schedule-join-id');
+    const keyEl = document.getElementById('schedule-join-key');
+    if (idEl)  idEl.value  = fileID;
+    if (keyEl) keyEl.value = keyHex;
     document.getElementById('schedule-join-error').textContent = '';
-  } catch { /* ignore — user still typing */ }
+    if (autoDownload) setTimeout(schedStartDownload, 100);
+  } catch (e) {
+    const errEl = document.getElementById('schedule-join-error');
+    if (errEl) errEl.textContent = e.message;
+  }
+}
+
+// schedAutoFillFromURL — called after auth completes, reads URL params.
+// Delegates to schedHandleURLParams which already handles the full flow.
+function schedAutoFillFromURL() {
+  // URL params are already processed by schedHandleURLParams on page load.
+  // This is a no-op stub kept for compatibility with any future call sites.
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

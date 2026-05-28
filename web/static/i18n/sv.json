@@ -147,5 +147,12 @@
   "schedule_delete_confirm_msg": "Är du säker på att du vill ta bort den här filen permanent? Det går inte att ångra.",
   "schedule_delete_yes_btn": "Ja, ta bort",
   "schedule_delete_no_btn": "Nej, gå tillbaka",
-  "schedule_deleting": "Tar bort…"
+  "schedule_deleting": "Tar bort…",
+  "schedule_join_paste_hint": "Klistra in någon av dela-URL:erna i något av fälten så fylls båda i automatiskt.",
+  "schedule_join_id_label": "Fil-ID",
+  "schedule_join_id_placeholder": "t.ex. a1b2c3d4e5f6…",
+  "schedule_join_key_label": "Dekrypteringsnyckel",
+  "schedule_join_key_placeholder": "Hex-sträng från dela-URL",
+  "schedule_join_id_required": "Ange fil-ID.",
+  "schedule_join_key_required": "Ange dekrypteringsnyckeln."
 }
