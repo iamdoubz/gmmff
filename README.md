@@ -9,6 +9,7 @@
 [![GitHub Issues](https://img.shields.io/github/issues-raw/iamdoubz/gmmff?style=for-the-badge&logo=freecodecamp&logoColor=fff&color=ec7013&label=Issues)](https://github.com/iamdoubz/gmmff/issues)
 [![GitHub Closed Pulls](https://img.shields.io/github/issues-pr-closed/iamdoubz/gmmff?style=for-the-badge&logo=git&logoColor=fff&color=a64dff&label=Pulls)](https://github.com/iamdoubz/gmmff/pulls?q=is%3Apr+is%3Aclosed)
 [![GitHub License](https://img.shields.io/github/license/iamdoubz/gmmff?style=for-the-badge&logo=readthedocs&color=67AC09)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/iamdoubz/gmmff/v2)](https://goreportcard.com/report/github.com/iamdoubz/gmmff/v2)
 
 > **gmmff** (pronounced *gimph*) is a brutally simple, cryptographically sound
 > peer-to-peer file and message transfer system.
