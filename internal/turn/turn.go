@@ -140,69 +140,77 @@ func parseWithTTL(raw string, ttl time.Duration) (Server, error) {
 		return Server{}, fmt.Errorf("turn: empty server string")
 	}
 
-	// Split on first '?' to separate the base URL from our custom params.
-	baseURL, paramStr, _ := strings.Cut(raw, "?")
-	baseURL = strings.ToLower(strings.TrimSpace(baseURL))
-
-	if !strings.HasPrefix(baseURL, "turn:") && !strings.HasPrefix(baseURL, "turns:") {
-		return Server{}, fmt.Errorf("turn: URL must begin with turn: or turns: — got %q", baseURL)
+	baseURL, transport, user, pass, secret, err := parseTURNURL(raw)
+	if err != nil {
+		return Server{}, err
 	}
 
-	// Parse query parameters.
-	var params url.Values
-	if paramStr != "" {
-		var err error
-		params, err = url.ParseQuery(paramStr)
-		if err != nil {
-			return Server{}, fmt.Errorf("turn: parse params for %q: %w", baseURL, err)
-		}
-	}
-
-	transport := strings.ToLower(params.Get("transport"))
-	user := params.Get("user")
-	pass := params.Get("pass")
-	secret := params.Get("secret")
-
-	// Validate transport value.
-	if transport != "" && transport != "udp" && transport != "tcp" {
-		return Server{}, fmt.Errorf("turn: invalid transport %q for %q — must be udp or tcp", transport, baseURL)
-	}
-
-	// turns: is always TLS/TCP — warn if transport=udp is requested.
-	if strings.HasPrefix(baseURL, "turns:") && transport == "udp" {
-		return Server{}, fmt.Errorf("turn: turns: scheme requires TCP/TLS — transport=udp is not valid for %q", baseURL)
-	}
-
-	// Validate auth — must have exactly one of long-term or ephemeral.
-	hasLongTerm := user != "" || pass != ""
-	hasEphemeral := secret != ""
-
-	if !hasLongTerm && !hasEphemeral {
-		return Server{}, fmt.Errorf("turn: %q has no credentials — provide user+pass or secret", baseURL)
-	}
-	if hasLongTerm && hasEphemeral {
-		return Server{}, fmt.Errorf("turn: %q has both user/pass and secret — choose one auth type", baseURL)
-	}
-	if hasLongTerm && (user == "" || pass == "") {
-		return Server{}, fmt.Errorf("turn: %q has user or pass but not both", baseURL)
-	}
-
-	// Build the final URL — only transport belongs in it, not auth params.
 	finalURL := baseURL
 	if transport != "" {
 		finalURL = baseURL + "?transport=" + transport
 	}
 
-	// Resolve credentials.
-	var username, password string
-	if hasEphemeral {
-		username, password = ephemeralCredentials(secret, "gmmff", ttl)
-	} else {
-		username = user
-		password = pass
+	username, password, err := resolveTURNCredentials(baseURL, user, pass, secret, ttl)
+	if err != nil {
+		return Server{}, err
 	}
 
 	return Server{URL: finalURL, Username: username, Password: password}, nil
+}
+
+// parseTURNURL splits and validates a raw TURN URL string into its components.
+func parseTURNURL(raw string) (baseURL, transport, user, pass, secret string, err error) {
+	baseURL, paramStr, _ := strings.Cut(raw, "?")
+	baseURL = strings.ToLower(strings.TrimSpace(baseURL))
+
+	if !strings.HasPrefix(baseURL, "turn:") && !strings.HasPrefix(baseURL, "turns:") {
+		return "", "", "", "", "", fmt.Errorf("turn: URL must begin with turn: or turns: — got %q", baseURL)
+	}
+
+	var params url.Values
+	if paramStr != "" {
+		params, err = url.ParseQuery(paramStr)
+		if err != nil {
+			return "", "", "", "", "", fmt.Errorf("turn: parse params for %q: %w", baseURL, err)
+		}
+	}
+
+	transport = strings.ToLower(params.Get("transport"))
+	user = params.Get("user")
+	pass = params.Get("pass")
+	secret = params.Get("secret")
+
+	if transport != "" && transport != "udp" && transport != "tcp" {
+		return "", "", "", "", "", fmt.Errorf(
+			"turn: invalid transport %q for %q — must be udp or tcp", transport, baseURL)
+	}
+	if strings.HasPrefix(baseURL, "turns:") && transport == "udp" {
+		return "", "", "", "", "", fmt.Errorf(
+			"turn: turns: scheme requires TCP/TLS — transport=udp is not valid for %q", baseURL)
+	}
+	return baseURL, transport, user, pass, secret, nil
+}
+
+// resolveTURNCredentials validates auth parameters and returns the final
+// username/password pair, deriving ephemeral credentials when a secret is used.
+func resolveTURNCredentials(baseURL, user, pass, secret string, ttl time.Duration) (username, password string, err error) {
+	hasLongTerm := user != "" || pass != ""
+	hasEphemeral := secret != ""
+
+	switch {
+	case !hasLongTerm && !hasEphemeral:
+		return "", "", fmt.Errorf("turn: %q has no credentials — provide user+pass or secret", baseURL)
+	case hasLongTerm && hasEphemeral:
+		return "", "", fmt.Errorf("turn: %q has both user/pass and secret — choose one auth type", baseURL)
+	case hasLongTerm && (user == "" || pass == ""):
+		return "", "", fmt.Errorf("turn: %q has user or pass but not both", baseURL)
+	}
+
+	if hasEphemeral {
+		u, p := ephemeralCredentials(secret, "gmmff", ttl)
+		return u, p, nil
+	}
+	return user, pass, nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

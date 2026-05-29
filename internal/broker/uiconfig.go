@@ -211,20 +211,32 @@ type EnvWarning struct {
 // warning. The server can always run; these are warnings, not fatal errors.
 func ValidateEnv() []EnvWarning {
 	var warns []EnvWarning
-
 	add := func(key, val, msg string) {
 		warns = append(warns, EnvWarning{Key: key, Value: val, Message: msg})
 	}
+	validateBoolVars(add)
+	validateIntVars(add)
+	validateTabOrder(add)
+	validatePushTTL(add)
+	validateTabDefault(add)
+	validateScheduleVars(add)
+	validateIPVars(add)
+	validateTTLSettings(add)
+	validateAllowedLangs(add)
+	validateLogLevel(add)
+	return warns
+}
 
-	// ── Bool vars ────────────────────────────────────────────────────────────
-	boolVars := []string{
+type warnAdder func(key, val, msg string)
+
+func validateBoolVars(add warnAdder) {
+	for _, key := range []string{
 		"GMMFF_SHOW_FILES", "GMMFF_SHOW_CHAT", "GMMFF_SHOW_SCHEDULE",
 		"GMMFF_SHOW_ICE_SETTINGS", "GMMFF_ALLOW_STUN", "GMMFF_ALLOW_TURN",
 		"GMMFF_SHOW_SHARE_LINK", "GMMFF_SHOW_QR_CODE",
 		"GMMFF_ALLOW_CUSTOM_SERVER", "GMMFF_SHOW_PEERS_LIMIT",
 		"GMMFF_PUSH_STUN", "GMMFF_PUSH_TURN",
-	}
-	for _, key := range boolVars {
+	} {
 		v := strings.TrimSpace(os.Getenv(key))
 		if v == "" {
 			continue
@@ -233,9 +245,10 @@ func ValidateEnv() []EnvWarning {
 			add(key, v, fmt.Sprintf("must be a boolean (true/false/1/0); got %q", v))
 		}
 	}
+}
 
-	// ── Int vars with ranges ─────────────────────────────────────────────────
-	intRangeVars := []struct {
+func validateIntVars(add warnAdder) {
+	for _, iv := range []struct {
 		key      string
 		min, max int
 		hint     string
@@ -244,8 +257,7 @@ func ValidateEnv() []EnvWarning {
 		{"GMMFF_MAX_WINDOW", 1, 16, "must be an integer between 1 and 16"},
 		{"GMMFF_MAX_CHUNK_SIZE", 1024, 65526, "must be an integer between 1024 and 65526"},
 		{"GMMFF_SCHEDULE_MAX_DOWNLOADS", 0, 1<<31 - 1, "must be a non-negative integer (0 = unlimited)"},
-	}
-	for _, iv := range intRangeVars {
+	} {
 		v := strings.TrimSpace(os.Getenv(iv.key))
 		if v == "" {
 			continue
@@ -257,69 +269,76 @@ func ValidateEnv() []EnvWarning {
 			add(iv.key, v, fmt.Sprintf("%s; got %d", iv.hint, n))
 		}
 	}
+}
 
-	// ── Tab order ─────────────────────────────────────────────────────────────
-	if raw := strings.TrimSpace(os.Getenv("GMMFF_TAB_ORDER")); raw != "" {
-		valid := map[string]bool{"files": true, "chat": true, "schedule": true}
-		seen := map[string]bool{}
-		for _, part := range strings.Split(raw, ",") {
-			name := strings.ToLower(strings.TrimSpace(part))
-			if name == "" {
-				continue
-			}
-			if !valid[name] {
-				add("GMMFF_TAB_ORDER", raw,
-					fmt.Sprintf("unknown tab name %q — valid names are: files, chat, schedule", name))
-			} else if seen[name] {
-				add("GMMFF_TAB_ORDER", raw,
-					fmt.Sprintf("duplicate tab name %q — each tab should appear at most once", name))
-			}
-			seen[name] = true
-		}
+func validateTabOrder(add warnAdder) {
+	raw := strings.TrimSpace(os.Getenv("GMMFF_TAB_ORDER"))
+	if raw == "" {
+		return
 	}
-
-	// ── GMMFF_PUSH_STUN / GMMFF_PUSH_TURN already covered in bool vars above.
-
-	// ── GMMFF_PUSH_TTL ────────────────────────────────────────────────────────
-	if raw := strings.TrimSpace(os.Getenv("GMMFF_PUSH_TTL")); raw != "" {
-		d, err := time.ParseDuration(raw)
-		if err != nil {
-			add("GMMFF_PUSH_TTL", raw,
-				fmt.Sprintf("must be a Go duration (e.g. 30m, 1h, 2h30m); got %q", raw))
-		} else if d <= 0 {
-			add("GMMFF_PUSH_TTL", raw, "must be a positive duration")
-		} else if d > 24*time.Hour {
-			add("GMMFF_PUSH_TTL", raw,
-				fmt.Sprintf("TTL of %v is unusually long — TURN credentials are typically short-lived (≤24h)", d))
+	valid := map[string]bool{"files": true, "chat": true, "schedule": true}
+	seen := map[string]bool{}
+	for _, part := range strings.Split(raw, ",") {
+		name := strings.ToLower(strings.TrimSpace(part))
+		if name == "" {
+			continue
 		}
-	}
-
-	// ── GMMFF_TAB_DEFAULT ─────────────────────────────────────────────────────
-	if raw := strings.TrimSpace(os.Getenv("GMMFF_TAB_DEFAULT")); raw != "" {
-		valid := map[string]bool{"files": true, "chat": true, "schedule": true}
-		if !valid[strings.ToLower(raw)] {
-			add("GMMFF_TAB_DEFAULT", raw,
-				fmt.Sprintf("unknown tab name %q — valid names are: files, chat, schedule", raw))
+		if !valid[name] {
+			add("GMMFF_TAB_ORDER", raw,
+				fmt.Sprintf("unknown tab name %q — valid names are: files, chat, schedule", name))
+		} else if seen[name] {
+			add("GMMFF_TAB_ORDER", raw,
+				fmt.Sprintf("duplicate tab name %q — each tab should appear at most once", name))
 		}
+		seen[name] = true
 	}
+}
 
-	// ── GMMFF_SCHEDULE_MAX_SIZE ───────────────────────────────────────────────
+func validatePushTTL(add warnAdder) {
+	raw := strings.TrimSpace(os.Getenv("GMMFF_PUSH_TTL"))
+	if raw == "" {
+		return
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		add("GMMFF_PUSH_TTL", raw,
+			fmt.Sprintf("must be a Go duration (e.g. 30m, 1h, 2h30m); got %q", raw))
+	} else if d <= 0 {
+		add("GMMFF_PUSH_TTL", raw, "must be a positive duration")
+	} else if d > 24*time.Hour {
+		add("GMMFF_PUSH_TTL", raw,
+			fmt.Sprintf("TTL of %v is unusually long — TURN credentials are typically short-lived (≤24h)", d))
+	}
+}
+
+func validateTabDefault(add warnAdder) {
+	raw := strings.TrimSpace(os.Getenv("GMMFF_TAB_DEFAULT"))
+	if raw == "" {
+		return
+	}
+	valid := map[string]bool{"files": true, "chat": true, "schedule": true}
+	if !valid[strings.ToLower(raw)] {
+		add("GMMFF_TAB_DEFAULT", raw,
+			fmt.Sprintf("unknown tab name %q — valid names are: files, chat, schedule", raw))
+	}
+}
+
+func validateScheduleVars(add warnAdder) {
 	if raw := strings.TrimSpace(os.Getenv("GMMFF_SCHEDULE_MAX_SIZE")); raw != "" {
 		if !validByteSize(raw) {
 			add("GMMFF_SCHEDULE_MAX_SIZE", raw,
 				`must be a size with optional suffix (e.g. "1gb", "512mb", "1073741824"); got `+fmt.Sprintf("%q", raw))
 		}
 	}
-
-	// ── GMMFF_SCHEDULE_CLEANUP_INTERVAL ──────────────────────────────────────
 	if raw := strings.TrimSpace(os.Getenv("GMMFF_SCHEDULE_CLEANUP_INTERVAL")); raw != "" {
 		if !validCronExpr(raw) {
 			add("GMMFF_SCHEDULE_CLEANUP_INTERVAL", raw,
 				`must be a 5-field crontab expression (e.g. "*/30 * * * *"); got `+fmt.Sprintf("%q", raw))
 		}
 	}
+}
 
-	// ── GMMFF_SCHEDULE_UPLOAD_IP / GMMFF_SCHEDULE_DOWNLOAD_IP ────────────────
+func validateIPVars(add warnAdder) {
 	for _, key := range []string{"GMMFF_SCHEDULE_UPLOAD_IP", "GMMFF_SCHEDULE_DOWNLOAD_IP"} {
 		raw := strings.TrimSpace(os.Getenv(key))
 		if raw == "" || raw == "0.0.0.0" {
@@ -335,47 +354,52 @@ func ValidateEnv() []EnvWarning {
 			}
 		}
 	}
+}
 
-	// ── GMMFF_TTL_SETTINGS ────────────────────────────────────────────────────
-	if raw := strings.TrimSpace(os.Getenv("GMMFF_TTL_SETTINGS")); raw != "" {
-		for _, part := range strings.Split(raw, ",") {
-			part = strings.TrimSpace(part)
-			if part == "" {
-				continue
-			}
-			if !validDurationString(part) {
-				add("GMMFF_TTL_SETTINGS", raw,
-					fmt.Sprintf("cannot parse duration %q — use formats like: 1h, 8h, 1 day, 3 days, 7d, 1w", part))
-			}
+func validateTTLSettings(add warnAdder) {
+	raw := strings.TrimSpace(os.Getenv("GMMFF_TTL_SETTINGS"))
+	if raw == "" {
+		return
+	}
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if !validDurationString(part) {
+			add("GMMFF_TTL_SETTINGS", raw,
+				fmt.Sprintf("cannot parse duration %q — use formats like: 1h, 8h, 1 day, 3 days, 7d, 1w", part))
 		}
 	}
+}
 
-	// ── GMMFF_ALLOWED_LANGS ───────────────────────────────────────────────────
-	if raw := strings.TrimSpace(os.Getenv("GMMFF_ALLOWED_LANGS")); raw != "" && raw != "all" {
-		// We can't validate against the runtime language list here (no access),
-		// but we can warn about obviously malformed entries (empty after trim).
-		for _, part := range strings.Split(raw, ",") {
-			if strings.TrimSpace(part) == "" {
-				add("GMMFF_ALLOWED_LANGS", raw,
-					"contains an empty entry (check for trailing commas or double commas)")
-				break
-			}
+func validateAllowedLangs(add warnAdder) {
+	raw := strings.TrimSpace(os.Getenv("GMMFF_ALLOWED_LANGS"))
+	if raw == "" || raw == "all" {
+		return
+	}
+	for _, part := range strings.Split(raw, ",") {
+		if strings.TrimSpace(part) == "" {
+			add("GMMFF_ALLOWED_LANGS", raw,
+				"contains an empty entry (check for trailing commas or double commas)")
+			break
 		}
 	}
+}
 
-	// ── GMMFF_LOG_LEVEL ───────────────────────────────────────────────────────
-	if raw := strings.TrimSpace(os.Getenv("GMMFF_LOG_LEVEL")); raw != "" {
-		valid := map[string]bool{
-			"trace": true, "debug": true, "info": true,
-			"warn": true, "error": true, "fatal": true, "panic": true,
-		}
-		if !valid[strings.ToLower(raw)] {
-			add("GMMFF_LOG_LEVEL", raw,
-				`must be one of: trace, debug, info, warn, error, fatal, panic; got `+fmt.Sprintf("%q", raw))
-		}
+func validateLogLevel(add warnAdder) {
+	raw := strings.TrimSpace(os.Getenv("GMMFF_LOG_LEVEL"))
+	if raw == "" {
+		return
 	}
-
-	return warns
+	valid := map[string]bool{
+		"trace": true, "debug": true, "info": true,
+		"warn": true, "error": true, "fatal": true, "panic": true,
+	}
+	if !valid[strings.ToLower(raw)] {
+		add("GMMFF_LOG_LEVEL", raw,
+			`must be one of: trace, debug, info, warn, error, fatal, panic; got `+fmt.Sprintf("%q", raw))
+	}
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────

@@ -738,52 +738,68 @@ func configFromJS(iceCfg js.Value) peer.Config {
 	if iceCfg.IsUndefined() || iceCfg.IsNull() {
 		return cfg
 	}
-	// STUN: use pushed list or append user list to defaults.
-	stunArr := iceCfg.Get("stun")
-	if !stunArr.IsUndefined() && !stunArr.IsNull() {
-		stuns := peer.DefaultSTUNServers
-		for i := 0; i < stunArr.Length(); i++ {
-			v := stunArr.Index(i).String()
-			if v != "" {
-				stuns = append(stuns, v)
-			}
-		}
-		cfg.STUNServers = stuns
-	}
-	// pushed_turn: pre-resolved {url, username, password} objects from /api/ice.
-	// These bypass turn.ParseOne since credentials are already resolved server-side.
-	pushedTurn := iceCfg.Get("pushed_turn")
-	if !pushedTurn.IsUndefined() && !pushedTurn.IsNull() && pushedTurn.Length() > 0 {
-		for i := 0; i < pushedTurn.Length(); i++ {
-			entry := pushedTurn.Index(i)
-			url := entry.Get("url").String()
-			user := entry.Get("username").String()
-			pass := entry.Get("password").String()
-			if url != "" {
-				cfg.TURNServers = append(cfg.TURNServers, turn.Server{
-					URL:      url,
-					Username: user,
-					Password: pass,
-				})
-			}
-		}
-		return cfg // pushed TURN replaces user-defined TURN
-	}
-	// TURN: parse user-defined entries via turn.ParseOne (includes ephemeral cred derivation).
-	turnArr := iceCfg.Get("turn")
-	if !turnArr.IsUndefined() && !turnArr.IsNull() {
-		for i := 0; i < turnArr.Length(); i++ {
-			raw := turnArr.Index(i).String()
-			if raw == "" {
-				continue
-			}
-			srv, err := turn.ParseOne(raw)
-			if err == nil {
-				cfg.TURNServers = append(cfg.TURNServers, srv)
-			}
-		}
+	cfg.STUNServers = jsParseSTUN(iceCfg)
+	if servers, ok := jsParsePushedTURN(iceCfg); ok {
+		cfg.TURNServers = servers
+	} else {
+		cfg.TURNServers = jsParseUserTURN(iceCfg)
 	}
 	return cfg
+}
+
+// jsParseSTUN extracts the stun array from the JS ice config.
+func jsParseSTUN(iceCfg js.Value) []string {
+	arr := iceCfg.Get("stun")
+	if arr.IsUndefined() || arr.IsNull() {
+		return nil
+	}
+	stuns := append([]string{}, peer.DefaultSTUNServers...)
+	for i := 0; i < arr.Length(); i++ {
+		if v := arr.Index(i).String(); v != "" {
+			stuns = append(stuns, v)
+		}
+	}
+	return stuns
+}
+
+// jsParsePushedTURN extracts pre-resolved pushed_turn objects from /api/ice.
+// Returns (servers, true) when pushed_turn is present and non-empty.
+func jsParsePushedTURN(iceCfg js.Value) ([]turn.Server, bool) {
+	arr := iceCfg.Get("pushed_turn")
+	if arr.IsUndefined() || arr.IsNull() || arr.Length() == 0 {
+		return nil, false
+	}
+	var servers []turn.Server
+	for i := 0; i < arr.Length(); i++ {
+		entry := arr.Index(i)
+		if url := entry.Get("url").String(); url != "" {
+			servers = append(servers, turn.Server{
+				URL:      url,
+				Username: entry.Get("username").String(),
+				Password: entry.Get("password").String(),
+			})
+		}
+	}
+	return servers, true
+}
+
+// jsParseUserTURN parses user-defined TURN URL strings via turn.ParseOne.
+func jsParseUserTURN(iceCfg js.Value) []turn.Server {
+	arr := iceCfg.Get("turn")
+	if arr.IsUndefined() || arr.IsNull() {
+		return nil
+	}
+	var servers []turn.Server
+	for i := 0; i < arr.Length(); i++ {
+		raw := arr.Index(i).String()
+		if raw == "" {
+			continue
+		}
+		if srv, err := turn.ParseOne(raw); err == nil {
+			servers = append(servers, srv)
+		}
+	}
+	return servers
 }
 
 // jsGetDefaultICE returns the default ICE config as a JS object.
