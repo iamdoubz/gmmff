@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/iamdoubz/gmmff/internal/localmode"
-	"github.com/iamdoubz/gmmff/internal/peer"
+	"github.com/iamdoubz/gmmff/v2/internal/localmode"
+	"github.com/iamdoubz/gmmff/v2/internal/peer"
 	"github.com/spf13/cobra"
 )
 

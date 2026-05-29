@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/iamdoubz/gmmff/internal/schedule"
+	"github.com/iamdoubz/gmmff/v2/internal/schedule"
 	"github.com/mdp/qrterminal/v3"
 	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
@@ -68,20 +68,20 @@ Examples:
   gmmff schedule upload *.csv --ttl 8h --max-downloads 3
   gmmff schedule upload ./project/ --ttl 7d --qr
   gmmff schedule upload file.zip --json`,
-	Args: cobra.MinimumNArgs(1),
-	RunE: runScheduleUpload,
+	Args:  cobra.MinimumNArgs(1),
+	RunE:  runScheduleUpload,
 }
 
 func init() {
 	f := scheduleUploadCmd.Flags()
-	f.StringVar(&schedUploadFlags.server, "server", "", "Signaling server URL (wss://host/ws or https://host); uses $GMMFF_SERVER if unset")
-	f.StringVar(&schedUploadFlags.ttl, "ttl", "24h", "File expiry duration (e.g. 1h, 8h, 1 day, 7d, 30 days)")
-	f.IntVar(&schedUploadFlags.maxDownloads, "max-downloads", 1, "Maximum downloads (0 = unlimited)")
-	f.StringVar(&schedUploadFlags.password, "password", "", "Upload password (prompted if required and not set)")
-	f.StringVar(&schedUploadFlags.out, "out", "", "Write share URL to this file instead of stdout")
-	f.BoolVar(&schedUploadFlags.qr, "qr", false, "Print a QR code for the share URL")
-	f.BoolVar(&schedUploadFlags.jsonOut, "json", false, "Output result as JSON")
-	f.IntVar(&schedUploadFlags.chunkSize, "chunk-size", 0, "Override chunk size in bytes (0 = auto)")
+	f.StringVar(&schedUploadFlags.server,       "server",        "", "Signaling server URL (wss://host/ws or https://host); uses $GMMFF_SERVER if unset")
+	f.StringVar(&schedUploadFlags.ttl,          "ttl",           "24h", "File expiry duration (e.g. 1h, 8h, 1 day, 7d, 30 days)")
+	f.IntVar(&schedUploadFlags.maxDownloads,    "max-downloads", 1, "Maximum downloads (0 = unlimited)")
+	f.StringVar(&schedUploadFlags.password,     "password",      "", "Upload password (prompted if required and not set)")
+	f.StringVar(&schedUploadFlags.out,          "out",           "", "Write share URL to this file instead of stdout")
+	f.BoolVar(&schedUploadFlags.qr,             "qr",            false, "Print a QR code for the share URL")
+	f.BoolVar(&schedUploadFlags.jsonOut,        "json",          false, "Output result as JSON")
+	f.IntVar(&schedUploadFlags.chunkSize,       "chunk-size",    0, "Override chunk size in bytes (0 = auto)")
 
 	scheduleCmd.AddCommand(scheduleUploadCmd)
 	rootCmd.AddCommand(scheduleCmd)
@@ -182,8 +182,8 @@ func runScheduleUpload(cmd *cobra.Command, args []string) error {
 
 func printUploadResult(r *schedule.UploadResult, speed float64, outFile string, qr bool) error {
 	expLocal := r.ExpiresAt.Local()
-	timeStr := expLocal.Format("2006-01-02 15:04 MST")
-	inStr := formatDuration(time.Until(r.ExpiresAt))
+	timeStr  := expLocal.Format("2006-01-02 15:04 MST")
+	inStr    := formatDuration(time.Until(r.ExpiresAt))
 
 	lines := []string{
 		"",
@@ -232,13 +232,13 @@ type uploadResultJSON struct {
 
 func printUploadResultJSON(r *schedule.UploadResult) error {
 	out := uploadResultJSON{
-		FileID:        r.FileID,
-		Key:           r.KeyHex,
-		ShareURL:      r.ShareURL,
-		FullURL:       r.FullURL,
-		AutoDownload:  fmt.Sprintf("%s&dl=1#key=%s", r.ShareURL, r.KeyHex),
-		DeleteURL:     r.DeleteURL,
-		ExpiresAt:     r.ExpiresAt.UTC().Format(time.RFC3339),
+		FileID:       r.FileID,
+		Key:          r.KeyHex,
+		ShareURL:     r.ShareURL,
+		FullURL:      r.FullURL,
+		AutoDownload: fmt.Sprintf("%s&dl=1#key=%s", r.ShareURL, r.KeyHex),
+		DeleteURL:    r.DeleteURL,
+		ExpiresAt:    r.ExpiresAt.UTC().Format(time.RFC3339),
 		DownloadsLeft: -1, // filled from server opts not easily available here
 	}
 	enc := json.NewEncoder(os.Stdout)
@@ -273,8 +273,8 @@ Pipe to stdout with --out -:
   gmmff schedule download "https://host/...#key=..." --out - > file.zip
 
 The decryption happens locally — the server never receives the key.`,
-	Args: cobra.ExactArgs(1),
-	RunE: runScheduleDownload,
+	Args:  cobra.ExactArgs(1),
+	RunE:  runScheduleDownload,
 }
 
 func init() {
@@ -336,9 +336,9 @@ func runScheduleDownload(cmd *cobra.Command, args []string) error {
 
 	// ── 5. Resolve output destination ─────────────────────────────────────────
 	toStdout := schedDlFlags.out == "-"
-	var outWriter io.Writer
-	var outPath string
-	var outFile *os.File
+	var outWriter  io.Writer
+	var outPath    string
+	var outFile    *os.File
 
 	if toStdout {
 		outWriter = os.Stdout
@@ -364,7 +364,7 @@ func runScheduleDownload(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("create temp file: %w", err)
 		}
 		tempPath = f.Name()
-		outFile = f
+		outFile  = f
 		outWriter = io.MultiWriter(f, bar)
 	} else {
 		outWriter = os.Stdout
@@ -386,7 +386,7 @@ func runScheduleDownload(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("download failed: %w", err)
 	}
 
-	elapsed := time.Since(startTime)
+	elapsed  := time.Since(startTime)
 	avgSpeed := float64(result.BytesRead) / elapsed.Seconds()
 
 	// ── 7. Rename temp file to final filename ─────────────────────────────────
@@ -458,9 +458,9 @@ var schedDelFlags scheduleDeleteFlags
 
 func init() {
 	f := scheduleDeleteCmd.Flags()
-	f.StringVar(&schedDelFlags.id, "id", "", "File ID to delete")
+	f.StringVar(&schedDelFlags.id,        "id",         "", "File ID to delete")
 	f.StringVar(&schedDelFlags.deleteKey, "delete-key", "", "Delete key shown after upload")
-	f.StringVar(&schedDelFlags.server, "server", "", "Server URL (derived from delete URL if not set)")
+	f.StringVar(&schedDelFlags.server,    "server",     "", "Server URL (derived from delete URL if not set)")
 	scheduleCmd.AddCommand(scheduleDeleteCmd)
 }
 
@@ -479,7 +479,7 @@ func runScheduleDelete(cmd *cobra.Command, args []string) error {
 		serverURL = args[0]
 	} else {
 		// Explicit flags.
-		fileID = schedDelFlags.id
+		fileID    = schedDelFlags.id
 		deleteKey = schedDelFlags.deleteKey
 		serverURL = schedDelFlags.server
 		if fileID == "" || deleteKey == "" {
@@ -556,10 +556,7 @@ func prepareUploadFiles(paths []string) (r io.Reader, filename string, size int6
 // zipPaths writes all paths into a ZIP archive on w.
 func zipPaths(w io.Writer, paths []string) error {
 	// Collect all files.
-	type entry struct {
-		name string
-		path string
-	}
+	type entry struct{ name string; path string }
 	var entries []entry
 
 	for _, p := range paths {
@@ -604,12 +601,8 @@ func zipPaths(w io.Writer, paths []string) error {
 
 		lf := buildLocalFileHeaderGo(nameBytes, uint32(len(data)), crc)
 		offset += uint32(len(lf)) + uint32(len(data))
-		if _, err := w.Write(lf); err != nil {
-			return err
-		}
-		if _, err := w.Write(data); err != nil {
-			return err
-		}
+		if _, err := w.Write(lf); err != nil { return err }
+		if _, err := w.Write(data); err != nil { return err }
 	}
 
 	// Central directory.
@@ -618,9 +611,7 @@ func zipPaths(w io.Writer, paths []string) error {
 	for _, e := range locals {
 		cd := buildCentralDirEntryGo(e.name, uint32(len(e.data)), e.crc, e.offset)
 		cdSize += uint32(len(cd))
-		if _, err := w.Write(cd); err != nil {
-			return err
-		}
+		if _, err := w.Write(cd); err != nil { return err }
 	}
 	eocd := buildEOCDGo(uint16(len(locals)), cdSize, cdStart)
 	_, err := w.Write(eocd)
@@ -723,6 +714,8 @@ func parseTTLFlag(s string) (time.Duration, error) {
 	d, _, err := schedule.ParseFuzzyDuration(s)
 	return d, err
 }
+
+
 
 func formatDuration(d time.Duration) string {
 	switch {

@@ -1,4 +1,4 @@
-module github.com/iamdoubz/gmmff
+module github.com/iamdoubz/gmmff/v2
 
 go 1.25.0
 

@@ -9,10 +9,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/iamdoubz/gmmff/internal/peer"
-	"github.com/iamdoubz/gmmff/internal/signaling"
-	"github.com/iamdoubz/gmmff/internal/transfer"
-	"github.com/iamdoubz/gmmff/pkg/protocol"
+	"github.com/iamdoubz/gmmff/v2/internal/peer"
+	"github.com/iamdoubz/gmmff/v2/internal/signaling"
+	"github.com/iamdoubz/gmmff/v2/internal/transfer"
+	"github.com/iamdoubz/gmmff/v2/pkg/protocol"
 	"github.com/spf13/cobra"
 )
 

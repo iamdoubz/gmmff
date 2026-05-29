@@ -25,14 +25,14 @@ import (
 	"time"
 
 	"filippo.io/cpace"
-	"github.com/iamdoubz/gmmff/internal/chat"
-	"github.com/iamdoubz/gmmff/internal/pake"
-	"github.com/iamdoubz/gmmff/internal/peerconfig"
-	"github.com/iamdoubz/gmmff/internal/session"
-	"github.com/iamdoubz/gmmff/internal/signaling"
-	"github.com/iamdoubz/gmmff/internal/transfer"
-	"github.com/iamdoubz/gmmff/internal/turn"
-	"github.com/iamdoubz/gmmff/pkg/protocol"
+	"github.com/iamdoubz/gmmff/v2/internal/chat"
+	"github.com/iamdoubz/gmmff/v2/internal/pake"
+	"github.com/iamdoubz/gmmff/v2/internal/peerconfig"
+	"github.com/iamdoubz/gmmff/v2/internal/signaling"
+	"github.com/iamdoubz/gmmff/v2/internal/session"
+	"github.com/iamdoubz/gmmff/v2/internal/transfer"
+	"github.com/iamdoubz/gmmff/v2/internal/turn"
+	"github.com/iamdoubz/gmmff/v2/pkg/protocol"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -747,7 +747,7 @@ func ReceiveToBytes(ctx context.Context, sig *signaling.Client, code string, cfg
 		err  error
 	}
 	transferDone := make(chan result, 1)
-	cancelDC := make(chan *webrtc.DataChannel, 1)
+	cancelDC     := make(chan *webrtc.DataChannel, 1)
 
 	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
 		select {
@@ -1025,6 +1025,7 @@ func JoinChatSession(ctx context.Context, sig *signaling.Client, code string, cf
 	return JoinSession(ctx, sig, code, cfg, nil)
 }
 
+
 // The caller sends messages via Send(), leaves quietly via Leave(),
 // or ends the session for everyone via Close() (initiator only).
 type ChatSession struct {
@@ -1073,61 +1074,37 @@ func ChatWithCallback(
 
 	if role == "Receiver" {
 		msgAEnv, err := disp.waitFor(ctx, disp.pakeA)
-		if err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
 		msgA, err := signaling.DecodeOpaque(msgAEnv)
-		if err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
 		msgB, sk, err := cpace.Exchange(code, ci, msgA)
-		if err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
 		sharedKey = sk
-		if err := sig.SendOpaque(protocol.MsgPakeB, msgB); err != nil {
-			return nil, err
-		}
+		if err := sig.SendOpaque(protocol.MsgPakeB, msgB); err != nil { return nil, err }
 	} else {
 		msgA, state, err := cpace.Start(code, ci)
-		if err != nil {
-			return nil, err
-		}
-		if err := sig.SendOpaque(protocol.MsgPakeA, msgA); err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
+		if err := sig.SendOpaque(protocol.MsgPakeA, msgA); err != nil { return nil, err }
 		msg, err := disp.waitFor(ctx, disp.pakeB)
-		if err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
 		msgB, err := signaling.DecodeOpaque(msg)
-		if err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
 		sk, err := state.Finish(msgB)
-		if err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
 		sharedKey = sk
 	}
 
 	session, err := pake.NewSession(sharedKey)
-	if err != nil {
-		return nil, err
-	}
+	if err != nil { return nil, err }
 
 	pc, err := newPeerConnection(cfg)
-	if err != nil {
-		return nil, err
-	}
+	if err != nil { return nil, err }
 
 	dcReady := make(chan *webrtc.DataChannel, 1)
 	if role == "Sender" {
 		ordered := true
 		dc, err := pc.CreateDataChannel("gmmff-chat", &webrtc.DataChannelInit{Ordered: &ordered})
-		if err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
 		dc.OnOpen(func() { dcReady <- dc })
 	} else {
 		pc.OnDataChannel(func(dc *webrtc.DataChannel) { dcReady <- dc })
@@ -1138,66 +1115,34 @@ func ChatWithCallback(
 
 	if role == "Sender" {
 		offer, err := pc.CreateOffer(nil)
-		if err != nil {
-			return nil, err
-		}
-		if err := pc.SetLocalDescription(offer); err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
+		if err := pc.SetLocalDescription(offer); err != nil { return nil, err }
 		sdpJSON, _ := json.Marshal(offer)
 		offerMAC := session.SignOffer(sdpJSON)
-		if err := sig.SendSignedSDP(protocol.MsgSDPOffer, sdpJSON, offerMAC); err != nil {
-			return nil, err
-		}
+		if err := sig.SendSignedSDP(protocol.MsgSDPOffer, sdpJSON, offerMAC); err != nil { return nil, err }
 		answerMsg, err := disp.waitFor(ctx, disp.answer)
-		if err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
 		answerJSON, answerMAC, err := signaling.DecodeSignedSDP(answerMsg)
-		if err != nil {
-			return nil, err
-		}
-		if err := session.VerifyAnswer(answerJSON, answerMAC); err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
+		if err := session.VerifyAnswer(answerJSON, answerMAC); err != nil { return nil, err }
 		var answer webrtc.SessionDescription
-		if err := json.Unmarshal(answerJSON, &answer); err != nil {
-			return nil, err
-		}
-		if err := pc.SetRemoteDescription(answer); err != nil {
-			return nil, err
-		}
+		if err := json.Unmarshal(answerJSON, &answer); err != nil { return nil, err }
+		if err := pc.SetRemoteDescription(answer); err != nil { return nil, err }
 	} else {
 		offerMsg, err := disp.waitFor(ctx, disp.offer)
-		if err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
 		offerJSON, offerMAC, err := signaling.DecodeSignedSDP(offerMsg)
-		if err != nil {
-			return nil, err
-		}
-		if err := session.VerifyOffer(offerJSON, offerMAC); err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
+		if err := session.VerifyOffer(offerJSON, offerMAC); err != nil { return nil, err }
 		var offer webrtc.SessionDescription
-		if err := json.Unmarshal(offerJSON, &offer); err != nil {
-			return nil, err
-		}
-		if err := pc.SetRemoteDescription(offer); err != nil {
-			return nil, err
-		}
+		if err := json.Unmarshal(offerJSON, &offer); err != nil { return nil, err }
+		if err := pc.SetRemoteDescription(offer); err != nil { return nil, err }
 		answer, err := pc.CreateAnswer(nil)
-		if err != nil {
-			return nil, err
-		}
-		if err := pc.SetLocalDescription(answer); err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
+		if err := pc.SetLocalDescription(answer); err != nil { return nil, err }
 		answerJSON, _ := json.Marshal(answer)
 		answerMAC := session.SignAnswer(answerJSON)
-		if err := sig.SendSignedSDP(protocol.MsgSDPAnswer, answerJSON, answerMAC); err != nil {
-			return nil, err
-		}
+		if err := sig.SendSignedSDP(protocol.MsgSDPAnswer, answerJSON, answerMAC); err != nil { return nil, err }
 	}
 
 	ctxChild, cancel := context.WithCancel(ctx)
@@ -1207,18 +1152,14 @@ func ChatWithCallback(
 		return nil, ctxChild.Err()
 	case dc := <-dcReady:
 		dc.OnMessage(func(m webrtc.DataChannelMessage) {
-			if len(m.Data) == 0 {
-				return
-			}
+			if len(m.Data) == 0 { return }
 			switch m.Data[0] {
 			case transfer.TagMessage:
 				if onMessage != nil {
 					// Label the sender by their role — the simplified chat path
 					// does not use the full name-announcement roster protocol.
 					from := "Sender"
-					if role == "Sender" {
-						from = "Receiver"
-					}
+					if role == "Sender" { from = "Receiver" }
 					onMessage(from, transfer.ParseMessageFrame(m.Data))
 				}
 			case transfer.TagChatClose, transfer.TagCancelled:
@@ -1528,33 +1469,20 @@ func initiatorAcceptMorePeers(
 					return
 				}
 				msgBMsg, err := td.waitFor(ctx, protocol.MsgPakeB)
-				if err != nil {
-					return
-				}
+				if err != nil { return }
 				msgBBytes, err := signaling.DecodeOpaque(msgBMsg)
-				if err != nil {
-					return
-				}
+				if err != nil { return }
 				sharedKey, err := state.Finish(msgBBytes)
-				if err != nil {
-					return
-				}
+				if err != nil { return }
 				pakeSession, err := pake.NewSession(sharedKey)
-				if err != nil {
-					return
-				}
+				if err != nil { return }
 
 				pc, err := newPeerConnection(cfg)
-				if err != nil {
-					return
-				}
+				if err != nil { return }
 
 				ordered := true
 				dc, err := pc.CreateDataChannel("control", &webrtc.DataChannelInit{Ordered: &ordered})
-				if err != nil {
-					pc.Close()
-					return
-				}
+				if err != nil { pc.Close(); return }
 				dcReady := make(chan struct{}, 1)
 				dc.OnOpen(func() { dcReady <- struct{}{} })
 
@@ -1562,59 +1490,28 @@ func initiatorAcceptMorePeers(
 				go pumpICETargeted(ctx, pc, disp, peerID)
 
 				offer, err := pc.CreateOffer(nil)
-				if err != nil {
-					pc.Close()
-					return
-				}
-				if err := pc.SetLocalDescription(offer); err != nil {
-					pc.Close()
-					return
-				}
+				if err != nil { pc.Close(); return }
+				if err := pc.SetLocalDescription(offer); err != nil { pc.Close(); return }
 				sdpJSON, _ := json.Marshal(offer)
 				offerMAC := pakeSession.SignOffer(sdpJSON)
 				inner := protocol.MustEnvelope(protocol.MsgSDPOffer,
-					struct {
-						SDP string `json:"sdp"`
-						MAC string `json:"mac"`
-					}{
+					struct{ SDP string `json:"sdp"`; MAC string `json:"mac"` }{
 						SDP: encodeB64(sdpJSON), MAC: offerMAC,
 					})
-				if err := sig.SendTargeted(peerID, "", inner); err != nil {
-					pc.Close()
-					return
-				}
+				if err := sig.SendTargeted(peerID, "", inner); err != nil { pc.Close(); return }
 
 				answerMsg, err := td.waitFor(ctx, protocol.MsgSDPAnswer)
-				if err != nil {
-					pc.Close()
-					return
-				}
+				if err != nil { pc.Close(); return }
 				answerJSON, answerMAC, err := signaling.DecodeSignedSDP(answerMsg)
-				if err != nil {
-					pc.Close()
-					return
-				}
-				if err := pakeSession.VerifyAnswer(answerJSON, answerMAC); err != nil {
-					pc.Close()
-					return
-				}
+				if err != nil { pc.Close(); return }
+				if err := pakeSession.VerifyAnswer(answerJSON, answerMAC); err != nil { pc.Close(); return }
 				var answer webrtc.SessionDescription
-				if err := json.Unmarshal(answerJSON, &answer); err != nil {
-					pc.Close()
-					return
-				}
-				if err := pc.SetRemoteDescription(answer); err != nil {
-					pc.Close()
-					return
-				}
+				if err := json.Unmarshal(answerJSON, &answer); err != nil { pc.Close(); return }
+				if err := pc.SetRemoteDescription(answer); err != nil { pc.Close(); return }
 
 				select {
-				case <-ctx.Done():
-					pc.Close()
-					return
-				case <-time.After(20 * time.Second):
-					pc.Close()
-					return
+				case <-ctx.Done(): pc.Close(); return
+				case <-time.After(20 * time.Second): pc.Close(); return
 				case <-dcReady:
 				}
 

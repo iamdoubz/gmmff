@@ -20,8 +20,8 @@ import (
 )
 
 func main() {
-	addr := flag.String("addr", ":9000", "address to listen on")
-	static := flag.String("static", "", "path to static directory (default: web/static relative to module root)")
+	addr    := flag.String("addr", ":9000", "address to listen on")
+	static  := flag.String("static", "", "path to static directory (default: web/static relative to module root)")
 	flag.Parse()
 
 	dir := *static
@@ -40,7 +40,7 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// Set required headers for SharedArrayBuffer (needed by some Wasm runtimes).
-		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+		w.Header().Set("Cross-Origin-Opener-Policy",   "same-origin")
 		w.Header().Set("Cross-Origin-Embedder-Policy", "require-corp")
 		fs.ServeHTTP(w, r)
 	})

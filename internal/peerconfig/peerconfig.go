@@ -3,7 +3,7 @@
 // avoid the import cycle that would result from session importing peer.
 package peerconfig
 
-import "github.com/iamdoubz/gmmff/internal/turn"
+import "github.com/iamdoubz/gmmff/v2/internal/turn"
 
 // DefaultSTUN is the default STUN server URL.
 const DefaultSTUN = "stun:stun.l.google.com:19302"
