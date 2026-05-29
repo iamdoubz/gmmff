@@ -340,11 +340,7 @@ func runScheduleDownload(cmd *cobra.Command, args []string) error {
 	var outPath string
 	var outFile *os.File
 
-	if toStdout {
-		outWriter = os.Stdout
-	}
-	// If writing to a file we don't know the filename yet (it's encrypted);
-	// we write to a temp file then rename to the decrypted filename.
+	// outWriter is assigned below after the progress bar is created.
 
 	// ── 6. Progress bar (stderr so it doesn't corrupt stdout pipe) ────────────
 	bar := progressbar.NewOptions64(meta.TotalSize,
