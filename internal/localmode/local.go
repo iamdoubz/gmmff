@@ -257,11 +257,6 @@ func Run(cfg Config) error {
 	defer cancel()
 	_ = httpServer.Shutdown(shutdownCtx)
 
-	if !cfg.NoTLS {
-		certCleanup()
-		certCleanup = func() {} // prevent double-call from defer
-	}
-
 	return replErr
 }
 
