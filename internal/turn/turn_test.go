@@ -21,7 +21,7 @@ func TestParseOne_ValidInputs(t *testing.T) {
 		wantURL  string
 		wantUser string // "" means check that it is non-empty (ephemeral)
 		wantPass string // "" means check that it is non-empty (ephemeral)
-		static   bool  // true = credentials are static (exact match expected)
+		static   bool   // true = credentials are static (exact match expected)
 	}{
 		{
 			name:     "static_credentials_udp",

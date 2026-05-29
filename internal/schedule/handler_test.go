@@ -403,7 +403,7 @@ func TestHandleUploadInit_CorrectPassword_Accepted(t *testing.T) {
 			"chunk_size":    256,
 		}),
 		map[string]string{
-			"Content-Type":       "application/json",
+			"Content-Type":        "application/json",
 			"X-Schedule-Password": "secret",
 		},
 	)

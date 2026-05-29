@@ -77,7 +77,7 @@ func ConfigFromEnv() (Config, error) {
 		CleanupInterval: os.Getenv("GMMFF_SCHEDULE_CLEANUP_INTERVAL"),
 	}
 
-	cfg.PendingDir  = filepath.Join(cfg.Dir, "pending")
+	cfg.PendingDir = filepath.Join(cfg.Dir, "pending")
 	cfg.CompleteDir = filepath.Join(cfg.Dir, "complete")
 
 	// Parse upload IP allowlist.

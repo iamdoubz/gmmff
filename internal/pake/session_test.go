@@ -103,7 +103,7 @@ func TestSubkeyDerivation_MatchesHKDF(t *testing.T) {
 		return key
 	}
 
-	expectedOfferKey  := deriveExpected("sdp-offer-mac")
+	expectedOfferKey := deriveExpected("sdp-offer-mac")
 	expectedAnswerKey := deriveExpected("sdp-answer-mac")
 
 	sess, _ := NewSession(sharedKey)
@@ -135,7 +135,7 @@ func TestSubkeyDerivation_OfferAndAnswerKeysAreDifferent(t *testing.T) {
 	sess, _ := NewSession(sharedKey)
 
 	sdp := []byte(`{"type":"offer","sdp":"test"}`)
-	offerMAC  := sess.SignOffer(sdp)
+	offerMAC := sess.SignOffer(sdp)
 	answerMAC := sess.SignAnswer(sdp)
 
 	if offerMAC == answerMAC {
@@ -159,9 +159,9 @@ func TestSignAndVerifyOffer_RoundTrip(t *testing.T) {
 
 func TestVerifyOffer_WrongData(t *testing.T) {
 	sess, _ := newTestSession(t)
-	sdp  := []byte(`{"type":"offer","sdp":"original"}`)
+	sdp := []byte(`{"type":"offer","sdp":"original"}`)
 	sdp2 := []byte(`{"type":"offer","sdp":"tampered"}`)
-	mac  := sess.SignOffer(sdp)
+	mac := sess.SignOffer(sdp)
 
 	if err := sess.VerifyOffer(sdp2, mac); err == nil {
 		t.Error("VerifyOffer should fail when SDP has been tampered with")
@@ -208,9 +208,9 @@ func TestSignAndVerifyAnswer_RoundTrip(t *testing.T) {
 
 func TestVerifyAnswer_WrongData(t *testing.T) {
 	sess, _ := newTestSession(t)
-	sdp  := []byte(`{"type":"answer","sdp":"original"}`)
+	sdp := []byte(`{"type":"answer","sdp":"original"}`)
 	sdp2 := []byte(`{"type":"answer","sdp":"tampered"}`)
-	mac  := sess.SignAnswer(sdp)
+	mac := sess.SignAnswer(sdp)
 
 	if err := sess.VerifyAnswer(sdp2, mac); err == nil {
 		t.Error("VerifyAnswer should fail when SDP has been tampered with")
@@ -232,10 +232,10 @@ func TestVerifyAnswer_WrongMAC(t *testing.T) {
 func TestCrossKeyVerification_FailsWithDifferentSharedKey(t *testing.T) {
 	// Simulate a MITM attacker who has a different shared key.
 	// They must not be able to produce a MAC that verifies under the real key.
-	realKey    := randomKey(t, 32)
+	realKey := randomKey(t, 32)
 	attackerKey := randomKey(t, 32)
 
-	realSess, _     := NewSession(realKey)
+	realSess, _ := NewSession(realKey)
 	attackerSess, _ := NewSession(attackerKey)
 
 	sdp := []byte(`{"type":"offer","sdp":"attacker-sdp"}`)

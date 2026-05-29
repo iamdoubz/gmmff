@@ -39,9 +39,9 @@ const DefaultMaxPeers = 2
 // MaxMessageSize is the maximum bytes allowed in a single WebSocket frame.
 const MaxMessageSize = 64 * 1024
 
-var ErrSlotFull     = errors.New("slot is full")
+var ErrSlotFull = errors.New("slot is full")
 var ErrSlotNotFound = errors.New("slot not found")
-var ErrSlotClosed   = errors.New("slot is closed")
+var ErrSlotClosed = errors.New("slot is closed")
 
 // Slot is the persisted representation of a rendezvous session.
 type Slot struct {

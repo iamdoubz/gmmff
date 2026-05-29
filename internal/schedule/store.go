@@ -15,9 +15,9 @@ import (
 type UploadMeta struct {
 	UploadID      string    `json:"upload_id"`
 	ChunksTotal   int       `json:"chunks_total"`
-	ChunkSize     int       `json:"chunk_size"`    // bytes per plaintext chunk
+	ChunkSize     int       `json:"chunk_size"` // bytes per plaintext chunk
 	ChunksWritten int       `json:"chunks_written"`
-	TotalSize     int64     `json:"total_size"`    // plaintext bytes
+	TotalSize     int64     `json:"total_size"` // plaintext bytes
 	ExpiresAt     time.Time `json:"expires_at"`
 	MaxDownloads  int       `json:"max_downloads"` // 0 = unlimited
 	CreatedAt     time.Time `json:"created_at"`
@@ -25,19 +25,19 @@ type UploadMeta struct {
 
 // FileMeta is the permanent sidecar for a completed upload.
 type FileMeta struct {
-	FileID          string    `json:"file_id"`
-	FileNameEnc     string    `json:"filename_enc"`  // hex-encoded encrypted filename
-	FileNameNonce   string    `json:"filename_nonce"` // hex-encoded 12-byte nonce
-	TotalSize       int64     `json:"total_size"`    // plaintext bytes
-	EncryptedSize   int64     `json:"encrypted_size"` // ciphertext bytes on disk
-	SHA256Cipher    string    `json:"sha256_cipher"` // hex SHA-256 of full ciphertext
-	ChunksTotal     int       `json:"chunks_total"`
-	ChunkSize       int       `json:"chunk_size"`
-	ExpiresAt       time.Time `json:"expires_at"`
-	MaxDownloads    int       `json:"max_downloads"`
-	DownloadsLeft   int       `json:"downloads_left"` // -1 = unlimited
-	DeleteKey       string    `json:"delete_key"`
-	CreatedAt       time.Time `json:"created_at"`
+	FileID        string    `json:"file_id"`
+	FileNameEnc   string    `json:"filename_enc"`   // hex-encoded encrypted filename
+	FileNameNonce string    `json:"filename_nonce"` // hex-encoded 12-byte nonce
+	TotalSize     int64     `json:"total_size"`     // plaintext bytes
+	EncryptedSize int64     `json:"encrypted_size"` // ciphertext bytes on disk
+	SHA256Cipher  string    `json:"sha256_cipher"`  // hex SHA-256 of full ciphertext
+	ChunksTotal   int       `json:"chunks_total"`
+	ChunkSize     int       `json:"chunk_size"`
+	ExpiresAt     time.Time `json:"expires_at"`
+	MaxDownloads  int       `json:"max_downloads"`
+	DownloadsLeft int       `json:"downloads_left"` // -1 = unlimited
+	DeleteKey     string    `json:"delete_key"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 const (

@@ -351,12 +351,12 @@ func TestSanitiseName(t *testing.T) {
 		{"document.pdf", "document.pdf"},
 		{"my file.txt", "my file.txt"},
 		{"/etc/passwd", "etcpasswd"},
-		{"../../../etc/shadow", "etcshadow"},    // separators + traversal stripped
+		{"../../../etc/shadow", "etcshadow"}, // separators + traversal stripped
 		{"C:\\Users\\file.txt", "C:Usersfile.txt"},
 		{"", "gmmff_received_file"},
 		{"\x00null\x00bytes\x00", "nullbytes"},
 		{"a/b/c", "abc"},
-		{"....dotdotdot", "dotdotdot"},          // even literal ".." in names are stripped
+		{"....dotdotdot", "dotdotdot"}, // even literal ".." in names are stripped
 		{"file..name.txt", "filename.txt"},
 	}
 	for _, tc := range cases {
@@ -381,7 +381,7 @@ func TestReceiveStateMem_CompleteTransfer(t *testing.T) {
 	payload1 := []byte("hello ")
 	payload2 := []byte("world")
 	content := append([]byte(nil), payload1...)
-	content  = append(content, payload2...)
+	content = append(content, payload2...)
 
 	hdr := FileHeader{
 		Name:      "test.txt",

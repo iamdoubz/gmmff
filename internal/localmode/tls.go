@@ -35,9 +35,9 @@ type CertPaths struct {
 // Returns the paths and a cleanup function that removes the files.
 func GenerateSelfSignedCert() (CertPaths, func(), error) {
 	certFile := filepath.Join(os.TempDir(), "gmmff-cert.pem")
-	keyFile  := filepath.Join(os.TempDir(), "gmmff-key.pem")
+	keyFile := filepath.Join(os.TempDir(), "gmmff-key.pem")
 
-	paths   := CertPaths{CertFile: certFile, KeyFile: keyFile}
+	paths := CertPaths{CertFile: certFile, KeyFile: keyFile}
 	cleanup := func() {
 		_ = os.Remove(certFile)
 		_ = os.Remove(keyFile)

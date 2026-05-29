@@ -104,6 +104,7 @@ func ParseAllWithTTL(raw []string, ttl time.Duration) ([]Server, error) {
 	}
 	return servers, nil
 }
+
 // one per TURN server (each needs its own credentials).
 func ICEServers(servers []Server) []webrtc.ICEServer {
 	ice := make([]webrtc.ICEServer, 0, len(servers))
@@ -158,9 +159,9 @@ func parseWithTTL(raw string, ttl time.Duration) (Server, error) {
 	}
 
 	transport := strings.ToLower(params.Get("transport"))
-	user      := params.Get("user")
-	pass      := params.Get("pass")
-	secret    := params.Get("secret")
+	user := params.Get("user")
+	pass := params.Get("pass")
+	secret := params.Get("secret")
 
 	// Validate transport value.
 	if transport != "" && transport != "udp" && transport != "tcp" {

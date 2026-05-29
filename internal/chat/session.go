@@ -42,8 +42,8 @@ const QuitCommand = `\q`
 // Session manages a live chat session over a data channel.
 type Session struct {
 	dc          *webrtc.DataChannel
-	remoteLabel string            // display label for the remote peer
-	isInitiator bool              // true if this peer started the session
+	remoteLabel string // display label for the remote peer
+	isInitiator bool   // true if this peer started the session
 	onMsg       func(from, text string)
 	onClose     func(reason string) // session ended for everyone
 	onLeave     func(who string)    // a participant left but session continues

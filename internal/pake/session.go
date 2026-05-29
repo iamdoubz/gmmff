@@ -36,10 +36,10 @@ import (
 )
 
 const (
-	hkdfSalt    = "gmmff-v1"
-	infoOffer   = "sdp-offer-mac"
-	infoAnswer  = "sdp-answer-mac"
-	subkeyLen   = 32 // 256-bit subkeys
+	hkdfSalt   = "gmmff-v1"
+	infoOffer  = "sdp-offer-mac"
+	infoAnswer = "sdp-answer-mac"
+	subkeyLen  = 32 // 256-bit subkeys
 )
 
 // Session holds the two subkeys derived from the CPace shared secret.
