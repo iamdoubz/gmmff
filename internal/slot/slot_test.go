@@ -12,39 +12,21 @@ import (
 func TestNew_Defaults(t *testing.T) {
 	s := New("id-1", "bear-cozy-cone", "conn-init", "files", 2)
 
-	if s.ID != "id-1" {
-		t.Errorf("ID = %q, want id-1", s.ID)
-	}
-	if s.Code != "bear-cozy-cone" {
-		t.Errorf("Code = %q", s.Code)
-	}
-	if s.InitiatorID != "conn-init" {
-		t.Errorf("InitiatorID = %q", s.InitiatorID)
-	}
-	if s.SessionType != "files" {
-		t.Errorf("SessionType = %q", s.SessionType)
-	}
-	if s.MaxPeers != 2 {
-		t.Errorf("MaxPeers = %d, want 2", s.MaxPeers)
-	}
-	if s.State != StateWaiting {
-		t.Errorf("State = %q, want waiting", s.State)
-	}
-	if s.EverFull {
-		t.Error("EverFull should be false on construction")
-	}
-	if s.PeerIDs == nil {
-		t.Error("PeerIDs should not be nil")
-	}
-	if len(s.PeerIDs) != 0 {
-		t.Errorf("PeerIDs length = %d, want 0", len(s.PeerIDs))
-	}
+	if s.ID != "id-1"               { t.Errorf("ID = %q, want id-1", s.ID) }
+	if s.Code != "bear-cozy-cone"   { t.Errorf("Code = %q", s.Code) }
+	if s.InitiatorID != "conn-init" { t.Errorf("InitiatorID = %q", s.InitiatorID) }
+	if s.SessionType != "files"     { t.Errorf("SessionType = %q", s.SessionType) }
+	if s.MaxPeers != 2              { t.Errorf("MaxPeers = %d, want 2", s.MaxPeers) }
+	if s.State != StateWaiting      { t.Errorf("State = %q, want waiting", s.State) }
+	if s.EverFull                   { t.Error("EverFull should be false on construction") }
+	if s.PeerIDs == nil             { t.Error("PeerIDs should not be nil") }
+	if len(s.PeerIDs) != 0          { t.Errorf("PeerIDs length = %d, want 0", len(s.PeerIDs)) }
 }
 
 func TestNew_ExpiresAt(t *testing.T) {
 	before := time.Now().UTC()
 	s := New("x", "c", "i", "files", 2)
-	after := time.Now().UTC()
+	after  := time.Now().UTC()
 
 	minExpiry := before.Add(DefaultTTL)
 	maxExpiry := after.Add(DefaultTTL)
@@ -97,42 +79,32 @@ func TestConnectedCount(t *testing.T) {
 func TestCanJoin(t *testing.T) {
 	t.Run("fresh_slot_can_join", func(t *testing.T) {
 		s := New("x", "c", "init", "files", 2)
-		if !s.CanJoin() {
-			t.Error("fresh slot should accept a join")
-		}
+		if !s.CanJoin() { t.Error("fresh slot should accept a join") }
 	})
 
 	t.Run("full_slot_cannot_join", func(t *testing.T) {
 		s := New("x", "c", "init", "files", 2)
 		s.State = StateFull
-		if s.CanJoin() {
-			t.Error("full slot should not accept a join")
-		}
+		if s.CanJoin() { t.Error("full slot should not accept a join") }
 	})
 
 	t.Run("closed_slot_cannot_join", func(t *testing.T) {
 		s := New("x", "c", "init", "files", 2)
 		s.State = StateClosed
-		if s.CanJoin() {
-			t.Error("closed slot should not accept a join")
-		}
+		if s.CanJoin() { t.Error("closed slot should not accept a join") }
 	})
 
 	t.Run("ever_full_slot_cannot_rejoin", func(t *testing.T) {
 		// EverFull=true means no new peers even if count is below max.
 		s := New("x", "c", "init", "files", 3)
 		s.EverFull = true
-		if s.CanJoin() {
-			t.Error("EverFull slot should not accept a join")
-		}
+		if s.CanJoin() { t.Error("EverFull slot should not accept a join") }
 	})
 
 	t.Run("slot_at_capacity_cannot_join", func(t *testing.T) {
 		s := New("x", "c", "init", "files", 2)
 		s.PeerIDs = []string{"p1"} // now at max (initiator + 1 = 2)
-		if s.CanJoin() {
-			t.Error("slot at MaxPeers should not accept a join")
-		}
+		if s.CanJoin() { t.Error("slot at MaxPeers should not accept a join") }
 	})
 }
 
@@ -316,50 +288,30 @@ func TestIsExpired(t *testing.T) {
 
 func TestIsInitiator(t *testing.T) {
 	s := New("x", "c", "init-conn", "files", 2)
-	if !s.IsInitiator("init-conn") {
-		t.Error("initiator ID not recognised")
-	}
-	if s.IsInitiator("other-conn") {
-		t.Error("non-initiator ID falsely recognised")
-	}
+	if !s.IsInitiator("init-conn")  { t.Error("initiator ID not recognised") }
+	if s.IsInitiator("other-conn")  { t.Error("non-initiator ID falsely recognised") }
 }
 
 func TestHasPeer(t *testing.T) {
 	s := New("x", "c", "init", "files", 3)
 	s.Join("p1") //nolint:errcheck
-	if !s.HasPeer("p1") {
-		t.Error("p1 should be found")
-	}
-	if s.HasPeer("init") {
-		t.Error("initiator should not be found via HasPeer")
-	}
-	if s.HasPeer("ghost") {
-		t.Error("unknown peer should not be found")
-	}
+	if !s.HasPeer("p1")   { t.Error("p1 should be found") }
+	if s.HasPeer("init")  { t.Error("initiator should not be found via HasPeer") }
+	if s.HasPeer("ghost") { t.Error("unknown peer should not be found") }
 }
 
 func TestIsMember(t *testing.T) {
 	s := New("x", "c", "init", "files", 3)
 	s.Join("p1") //nolint:errcheck
-	if !s.IsMember("init") {
-		t.Error("initiator should be a member")
-	}
-	if !s.IsMember("p1") {
-		t.Error("joined peer should be a member")
-	}
-	if s.IsMember("ghost") {
-		t.Error("unknown ID should not be a member")
-	}
+	if !s.IsMember("init")  { t.Error("initiator should be a member") }
+	if !s.IsMember("p1")    { t.Error("joined peer should be a member") }
+	if s.IsMember("ghost")  { t.Error("unknown ID should not be a member") }
 }
 
 func TestRoleOf(t *testing.T) {
 	s := New("x", "c", "init", "files", 2)
-	if s.RoleOf("init") != "initiator" {
-		t.Errorf("RoleOf(init) = %q", s.RoleOf("init"))
-	}
-	if s.RoleOf("other") != "responder" {
-		t.Errorf("RoleOf(other) = %q", s.RoleOf("other"))
-	}
+	if s.RoleOf("init")  != "initiator"  { t.Errorf("RoleOf(init) = %q", s.RoleOf("init")) }
+	if s.RoleOf("other") != "responder"  { t.Errorf("RoleOf(other) = %q", s.RoleOf("other")) }
 }
 
 func TestOtherMembers(t *testing.T) {
@@ -373,9 +325,7 @@ func TestOtherMembers(t *testing.T) {
 		t.Fatalf("OtherMembers(init) = %v, want 2 entries", others)
 	}
 	found := map[string]bool{}
-	for _, id := range others {
-		found[id] = true
-	}
+	for _, id := range others { found[id] = true }
 	if !found["p1"] || !found["p2"] {
 		t.Errorf("OtherMembers(init) = %v, want [p1 p2]", others)
 	}
@@ -386,9 +336,7 @@ func TestOtherMembers(t *testing.T) {
 		t.Fatalf("OtherMembers(p1) = %v, want 2 entries", othersP1)
 	}
 	found2 := map[string]bool{}
-	for _, id := range othersP1 {
-		found2[id] = true
-	}
+	for _, id := range othersP1 { found2[id] = true }
 	if !found2["init"] || !found2["p2"] {
 		t.Errorf("OtherMembers(p1) = %v, want [init p2]", othersP1)
 	}
@@ -411,16 +359,8 @@ func TestAllPeerIDs_ReturnsCopy(t *testing.T) {
 
 func TestStateConstants(t *testing.T) {
 	// These string values are persisted in Redis and must never change.
-	if StateWaiting != "waiting" {
-		t.Errorf("StateWaiting = %q, want waiting", StateWaiting)
-	}
-	if StateActive != "active" {
-		t.Errorf("StateActive = %q, want active", StateActive)
-	}
-	if StateFull != "full" {
-		t.Errorf("StateFull = %q, want full", StateFull)
-	}
-	if StateClosed != "closed" {
-		t.Errorf("StateClosed = %q, want closed", StateClosed)
-	}
+	if StateWaiting != "waiting" { t.Errorf("StateWaiting = %q, want waiting", StateWaiting) }
+	if StateActive  != "active"  { t.Errorf("StateActive = %q, want active", StateActive) }
+	if StateFull    != "full"    { t.Errorf("StateFull = %q, want full", StateFull) }
+	if StateClosed  != "closed"  { t.Errorf("StateClosed = %q, want closed", StateClosed) }
 }

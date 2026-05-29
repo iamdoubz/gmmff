@@ -25,8 +25,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/iamdoubz/gmmff/internal/peerconfig"
-	"github.com/iamdoubz/gmmff/internal/transfer"
+	"github.com/iamdoubz/gmmff/v2/internal/peerconfig"
+	"github.com/iamdoubz/gmmff/v2/internal/transfer"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -35,42 +35,42 @@ const IdleTimeout = 10 * time.Minute
 
 // transferRequest is an item on the outbound queue.
 type transferRequest struct {
-	filePath   string // empty = bytes transfer
-	fileName   string
-	fileData   []byte // non-nil = in-memory (Wasm)
-	isZip      bool
-	message    string
+	filePath string   // empty = bytes transfer
+	fileName string
+	fileData []byte   // non-nil = in-memory (Wasm)
+	isZip    bool
+	message  string
 	onProgress transfer.ProgressFunc
-	done       chan error // closed when the transfer completes or fails
+	done     chan error // closed when the transfer completes or fails
 }
 
 // Event is an inbound session event delivered to the caller.
 type Event struct {
-	Type      EventType
-	Message   string  // EventMessage: text; EventTransferDone: filename; EventError: error text
-	From      string  // EventMessage: sender peer ID (empty = initiator sent it)
-	Data      []byte  // EventTransferDone: file bytes (Wasm only, nil on CLI)
-	Path      string  // EventTransferDone: saved path (CLI only)
-	Total     int64   // EventTransferStarted: file size
-	Label     string  // EventTransferStarted/Progress: channel label
-	Done      int64   // EventTransferProgress: bytes received so far
-	Speed     float64 // EventTransferProgress: bytes/sec
-	PeerCount int     // EventPeerJoined/Left: new count
-	MaxPeers  int     // EventPeerJoined: session max
+	Type    EventType
+	Message string          // EventMessage: text; EventTransferDone: filename; EventError: error text
+	From    string          // EventMessage: sender peer ID (empty = initiator sent it)
+	Data    []byte          // EventTransferDone: file bytes (Wasm only, nil on CLI)
+	Path    string          // EventTransferDone: saved path (CLI only)
+	Total   int64           // EventTransferStarted: file size
+	Label   string          // EventTransferStarted/Progress: channel label
+	Done      int64           // EventTransferProgress: bytes received so far
+	Speed     float64         // EventTransferProgress: bytes/sec
+	PeerCount int             // EventPeerJoined/Left: new count
+	MaxPeers  int             // EventPeerJoined: session max
 }
 
 type EventType int
 
 const (
-	EventMessage          EventType = iota // remote sent a text message
-	EventTransferStarted                   // remote is sending a file
-	EventTransferProgress                  // progress update on an active receive
-	EventTransferDone                      // file fully received and verified
-	EventTransferQueued                    // local outbound transfer was queued
-	EventPeerLeft                          // remote peer left quietly
-	EventPeerJoined                        // new peer joined the session
-	EventSessionClosed                     // session ended for everyone
-	EventError                             // non-fatal error
+	EventMessage         EventType = iota // remote sent a text message
+	EventTransferStarted                  // remote is sending a file
+	EventTransferProgress                 // progress update on an active receive
+	EventTransferDone                     // file fully received and verified
+	EventTransferQueued                   // local outbound transfer was queued
+	EventPeerLeft                         // remote peer left quietly
+	EventPeerJoined                       // new peer joined the session
+	EventSessionClosed                    // session ended for everyone
+	EventError                            // non-fatal error
 )
 
 // peerConn holds one peer's WebRTC connection and control channel.
@@ -149,7 +149,7 @@ func New(
 
 // SetContext replaces the session context (used by multi-peer initiator).
 func (s *Session) SetContext(ctx context.Context, cancel context.CancelFunc) {
-	s.ctx = ctx
+	s.ctx    = ctx
 	s.cancel = cancel
 }
 
@@ -157,7 +157,7 @@ func (s *Session) SetContext(ctx context.Context, cancel context.CancelFunc) {
 func (s *Session) AddPeerInfo(peerID string, peerCount, maxPeers int) {
 	s.peers[0].peerID = peerID
 	s.peerCount = peerCount
-	s.MaxPeers = maxPeers
+	s.MaxPeers  = maxPeers
 	s.emit(Event{Type: EventPeerJoined, PeerCount: peerCount, MaxPeers: maxPeers})
 }
 
@@ -167,7 +167,7 @@ func (s *Session) AddPeer(peerID string, pc *webrtc.PeerConnection, controlDC *w
 	s.peersMu.Lock()
 	s.peers = append(s.peers, pc2)
 	s.peerCount = peerCount
-	s.MaxPeers = maxPeers
+	s.MaxPeers  = maxPeers
 	s.peersMu.Unlock()
 	// Wire the new peer's data channel into the session.
 	s.wirePeer(pc2)
@@ -298,6 +298,7 @@ func (s *Session) Run() {
 		s.wirePeer(p)
 	}
 
+
 	// Outbound sender loop.
 	go s.senderLoop()
 
@@ -321,9 +322,7 @@ func (s *Session) Run() {
 // Safe to call from AddPeer() after Run() has started.
 func (s *Session) wirePeer(p *peerConn) {
 	p.controlDC.OnMessage(func(m webrtc.DataChannelMessage) {
-		if len(m.Data) == 0 {
-			return
-		}
+		if len(m.Data) == 0 { return }
 		s.resetIdle()
 		s.handleControlFrame(m.Data, p)
 	})
@@ -371,17 +370,13 @@ func (s *Session) wirePeer(p *peerConn) {
 		}
 	})
 	p.pc.OnDataChannel(func(dc *webrtc.DataChannel) {
-		if dc.Label() == "control" {
-			return
-		}
+		if dc.Label() == "control" { return }
 		s.prepareInboundTransfer(dc)
 	})
 }
 
 func max(a, b int) int {
-	if a > b {
-		return a
-	}
+	if a > b { return a }
 	return b
 }
 
@@ -456,7 +451,7 @@ func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 		peerCount, maxPeers := transfer.ParsePeerCountFrame(data)
 		if peerCount > 0 {
 			s.peerCount = peerCount
-			s.MaxPeers = maxPeers
+			s.MaxPeers  = maxPeers
 			// Emit PeerJoined purely to trigger a UI count refresh.
 			// The leave/join system messages handle the text notification separately.
 			s.emit(Event{Type: EventPeerJoined, PeerCount: peerCount, MaxPeers: maxPeers})
@@ -480,9 +475,7 @@ func (s *Session) handleControlFrame(data []byte, src *peerConn) {
 		s.peersMu.Lock()
 		newPeers := s.peers[:0]
 		for _, pp := range s.peers {
-			if pp.peerID != src.peerID {
-				newPeers = append(newPeers, pp)
-			}
+			if pp.peerID != src.peerID { newPeers = append(newPeers, pp) }
 		}
 		s.peers = newPeers
 		s.peerCount = max(1, s.peerCount-1)
@@ -667,8 +660,8 @@ func (s *Session) prepareInboundTransfer(dc *webrtc.DataChannel) {
 		})
 	})
 
-	done := make(chan struct{})
-	errCh := make(chan error, 1)
+	done      := make(chan struct{})
+	errCh     := make(chan error, 1)
 	var closeOnce sync.Once
 
 	// Register OnMessage synchronously — guaranteed race-free with Pion.
@@ -789,16 +782,12 @@ func (s *Session) broadcastToExtraPeers(req *transferRequest, baseLabel string, 
 		go func(pc *peerConn, label string) {
 			ordered := true
 			dc, err := pc.pc.CreateDataChannel(label, &webrtc.DataChannelInit{Ordered: &ordered})
-			if err != nil {
-				return
-			}
+			if err != nil { return }
 			dcOpen := make(chan struct{}, 1)
 			dc.OnOpen(func() { dcOpen <- struct{}{} })
 			select {
-			case <-s.ctx.Done():
-				return
-			case <-time.After(15 * time.Second):
-				return
+			case <-s.ctx.Done(): return
+			case <-time.After(15 * time.Second): return
 			case <-dcOpen:
 			}
 			ackCh := make(chan uint64, 32)
@@ -806,34 +795,21 @@ func (s *Session) broadcastToExtraPeers(req *transferRequest, baseLabel string, 
 			cancelCh := make(chan struct{})
 			var cancelOnce sync.Once
 			dc.OnMessage(func(m webrtc.DataChannelMessage) {
-				if len(m.Data) == 0 {
-					return
-				}
+				if len(m.Data) == 0 { return }
 				switch m.Data[0] {
 				case transfer.TagChunkAck:
-					if seq, err := transfer.ParseAckFrame(m.Data); err == nil {
-						ackCh <- seq
-					}
+					if seq, err := transfer.ParseAckFrame(m.Data); err == nil { ackCh <- seq }
 				case transfer.TagTransferOK:
-					select {
-					case okCh <- struct{}{}:
-					default:
-					}
+					select { case okCh <- struct{}{}: default: }
 				case transfer.TagCancelled:
 					cancelOnce.Do(func() { close(cancelCh) })
 				}
 			})
 			sender := transfer.NewSender(s.ctx, cancelCh, dc, "",
 				ackCh, make(chan uint64, 1), s.cfg.WindowSize, s.cfg.ChunkSize)
-			if req.onProgress != nil {
-				sender.SetProgress(req.onProgress)
-			}
-			if req.message != "" {
-				sender.SetMessage(req.message)
-			}
-			if err := sender.RunFromBytes(req.fileName, req.fileData); err != nil {
-				return
-			}
+			if req.onProgress != nil { sender.SetProgress(req.onProgress) }
+			if req.message != "" { sender.SetMessage(req.message) }
+			if err := sender.RunFromBytes(req.fileName, req.fileData); err != nil { return }
 			select {
 			case <-s.ctx.Done():
 			case <-cancelCh:

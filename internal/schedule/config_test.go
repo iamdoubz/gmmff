@@ -57,8 +57,8 @@ func TestParseFuzzyDuration(t *testing.T) {
 		// ── Errors ────────────────────────────────────────────────────────────
 		{"", 0, "", true},
 		{"banana", 0, "", true},
-		{"d", 0, "", true},    // suffix without number
-		{"w", 0, "", true},    // suffix without number
+		{"d", 0, "", true},   // suffix without number
+		{"w", 0, "", true},   // suffix without number
 		{"1.5d", 0, "", true}, // fractional days not supported
 	}
 
@@ -218,7 +218,7 @@ func TestParseByteSize(t *testing.T) {
 		// ── Empty / invalid → default ─────────────────────────────────────────
 		{"", def},
 		{"banana", def},
-		{"1tb", def},  // unknown suffix → default
+		{"1tb", def}, // unknown suffix → default
 		{"-1gb", def}, // negative
 	}
 

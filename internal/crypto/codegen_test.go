@@ -98,7 +98,7 @@ func TestValidateCode_ValidInputs(t *testing.T) {
 	cases := []string{
 		"bear-cozy-cone",
 		"acid-aged-also",
-		"ab-cd-ef",                               // minimum word length (2 chars each)
+		"ab-cd-ef",       // minimum word length (2 chars each)
 		"abcdefghijkl-abcdefghijkl-abcdefghijkl", // maximum word length (12 chars each)
 	}
 	for _, c := range cases {

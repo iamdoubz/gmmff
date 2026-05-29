@@ -17,13 +17,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/iamdoubz/gmmff/internal/broker"
-	"github.com/iamdoubz/gmmff/internal/peer"
-	"github.com/iamdoubz/gmmff/internal/peerconfig"
-	"github.com/iamdoubz/gmmff/internal/session"
-	"github.com/iamdoubz/gmmff/internal/signaling"
-	"github.com/iamdoubz/gmmff/internal/store"
-	"github.com/iamdoubz/gmmff/pkg/protocol"
+	"github.com/iamdoubz/gmmff/v2/internal/broker"
+	"github.com/iamdoubz/gmmff/v2/internal/peer"
+	"github.com/iamdoubz/gmmff/v2/internal/peerconfig"
+	"github.com/iamdoubz/gmmff/v2/pkg/protocol"
+	"github.com/iamdoubz/gmmff/v2/internal/session"
+	"github.com/iamdoubz/gmmff/v2/internal/signaling"
+	"github.com/iamdoubz/gmmff/v2/internal/store"
 	"github.com/mdp/qrterminal/v3"
 )
 

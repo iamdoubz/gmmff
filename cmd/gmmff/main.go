@@ -13,19 +13,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
-	"github.com/iamdoubz/gmmff/internal/broker"
-	applog "github.com/iamdoubz/gmmff/internal/log"
-	"github.com/iamdoubz/gmmff/internal/peer"
-	"github.com/iamdoubz/gmmff/internal/schedule"
-	"github.com/iamdoubz/gmmff/internal/store"
-	"github.com/iamdoubz/gmmff/internal/turn"
+	"github.com/iamdoubz/gmmff/v2/internal/broker"
+	"github.com/iamdoubz/gmmff/v2/internal/schedule"
+	applog "github.com/iamdoubz/gmmff/v2/internal/log"
+	"github.com/iamdoubz/gmmff/v2/internal/peer"
+	"github.com/iamdoubz/gmmff/v2/internal/store"
+	"github.com/iamdoubz/gmmff/v2/internal/turn"
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 )
@@ -73,14 +73,14 @@ func init() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 type serveConfig struct {
-	addr          string
-	redisURL      string
-	memoryStore   bool
-	logLevel      string
-	logPretty     bool
-	slotTTL       time.Duration
-	webDir        string
-	cspReportOnly bool
+	addr        string
+	redisURL    string
+	memoryStore bool
+	logLevel    string
+	logPretty   bool
+	slotTTL     time.Duration
+	webDir         string
+	cspReportOnly  bool
 	// TLS (optional — use a reverse proxy like Caddy/nginx in production)
 	tlsCert string
 	tlsKey  string
@@ -189,7 +189,7 @@ func runServe(_ *cobra.Command, _ []string) error {
 	// ── ICE push config ───────────────────────────────────────────────────────
 	if uiCfg.PushSTUN || uiCfg.PushTURN {
 		var pushedSTUN []string
-		var rawTURN []string
+		var rawTURN    []string
 
 		if uiCfg.PushSTUN {
 			pushedSTUN = stunServersDefault()

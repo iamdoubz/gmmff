@@ -18,12 +18,12 @@ func newTestStore(t *testing.T) *Store {
 	t.Helper()
 	dir := t.TempDir()
 	cfg := &Config{
-		Dir:          dir,
-		PendingDir:   filepath.Join(dir, "pending"),
-		CompleteDir:  filepath.Join(dir, "complete"),
-		MaxSize:      1 << 30,
+		Dir:         dir,
+		PendingDir:  filepath.Join(dir, "pending"),
+		CompleteDir: filepath.Join(dir, "complete"),
+		MaxSize:     1 << 30,
 		MaxDownloads: 1,
-		TTLOptions:   DefaultTTLOptions(),
+		TTLOptions:  DefaultTTLOptions(),
 	}
 	st, err := NewStore(cfg)
 	if err != nil {
@@ -636,8 +636,8 @@ func TestCleanExpired_MixedFiles(t *testing.T) {
 	// Upload 3 files: 1 expired, 1 exhausted, 1 active.
 	// Expired.
 	expMeta, _ := st.InitUpload(1, 64, time.Now().Add(-time.Second), 1, 64)
-	st.AppendChunk(expMeta.UploadID, 0, fakeChunk(0, 64)) //nolint:errcheck
-	st.FinalizeUpload(expMeta.UploadID, "e", "n", "s")    //nolint:errcheck
+	st.AppendChunk(expMeta.UploadID, 0, fakeChunk(0, 64))         //nolint:errcheck
+	st.FinalizeUpload(expMeta.UploadID, "e", "n", "s")             //nolint:errcheck
 
 	// Exhausted (will download once to exhaust).
 	exhFM := doFullUpload(t, st, 1, 64)

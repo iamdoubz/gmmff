@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/iamdoubz/gmmff/pkg/protocol"
+	"github.com/iamdoubz/gmmff/v2/pkg/protocol"
 	"syscall/js"
 )
 
@@ -66,7 +66,7 @@ func Connect(ctx context.Context, wsURL string) (*Client, error) {
 		opened <- fmt.Errorf("signaling: %s", msg)
 		return nil
 	})
-	ws.Set("onopen", onOpen)
+	ws.Set("onopen",  onOpen)
 	ws.Set("onerror", onErr)
 
 	select {
@@ -105,7 +105,7 @@ func Connect(ctx context.Context, wsURL string) (*Client, error) {
 		return nil
 	})
 	ws.Set("onmessage", onMsg)
-	ws.Set("onclose", onClose)
+	ws.Set("onclose",   onClose)
 
 	go c.writePump()
 	return c, nil
@@ -115,8 +115,8 @@ func Connect(ctx context.Context, wsURL string) (*Client, error) {
 // Public API — identical surface to client_native.go
 // ─────────────────────────────────────────────────────────────────────────────
 
-func (c *Client) Recv() <-chan Message  { return c.recv }
-func (c *Client) Done() <-chan struct{} { return c.done }
+func (c *Client) Recv() <-chan Message    { return c.recv }
+func (c *Client) Done() <-chan struct{}   { return c.done }
 
 func (c *Client) Send(env protocol.Envelope) error {
 	b, err := json.Marshal(env)
