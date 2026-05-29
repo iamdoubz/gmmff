@@ -1,7 +1,7 @@
 // Package transfer defines the application-level file transfer protocol
 // that runs over a WebRTC data channel.
 //
-// Wire format
+// # Wire format
 //
 // All messages are length-prefixed binary frames sent over the SCTP data
 // channel.  The first byte is the message type tag.

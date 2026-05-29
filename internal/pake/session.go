@@ -2,7 +2,7 @@
 // handshake and uses it to cryptographically bind the WebRTC SDP exchange
 // to the shared secret.
 //
-// Zero-trust guarantee
+// # Zero-trust guarantee
 //
 // After CPace completes, both peers hold the same sharedKey.  That key is
 // used to HMAC-SHA256-sign the SDP JSON before it is sent over the signaling
@@ -13,7 +13,7 @@
 // substitute their own SDP fingerprints, because they do not know sharedKey
 // and therefore cannot produce a valid MAC.
 //
-// Key derivation
+// # Key derivation
 //
 // Two subkeys are derived from sharedKey using HKDF-SHA256 with distinct
 // info labels so neither peer can replay the other's MAC:
