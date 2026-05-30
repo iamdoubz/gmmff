@@ -139,48 +139,76 @@ func contains(vals []int, v int) bool {
 // parseField parses a single cron field into a sorted list of matching values.
 func parseField(field string, min, max int) (cronField, error) {
 	var values []int
-
 	for _, part := range strings.Split(field, ",") {
-		if strings.Contains(part, "/") {
-			// Step: */5, 0-30/5
-			sub := strings.SplitN(part, "/", 2)
-			step, err := strconv.Atoi(sub[1])
-			if err != nil || step <= 0 {
-				return cronField{}, fmt.Errorf("invalid step in %q", part)
-			}
-			lo, hi := min, max
-			if sub[0] != "*" {
-				lo, hi, err = parseRange(sub[0], min, max)
-				if err != nil {
-					return cronField{}, err
-				}
-			}
-			for v := lo; v <= hi; v += step {
-				values = append(values, v)
-			}
-		} else if strings.Contains(part, "-") {
-			// Range: 1-5
-			lo, hi, err := parseRange(part, min, max)
-			if err != nil {
-				return cronField{}, err
-			}
-			for v := lo; v <= hi; v++ {
-				values = append(values, v)
-			}
-		} else if part == "*" {
-			for v := min; v <= max; v++ {
-				values = append(values, v)
-			}
-		} else {
-			n, err := strconv.Atoi(part)
-			if err != nil || n < min || n > max {
-				return cronField{}, fmt.Errorf("value %q out of range [%d,%d]", part, min, max)
-			}
-			values = append(values, n)
+		vals, err := parseFieldPart(part, min, max)
+		if err != nil {
+			return cronField{}, err
+		}
+		values = append(values, vals...)
+	}
+	return cronField{values: dedupSorted(values)}, nil
+}
+
+// parseFieldPart parses one comma-separated element of a cron field.
+func parseFieldPart(part string, min, max int) ([]int, error) {
+	switch {
+	case strings.Contains(part, "/"):
+		return parseStepPart(part, min, max)
+	case strings.Contains(part, "-"):
+		return parseRangePart(part, min, max)
+	case part == "*":
+		return parseWildcardPart(min, max), nil
+	default:
+		return parseLiteralPart(part, min, max)
+	}
+}
+
+func parseStepPart(part string, min, max int) ([]int, error) {
+	sub := strings.SplitN(part, "/", 2)
+	step, err := strconv.Atoi(sub[1])
+	if err != nil || step <= 0 {
+		return nil, fmt.Errorf("invalid step in %q", part)
+	}
+	lo, hi := min, max
+	if sub[0] != "*" {
+		lo, hi, err = parseRange(sub[0], min, max)
+		if err != nil {
+			return nil, err
 		}
 	}
+	var values []int
+	for v := lo; v <= hi; v += step {
+		values = append(values, v)
+	}
+	return values, nil
+}
 
-	return cronField{values: dedupSorted(values)}, nil
+func parseRangePart(part string, min, max int) ([]int, error) {
+	lo, hi, err := parseRange(part, min, max)
+	if err != nil {
+		return nil, err
+	}
+	var values []int
+	for v := lo; v <= hi; v++ {
+		values = append(values, v)
+	}
+	return values, nil
+}
+
+func parseWildcardPart(min, max int) []int {
+	values := make([]int, 0, max-min+1)
+	for v := min; v <= max; v++ {
+		values = append(values, v)
+	}
+	return values
+}
+
+func parseLiteralPart(part string, min, max int) ([]int, error) {
+	n, err := strconv.Atoi(part)
+	if err != nil || n < min || n > max {
+		return nil, fmt.Errorf("value %q out of range [%d,%d]", part, min, max)
+	}
+	return []int{n}, nil
 }
 
 func parseRange(s string, min, max int) (int, int, error) {

@@ -398,8 +398,6 @@ func findFreePort() (int, error) {
 func getPreferredLocalIP() string {
 	ifaces, _ := net.Interfaces()
 
-	// Score interfaces: prefer physical/wireless, skip virtual bridges and containers.
-	// Lower score = higher priority.
 	type candidate struct {
 		ip    string
 		score int
@@ -407,60 +405,25 @@ func getPreferredLocalIP() string {
 	var candidates []candidate
 
 	for _, iface := range ifaces {
-		// Skip down, loopback, and point-to-point interfaces.
 		if iface.Flags&net.FlagUp == 0 ||
 			iface.Flags&net.FlagLoopback != 0 ||
 			iface.Flags&net.FlagPointToPoint != 0 {
 			continue
 		}
-
 		name := strings.ToLower(iface.Name)
-
-		// Skip known virtual interface prefixes.
-		virtualPrefixes := []string{
-			"docker", "br-", "veth", "virbr", "vbox", "vmnet",
-			"tun", "tap", "utun", "awdl", "llw", "anpi",
-		}
-		isVirtual := false
-		for _, prefix := range virtualPrefixes {
-			if strings.HasPrefix(name, prefix) {
-				isVirtual = true
-				break
-			}
-		}
-		if isVirtual {
+		if isVirtualInterface(name) {
 			continue
 		}
-
-		// Score by interface name — prefer physical/wireless.
-		score := 50
-		switch {
-		case strings.HasPrefix(name, "eth") || strings.HasPrefix(name, "en"):
-			score = 10 // wired ethernet
-		case strings.HasPrefix(name, "wlan") || strings.HasPrefix(name, "wl") || strings.HasPrefix(name, "wifi"):
-			score = 20 // wireless
-		case strings.HasPrefix(name, "bond") || strings.HasPrefix(name, "team"):
-			score = 30 // bonded
-		}
-
+		score := scoreInterface(name)
 		addrs, _ := iface.Addrs()
 		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
+			ip := addrToIP(addr)
 			if ip == nil || ip.IsLoopback() || ip.IsLinkLocalUnicast() {
 				continue
 			}
 			if ip4 := ip.To4(); ip4 != nil {
-				// Prefer private RFC-1918 ranges.
 				ipStr := ip4.String()
-				if strings.HasPrefix(ipStr, "192.168.") ||
-					strings.HasPrefix(ipStr, "10.") ||
-					strings.HasPrefix(ipStr, "172.") {
+				if isPrivateIPv4(ipStr) {
 					candidates = append(candidates, candidate{ipStr, score})
 				} else {
 					candidates = append(candidates, candidate{ipStr, score + 40})
@@ -472,8 +435,6 @@ func getPreferredLocalIP() string {
 	if len(candidates) == 0 {
 		return "127.0.0.1"
 	}
-
-	// Return the candidate with the lowest score (highest priority).
 	best := candidates[0]
 	for _, c := range candidates[1:] {
 		if c.score < best.score {
@@ -481,6 +442,53 @@ func getPreferredLocalIP() string {
 		}
 	}
 	return best.ip
+}
+
+// isVirtualInterface reports whether the interface name matches a known
+// virtual/container interface prefix that should be skipped.
+func isVirtualInterface(name string) bool {
+	for _, prefix := range []string{
+		"docker", "br-", "veth", "virbr", "vbox", "vmnet",
+		"tun", "tap", "utun", "awdl", "llw", "anpi",
+	} {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// scoreInterface returns a priority score for a network interface (lower = preferred).
+func scoreInterface(name string) int {
+	switch {
+	case strings.HasPrefix(name, "eth") || strings.HasPrefix(name, "en"):
+		return 10 // wired ethernet
+	case strings.HasPrefix(name, "wlan") || strings.HasPrefix(name, "wl") || strings.HasPrefix(name, "wifi"):
+		return 20 // wireless
+	case strings.HasPrefix(name, "bond") || strings.HasPrefix(name, "team"):
+		return 30 // bonded
+	default:
+		return 50
+	}
+}
+
+// addrToIP extracts the net.IP from a net.Addr (IPNet or IPAddr).
+func addrToIP(addr net.Addr) net.IP {
+	switch v := addr.(type) {
+	case *net.IPNet:
+		return v.IP
+	case *net.IPAddr:
+		return v.IP
+	default:
+		return nil
+	}
+}
+
+// isPrivateIPv4 reports whether the IPv4 string is in an RFC-1918 range.
+func isPrivateIPv4(ip string) bool {
+	return strings.HasPrefix(ip, "192.168.") ||
+		strings.HasPrefix(ip, "10.") ||
+		strings.HasPrefix(ip, "172.")
 }
 
 func printQR(url string) error {

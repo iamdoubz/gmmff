@@ -289,60 +289,26 @@ func runScheduleDownload(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	rawURL := args[0]
 
-	// ── 1. Parse share URL ────────────────────────────────────────────────────
 	fileID, keyHex, err := schedule.ParseShareURL(rawURL)
 	if err != nil {
 		return err
 	}
-
-	// ── 2. Derive server base URL from share URL ───────────────────────────────
 	client, err := schedule.NewClient(rawURL)
 	if err != nil {
 		return err
 	}
-
-	// ── 3. Fetch metadata ─────────────────────────────────────────────────────
 	meta, err := client.FetchMeta(ctx, fileID)
 	if err != nil {
 		return err
 	}
-
 	if !schedDlFlags.jsonOut {
-		fmt.Fprintf(os.Stderr, "\n  File:       (encrypted — name revealed after decryption)\n")
-		fmt.Fprintf(os.Stderr, "  Size:       ~%s (plaintext)\n", formatBytes(meta.TotalSize))
-		fmt.Fprintf(os.Stderr, "  Expires:    %s\n", meta.ExpiresAt.Local().Format("2006-01-02 15:04 MST"))
-		if meta.DownloadsLeft == 1 {
-			fmt.Fprintf(os.Stderr, "  ⚠  This is the last download — the link will be invalidated.\n")
-		} else if meta.DownloadsLeft > 0 {
-			fmt.Fprintf(os.Stderr, "  Downloads:  %d remaining\n", meta.DownloadsLeft)
-		}
-		fmt.Fprintln(os.Stderr)
+		printDownloadInfo(meta)
+	}
+	if schedDlFlags.confirm && !confirmDownload(meta) {
+		return nil
 	}
 
-	// ── 4. Optional confirmation ──────────────────────────────────────────────
-	if schedDlFlags.confirm {
-		if meta.DownloadsLeft == 1 {
-			fmt.Fprint(os.Stderr, "This will exhaust the last remaining download. Continue? [y/N] ")
-		} else {
-			fmt.Fprint(os.Stderr, "Continue with download? [y/N] ")
-		}
-		var answer string
-		fmt.Scanln(&answer)
-		if strings.ToLower(strings.TrimSpace(answer)) != "y" {
-			fmt.Fprintln(os.Stderr, "Aborted.")
-			return nil
-		}
-	}
-
-	// ── 5. Resolve output destination ─────────────────────────────────────────
 	toStdout := schedDlFlags.out == "-"
-	var outWriter io.Writer
-	var outPath string
-	var outFile *os.File
-
-	// outWriter is assigned below after the progress bar is created.
-
-	// ── 6. Progress bar (stderr so it doesn't corrupt stdout pipe) ────────────
 	bar := progressbar.NewOptions64(meta.TotalSize,
 		progressbar.OptionSetWriter(os.Stderr),
 		progressbar.OptionShowBytes(true),
@@ -352,28 +318,16 @@ func runScheduleDownload(cmd *cobra.Command, args []string) error {
 		progressbar.OptionSetVisibility(!toStdout && !schedDlFlags.jsonOut),
 	)
 
-	var tempPath string
-	if !toStdout {
-		// Write to a temp file; rename after decryption reveals the filename.
-		f, err := os.CreateTemp("", "gmmff-schedule-*.tmp")
-		if err != nil {
-			return fmt.Errorf("create temp file: %w", err)
-		}
-		tempPath = f.Name()
-		outFile = f
-		outWriter = io.MultiWriter(f, bar)
-	} else {
-		outWriter = os.Stdout
+	outWriter, tempPath, outFile, err := openOutputWriter(toStdout, bar)
+	if err != nil {
+		return err
 	}
 
 	startTime := time.Now()
-
 	result, err := client.Download(ctx, fileID, keyHex, meta, outWriter, schedule.DownloadOptions{
-		Progress: func(written, total int64, _ float64) {
-			bar.Set64(written)
-		},
+		Progress: func(written, _ int64, _ float64) { bar.Set64(written) }, //nolint:errcheck
 	})
-	bar.Finish()
+	bar.Finish() //nolint:errcheck
 
 	if err != nil {
 		if tempPath != "" {
@@ -382,31 +336,79 @@ func runScheduleDownload(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("download failed: %w", err)
 	}
 
-	elapsed := time.Since(startTime)
-	avgSpeed := float64(result.BytesRead) / elapsed.Seconds()
-
-	// ── 7. Rename temp file to final filename ─────────────────────────────────
-	if !toStdout && tempPath != "" {
-		outFile.Close()
-		// Determine final output path.
-		dest := schedDlFlags.out
-		info, statErr := os.Stat(dest)
-		if statErr == nil && info.IsDir() {
-			dest = filepath.Join(dest, result.Filename)
-		} else if dest == "." {
-			dest = result.Filename
-		}
-		if err := os.Rename(tempPath, dest); err != nil {
-			// Rename may fail across filesystems — fall back to copy.
-			if err2 := copyFile(tempPath, dest); err2 != nil {
-				return fmt.Errorf("save file: %w", err2)
-			}
-			os.Remove(tempPath)
-		}
-		outPath = dest
+	avgSpeed := float64(result.BytesRead) / time.Since(startTime).Seconds()
+	outPath, err := finaliseDownloadFile(toStdout, tempPath, outFile, result.Filename)
+	if err != nil {
+		return err
 	}
+	return printDownloadResult(result, outPath, avgSpeed, toStdout)
+}
 
-	// ── 8. Output result ──────────────────────────────────────────────────────
+// printDownloadInfo prints file metadata to stderr before downloading.
+func printDownloadInfo(meta *schedule.PublicFileMeta) {
+	fmt.Fprintf(os.Stderr, "\n  File:       (encrypted — name revealed after decryption)\n")
+	fmt.Fprintf(os.Stderr, "  Size:       ~%s (plaintext)\n", formatBytes(meta.TotalSize))
+	fmt.Fprintf(os.Stderr, "  Expires:    %s\n", meta.ExpiresAt.Local().Format("2006-01-02 15:04 MST"))
+	switch {
+	case meta.DownloadsLeft == 1:
+		fmt.Fprintf(os.Stderr, "  ⚠  This is the last download — the link will be invalidated.\n")
+	case meta.DownloadsLeft > 0:
+		fmt.Fprintf(os.Stderr, "  Downloads:  %d remaining\n", meta.DownloadsLeft)
+	}
+	fmt.Fprintln(os.Stderr)
+}
+
+// confirmDownload prompts the user and returns true if they confirm.
+func confirmDownload(meta *schedule.PublicFileMeta) bool {
+	if meta.DownloadsLeft == 1 {
+		fmt.Fprint(os.Stderr, "This will exhaust the last remaining download. Continue? [y/N] ")
+	} else {
+		fmt.Fprint(os.Stderr, "Continue with download? [y/N] ")
+	}
+	var answer string
+	fmt.Scanln(&answer)
+	if strings.ToLower(strings.TrimSpace(answer)) != "y" {
+		fmt.Fprintln(os.Stderr, "Aborted.")
+		return false
+	}
+	return true
+}
+
+// openOutputWriter sets up the output writer and temp file (if not stdout).
+func openOutputWriter(toStdout bool, bar *progressbar.ProgressBar) (io.Writer, string, *os.File, error) {
+	if toStdout {
+		return os.Stdout, "", nil, nil
+	}
+	f, err := os.CreateTemp("", "gmmff-schedule-*.tmp")
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("create temp file: %w", err)
+	}
+	return io.MultiWriter(f, bar), f.Name(), f, nil
+}
+
+// finaliseDownloadFile closes the temp file and renames it to the final path.
+func finaliseDownloadFile(toStdout bool, tempPath string, outFile *os.File, filename string) (string, error) {
+	if toStdout || tempPath == "" {
+		return "", nil
+	}
+	outFile.Close()
+	dest := schedDlFlags.out
+	if info, err := os.Stat(dest); err == nil && info.IsDir() {
+		dest = filepath.Join(dest, filename)
+	} else if dest == "." {
+		dest = filename
+	}
+	if err := os.Rename(tempPath, dest); err != nil {
+		if err2 := copyFile(tempPath, dest); err2 != nil {
+			return "", fmt.Errorf("save file: %w", err2)
+		}
+		os.Remove(tempPath)
+	}
+	return dest, nil
+}
+
+// printDownloadResult prints or JSON-encodes the download result.
+func printDownloadResult(result *schedule.DownloadResult, outPath string, avgSpeed float64, toStdout bool) error {
 	if schedDlFlags.jsonOut {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -417,7 +419,6 @@ func runScheduleDownload(cmd *cobra.Command, args []string) error {
 			"speed_bps": int64(avgSpeed),
 		})
 	}
-
 	if !toStdout {
 		fmt.Fprintf(os.Stderr, "\n  Saved to:   %s\n", outPath)
 		fmt.Fprintf(os.Stderr, "  Size:       %s\n", formatBytes(result.BytesRead))

@@ -92,7 +92,6 @@ func NewSession(
 func (s *Session) RunCLI(ctx context.Context) error {
 	done := make(chan struct{})
 	idle := time.NewTimer(IdleTimeout)
-
 	resetIdle := func() {
 		if !idle.Stop() {
 			select {
@@ -103,32 +102,8 @@ func (s *Session) RunCLI(ctx context.Context) error {
 		idle.Reset(IdleTimeout)
 	}
 
-	// Register incoming frame handler.
 	s.dc.OnMessage(func(m webrtc.DataChannelMessage) {
-		if len(m.Data) == 0 {
-			return
-		}
-		switch m.Data[0] {
-		case transfer.TagMessage:
-			resetIdle()
-			s.onMsg(s.remoteLabel, transfer.ParseMessageFrame(m.Data))
-
-		case transfer.TagChatClose, transfer.TagCancelled:
-			// Session killed by the initiator — everyone must leave.
-			s.onClose("Session ended by " + s.remoteLabel + ".")
-			select {
-			case <-done:
-			default:
-				close(done)
-			}
-
-		case transfer.TagParticipantLeave:
-			// A participant left quietly; session continues.
-			s.onLeave(s.remoteLabel)
-			// For two-person chat this effectively ends the useful session,
-			// but we leave it open so the initiator can wait for a new joiner
-			// in a future multi-user implementation.
-		}
+		s.handleChatFrame(m.Data, done, resetIdle)
 	})
 
 	fmt.Println("Chat session open. Type a message and press Enter to send.")
@@ -152,51 +127,70 @@ func (s *Session) RunCLI(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			// Ctrl+C — always a quiet leave regardless of role.
 			_ = s.dc.Send(transfer.BuildParticipantLeaveFrame())
 			fmt.Println("\nLeft session.")
 			return nil
-
 		case <-idle.C:
-			// Idle timeout — initiator-level event, close for everyone.
 			_ = s.dc.Send(transfer.BuildChatCloseFrame())
 			s.onClose("Session closed — no activity for " + IdleTimeout.String() + ".")
 			return nil
-
 		case <-done:
 			return nil
-
 		case line, ok := <-lineCh:
 			if !ok {
-				// stdin EOF — quiet leave.
 				_ = s.dc.Send(transfer.BuildParticipantLeaveFrame())
 				fmt.Println("\nLeft session.")
 				return nil
 			}
-			line = strings.TrimSpace(line)
-			if line == QuitCommand {
-				if s.isInitiator {
-					// Initiator \q — end session for everyone.
-					_ = s.dc.Send(transfer.BuildChatCloseFrame())
-					s.onClose("Session ended.")
-				} else {
-					// Responder \q — leave quietly.
-					_ = s.dc.Send(transfer.BuildParticipantLeaveFrame())
-					fmt.Println("\nLeft session.")
-				}
-				return nil
+			if err := s.sendChatLine(strings.TrimSpace(line), resetIdle); err != nil {
+				return err
 			}
-			if line == "" {
-				fmt.Print("> ")
-				continue
-			}
-			if err := s.dc.Send(transfer.BuildMessageFrame(line)); err != nil {
-				return fmt.Errorf("chat: send: %w", err)
-			}
-			resetIdle()
 			fmt.Print("> ")
 		}
 	}
+}
+
+// handleChatFrame dispatches an incoming WebRTC data channel frame.
+func (s *Session) handleChatFrame(data []byte, done chan struct{}, resetIdle func()) {
+	if len(data) == 0 {
+		return
+	}
+	switch data[0] {
+	case transfer.TagMessage:
+		resetIdle()
+		s.onMsg(s.remoteLabel, transfer.ParseMessageFrame(data))
+	case transfer.TagChatClose, transfer.TagCancelled:
+		s.onClose("Session ended by " + s.remoteLabel + ".")
+		select {
+		case <-done:
+		default:
+			close(done)
+		}
+	case transfer.TagParticipantLeave:
+		s.onLeave(s.remoteLabel)
+	}
+}
+
+// sendChatLine processes one typed input line from the REPL.
+func (s *Session) sendChatLine(line string, resetIdle func()) error {
+	if line == "" {
+		return nil
+	}
+	if line == QuitCommand {
+		if s.isInitiator {
+			_ = s.dc.Send(transfer.BuildChatCloseFrame())
+			s.onClose("Session ended.")
+		} else {
+			_ = s.dc.Send(transfer.BuildParticipantLeaveFrame())
+			fmt.Println("\nLeft session.")
+		}
+		return nil
+	}
+	if err := s.dc.Send(transfer.BuildMessageFrame(line)); err != nil {
+		return fmt.Errorf("chat: send: %w", err)
+	}
+	resetIdle()
+	return nil
 }
 
 // SendMessage sends a single message frame and returns.
