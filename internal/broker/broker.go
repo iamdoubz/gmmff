@@ -318,36 +318,13 @@ func (b *Broker) handleSlotJoin(ctx context.Context, c *conn, env protocol.Envel
 		c.sendEnvelope(protocol.ErrorEnvelope("ERR_BAD_PAYLOAD", "malformed slot.join payload"))
 		return
 	}
-	if payload.ProtocolVersion != protocol.Version {
-		c.sendEnvelope(protocol.ErrorEnvelope("ERR_VERSION_MISMATCH",
-			"unsupported protocol version; please update your gmmff client"))
-		return
-	}
-	if !crypto.ValidateCode(payload.Code) {
-		c.sendEnvelope(protocol.ErrorEnvelope("ERR_INVALID_CODE", "invalid slot code format"))
-		return
+
+	sl, err := b.validateJoinRequest(ctx, c, payload)
+	if err != nil || sl == nil {
+		return // validateJoinRequest already sent the error envelope
 	}
 
-	sl, err := b.store.GetByCode(ctx, payload.Code)
-	if err != nil {
-		if errors.Is(err, slot.ErrSlotNotFound) {
-			c.sendEnvelope(protocol.ErrorEnvelope("ERR_SLOT_NOT_FOUND",
-				"slot not found — check the code or ask the sender to create a new one"))
-			return
-		}
-		logger().Error().Str("error_code", "ERR_STORE_LOOKUP").Msg("slot lookup failed")
-		c.sendEnvelope(protocol.ErrorEnvelope("ERR_INTERNAL", "server error; please retry"))
-		return
-	}
-
-	if sl.IsExpired() {
-		_ = b.store.Delete(ctx, sl.ID)
-		c.sendEnvelope(protocol.ErrorEnvelope("ERR_SLOT_EXPIRED",
-			"slot has expired — ask the sender to create a new one"))
-		return
-	}
-
-	// Snapshot existing members before joining.
+	// Snapshot before Join modifies the slot.
 	existingMembers := sl.OtherMembers(c.id)
 	initiatorID := sl.InitiatorID
 
@@ -381,10 +358,51 @@ func (b *Broker) handleSlotJoin(ctx context.Context, c *conn, env protocol.Envel
 		return
 	}
 
+	b.notifyJoinedPeers(c, sl, initiator, existingMembers, initiatorID)
+
+	logger().Info().Str("slot_id", sl.ID).
+		Int("peer_count", sl.ConnectedCount()).Int("max_peers", sl.MaxPeers).
+		Msg("peer joined session")
+}
+
+// validateJoinRequest checks protocol version, code format, store lookup, and expiry.
+// Sends an error envelope and returns (nil, err) on any failure.
+func (b *Broker) validateJoinRequest(ctx context.Context, c *conn, payload protocol.SlotJoinPayload) (*slot.Slot, error) {
+	if payload.ProtocolVersion != protocol.Version {
+		c.sendEnvelope(protocol.ErrorEnvelope("ERR_VERSION_MISMATCH",
+			"unsupported protocol version; please update your gmmff client"))
+		return nil, errors.New("version mismatch")
+	}
+	if !crypto.ValidateCode(payload.Code) {
+		c.sendEnvelope(protocol.ErrorEnvelope("ERR_INVALID_CODE", "invalid slot code format"))
+		return nil, errors.New("invalid code")
+	}
+	sl, err := b.store.GetByCode(ctx, payload.Code)
+	if err != nil {
+		if errors.Is(err, slot.ErrSlotNotFound) {
+			c.sendEnvelope(protocol.ErrorEnvelope("ERR_SLOT_NOT_FOUND",
+				"slot not found — check the code or ask the sender to create a new one"))
+		} else {
+			logger().Error().Str("error_code", "ERR_STORE_LOOKUP").Msg("slot lookup failed")
+			c.sendEnvelope(protocol.ErrorEnvelope("ERR_INTERNAL", "server error; please retry"))
+		}
+		return nil, err
+	}
+	if sl.IsExpired() {
+		_ = b.store.Delete(ctx, sl.ID)
+		c.sendEnvelope(protocol.ErrorEnvelope("ERR_SLOT_EXPIRED",
+			"slot has expired — ask the sender to create a new one"))
+		return nil, errors.New("slot expired")
+	}
+	return sl, nil
+}
+
+// notifyJoinedPeers sends slot.ready and peer.joined messages to all relevant parties.
+func (b *Broker) notifyJoinedPeers(c *conn, sl *slot.Slot, initiator *conn, existingMembers []string, initiatorID string) {
 	peerCount := sl.ConnectedCount()
 	maxPeers := sl.MaxPeers
 
-	// Tell the new joiner their role and session info.
+	// New joiner gets their role and session info.
 	c.sendEnvelope(protocol.MustEnvelope(protocol.MsgSlotReady, protocol.SlotReadyPayload{
 		Role:        "responder",
 		SessionType: sl.SessionType,
@@ -392,29 +410,22 @@ func (b *Broker) handleSlotJoin(ctx context.Context, c *conn, env protocol.Envel
 		PeerCount:   peerCount,
 	}))
 
-	// Tell the initiator: new peer joined — triggers a PAKE+WebRTC handshake.
-	initiator.sendEnvelope(protocol.MustEnvelope(protocol.MsgPeerJoined, protocol.PeerJoinedPayload{
-		PeerID:    c.id,
-		PeerCount: peerCount,
-		MaxPeers:  maxPeers,
-	}))
+	joinedPayload := protocol.PeerJoinedPayload{PeerID: c.id, PeerCount: peerCount, MaxPeers: maxPeers}
 
-	// Notify all other existing members (not initiator, not new joiner).
+	// Initiator gets peer.joined — triggers PAKE+WebRTC handshake.
+	initiator.sendEnvelope(protocol.MustEnvelope(protocol.MsgPeerJoined, joinedPayload))
+
+	// All other existing members also get peer.joined.
 	for _, memberID := range existingMembers {
 		if memberID == initiatorID {
 			continue // already notified above
 		}
 		if member, ok := b.conns[memberID]; ok {
-			member.sendEnvelope(protocol.MustEnvelope(protocol.MsgPeerJoined, protocol.PeerJoinedPayload{
-				PeerID:    c.id,
-				PeerCount: peerCount,
-				MaxPeers:  maxPeers,
-			}))
+			member.sendEnvelope(protocol.MustEnvelope(protocol.MsgPeerJoined, joinedPayload))
 		}
 	}
 
-	// If this is the first peer joining, also send slot.ready to the initiator
-	// so it knows the session has at least one peer and can open its REPL.
+	// First peer joining: also send slot.ready to initiator so it can open its REPL.
 	if len(sl.PeerIDs) == 1 {
 		initiator.sendEnvelope(protocol.MustEnvelope(protocol.MsgSlotReady, protocol.SlotReadyPayload{
 			Role:        "initiator",
@@ -423,10 +434,6 @@ func (b *Broker) handleSlotJoin(ctx context.Context, c *conn, env protocol.Envel
 			PeerCount:   peerCount,
 		}))
 	}
-
-	logger().Info().Str("slot_id", sl.ID).
-		Int("peer_count", peerCount).Int("max_peers", maxPeers).
-		Msg("peer joined session")
 }
 
 // relay forwards an opaque message.
