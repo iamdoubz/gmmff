@@ -27,6 +27,7 @@ import (
 	"github.com/iamdoubz/gmmff/v2/internal/store"
 	"github.com/iamdoubz/gmmff/v2/internal/turn"
 	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
 
@@ -129,11 +130,9 @@ func init() {
 }
 
 func runServe(_ *cobra.Command, _ []string) error {
-	// ── Logging ──────────────────────────────────────────────────────────────
 	applog.Init(serveCfg.logPretty, serveCfg.logLevel)
 	l := applog.Component("main")
 
-	// ── Env validation ────────────────────────────────────────────────────────
 	for _, w := range broker.ValidateEnv() {
 		l().Warn().
 			Str("env_var", w.Key).
@@ -147,108 +146,137 @@ func runServe(_ *cobra.Command, _ []string) error {
 		Str("built_at", date).
 		Msg("gmmff signaling server starting")
 
-	// ── Store ─────────────────────────────────────────────────────────────────
-	var st store.SlotStore
-	if serveCfg.memoryStore {
-		l().Warn().Msg("using in-memory store — data will be lost on restart; NOT for production")
-		st = store.NewMemStore()
-	} else {
-		opts, err := redis.ParseURL(serveCfg.redisURL)
-		if err != nil {
-			return fmt.Errorf("invalid --redis-url: %w", err)
-		}
-		rdb := redis.NewClient(opts)
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := rdb.Ping(ctx).Err(); err != nil {
-			return fmt.Errorf("cannot reach Redis at %q: %w\n"+
-				"  Tip: start Redis with `redis-server` or set --memory for dev mode",
-				serveCfg.redisURL, err)
-		}
-		l().Info().Str("redis_url", redactURL(serveCfg.redisURL)).Msg("Redis connected")
-		st = store.New(rdb, serveCfg.slotTTL)
-	}
-
-	// ── Broker ────────────────────────────────────────────────────────────────
-	b := broker.New(st)
-
-	// ── Schedule feature ──────────────────────────────────────────────────────
-	uiCfg := broker.UIConfigFromEnv()
-	schedCfg, err := schedule.ConfigFromEnv()
+	st, err := setupStore(l)
 	if err != nil {
-		return fmt.Errorf("schedule config: %w", err)
-	}
-	uiCfg.ShowSchedule = schedCfg.Enabled
-
-	// ── HTTP server ───────────────────────────────────────────────────────────
-	if serveCfg.cspReportOnly {
-		l().Warn().Msg("⚠  CSP report-only mode enabled — Content-Security-Policy is NOT enforced; do NOT use in production")
-	}
-	srv := broker.NewServer(b, st, serveCfg.webDir, serveCfg.cspReportOnly, uiCfg)
-
-	// ── ICE push config ───────────────────────────────────────────────────────
-	if uiCfg.PushSTUN || uiCfg.PushTURN {
-		var pushedSTUN []string
-		var rawTURN []string
-
-		if uiCfg.PushSTUN {
-			pushedSTUN = stunServersDefault()
-			l().Info().Strs("servers", pushedSTUN).Msg("STUN push enabled")
-		}
-		if uiCfg.PushTURN {
-			rawTURN = turnServersDefault()
-			// Validate the raw strings are parseable before accepting them.
-			if _, err := turn.ParseAllWithTTL(rawTURN, uiCfg.PushTURNTTL); err != nil {
-				l().Warn().Err(err).Msg("TURN push: failed to parse TURN servers — push disabled")
-				rawTURN = nil
-			} else if len(rawTURN) > 0 {
-				l().Warn().
-					Dur("credential_ttl", uiCfg.PushTURNTTL).
-					Msg("⚠  TURN push enabled — TURN credentials will be sent to all peers (per-session, slot-gated)")
-			}
-		}
-		srv.SetICEConfig(pushedSTUN, rawTURN, uiCfg.PushTURNTTL)
+		return err
 	}
 
-	if schedCfg.Enabled {
-		sh, err := schedule.NewHandler(&schedCfg)
-		if err != nil {
-			return fmt.Errorf("schedule handler: %w", err)
-		}
-		srv.SetScheduleHandler(sh)
-		l().Info().Str("dir", schedCfg.Dir).Msg("schedule feature enabled")
+	b := broker.New(st)
+	uiCfg := broker.UIConfigFromEnv()
+
+	schedCfg, srv, err := setupSchedule(st, b, uiCfg, l)
+	if err != nil {
+		return err
 	}
+
+	setupICEPush(srv, uiCfg, l)
 
 	httpServer := &http.Server{
 		Addr:         serveCfg.addr,
 		Handler:      srv.Handler(),
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 0, // disabled — chunked uploads can be slow
+		WriteTimeout: 0,
 		IdleTimeout:  120 * time.Second,
 	}
 
-	// ── Lifecycle ─────────────────────────────────────────────────────────────
-	ctx, stop := signal.NotifyContext(context.Background(),
-		os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Run hub in background.
 	go b.Run(ctx)
 
-	// Start schedule cleanup goroutine if configured.
 	if schedCfg.Enabled && schedCfg.CleanupInterval != "" {
-		cleanStore, _ := schedule.NewStore(&schedCfg)
-		if err := schedule.StartCleanup(ctx, cleanStore, schedCfg.CleanupInterval); err != nil {
-			l().Warn().Err(err).Msg("schedule cleanup: invalid cron expression, background cleanup disabled")
-		} else {
-			l().Info().Str("interval", schedCfg.CleanupInterval).Msg("schedule cleanup goroutine started")
-		}
+		startScheduleCleanup(ctx, &schedCfg, l)
 	}
 
-	// Start HTTP listener.
+	if err := startHTTPServer(ctx, httpServer, l); err != nil {
+		return err
+	}
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer shutdownCancel()
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		l().Error().Err(err).Msg("graceful shutdown failed")
+	}
+	l().Info().Msg("server stopped cleanly")
+	return nil
+}
+
+// loggerFn is the type returned by applog.Component.
+type loggerFn = func() *zerolog.Logger
+
+func setupStore(l loggerFn) (store.SlotStore, error) {
+	if serveCfg.memoryStore {
+		l().Warn().Msg("using in-memory store — data will be lost on restart; NOT for production")
+		return store.NewMemStore(), nil
+	}
+	opts, err := redis.ParseURL(serveCfg.redisURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid --redis-url: %w", err)
+	}
+	rdb := redis.NewClient(opts)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		return nil, fmt.Errorf("cannot reach Redis at %q: %w\n"+
+			"  Tip: start Redis with `redis-server` or set --memory for dev mode",
+			serveCfg.redisURL, err)
+	}
+	l().Info().Str("redis_url", redactURL(serveCfg.redisURL)).Msg("Redis connected")
+	return store.New(rdb, serveCfg.slotTTL), nil
+}
+
+func setupSchedule(st store.SlotStore, b *broker.Broker, uiCfg broker.UIConfig, l loggerFn) (schedule.Config, *broker.Server, error) {
+	uiCfgCopy := uiCfg
+	schedCfg, err := schedule.ConfigFromEnv()
+	if err != nil {
+		return schedCfg, nil, fmt.Errorf("schedule config: %w", err)
+	}
+	uiCfgCopy.ShowSchedule = schedCfg.Enabled
+
+	if serveCfg.cspReportOnly {
+		l().Warn().Msg("⚠  CSP report-only mode enabled — Content-Security-Policy is NOT enforced; do NOT use in production")
+	}
+	srv := broker.NewServer(b, st, serveCfg.webDir, serveCfg.cspReportOnly, uiCfgCopy)
+
+	if schedCfg.Enabled {
+		sh, err := schedule.NewHandler(&schedCfg)
+		if err != nil {
+			return schedCfg, nil, fmt.Errorf("schedule handler: %w", err)
+		}
+		srv.SetScheduleHandler(sh)
+		l().Info().Str("dir", schedCfg.Dir).Msg("schedule feature enabled")
+	}
+	return schedCfg, srv, nil
+}
+
+func setupICEPush(srv *broker.Server, uiCfg broker.UIConfig, l loggerFn) {
+	if !uiCfg.PushSTUN && !uiCfg.PushTURN {
+		return
+	}
+	var pushedSTUN []string
+	var rawTURN []string
+
+	if uiCfg.PushSTUN {
+		pushedSTUN = stunServersDefault()
+		l().Info().Strs("servers", pushedSTUN).Msg("STUN push enabled")
+	}
+	if uiCfg.PushTURN {
+		rawTURN = turnServersDefault()
+		if _, err := turn.ParseAllWithTTL(rawTURN, uiCfg.PushTURNTTL); err != nil {
+			l().Warn().Err(err).Msg("TURN push: failed to parse TURN servers — push disabled")
+			rawTURN = nil
+		} else if len(rawTURN) > 0 {
+			l().Warn().
+				Dur("credential_ttl", uiCfg.PushTURNTTL).
+				Msg("⚠  TURN push enabled — TURN credentials will be sent to all peers (per-session, slot-gated)")
+		}
+	}
+	srv.SetICEConfig(pushedSTUN, rawTURN, uiCfg.PushTURNTTL)
+}
+
+func startScheduleCleanup(ctx context.Context, schedCfg *schedule.Config, l loggerFn) {
+	cleanStore, _ := schedule.NewStore(schedCfg)
+	if err := schedule.StartCleanup(ctx, cleanStore, schedCfg.CleanupInterval); err != nil {
+		l().Warn().Err(err).Msg("schedule cleanup: invalid cron expression, background cleanup disabled")
+	} else {
+		l().Info().Str("interval", schedCfg.CleanupInterval).Msg("schedule cleanup goroutine started")
+	}
+}
+
+func startHTTPServer(ctx context.Context, httpServer *http.Server, l loggerFn) error {
 	errCh := make(chan error, 1)
 	go func() {
-		l().Info().Str("addr", serveCfg.addr).Msg("listening")
+		l().Info().Str("addr", httpServer.Addr).Msg("listening")
 		var err error
 		if serveCfg.tlsCert != "" && serveCfg.tlsKey != "" {
 			l().Info().Msg("TLS enabled")
@@ -260,23 +288,13 @@ func runServe(_ *cobra.Command, _ []string) error {
 			errCh <- err
 		}
 	}()
-
-	// Wait for signal or listener error.
 	select {
 	case <-ctx.Done():
 		l().Info().Msg("shutdown signal received")
+		return nil
 	case err := <-errCh:
 		return fmt.Errorf("http server: %w", err)
 	}
-
-	// Graceful shutdown: give in-flight requests 15 seconds to finish.
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer shutdownCancel()
-	if err := httpServer.Shutdown(shutdownCtx); err != nil {
-		l().Error().Err(err).Msg("graceful shutdown failed")
-	}
-	l().Info().Msg("server stopped cleanly")
-	return nil
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
