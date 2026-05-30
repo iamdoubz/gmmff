@@ -114,30 +114,8 @@ func runCreate(_ *cobra.Command, _ []string) error {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func runSessionREPL(ctx context.Context, sess *session.Session, stop context.CancelFunc) error {
-	// sessionClosed is closed when a remote EventSessionClosed arrives,
-	// signalling the REPL loop to exit even if blocked on stdin.
 	sessionClosed := make(chan struct{})
-
-	// Print incoming events; detect session close to unblock the REPL.
-	go func() {
-		for ev := range sess.Events {
-			printSessionEvent(ev)
-			if ev.Type == session.EventSessionClosed {
-				stop()
-				select {
-				case <-sessionClosed:
-				default:
-					close(sessionClosed)
-				}
-			}
-		}
-		// sess.Events closed means Run() exited — ensure we unblock.
-		select {
-		case <-sessionClosed:
-		default:
-			close(sessionClosed)
-		}
-	}()
+	go watchSessionEvents(sess, stop, sessionClosed)
 
 	isInitiator := sess.IsInitiator()
 
@@ -175,7 +153,6 @@ func runSessionREPL(ctx context.Context, sess *session.Session, stop context.Can
 			return nil
 		case line, ok := <-lineCh:
 			if !ok {
-				// stdin EOF — leave quietly
 				sess.Leave()
 				return nil
 			}
@@ -192,6 +169,28 @@ func runSessionREPL(ctx context.Context, sess *session.Session, stop context.Can
 			}
 			fmt.Print("> ")
 		}
+	}
+}
+
+// watchSessionEvents drains session events, prints them, and closes
+// sessionClosed when a session-end event arrives.
+func watchSessionEvents(sess *session.Session, stop context.CancelFunc, sessionClosed chan struct{}) {
+	for ev := range sess.Events {
+		printSessionEvent(ev)
+		if ev.Type == session.EventSessionClosed {
+			stop()
+			select {
+			case <-sessionClosed:
+			default:
+				close(sessionClosed)
+			}
+		}
+	}
+	// sess.Events closed means Run() exited — ensure we unblock.
+	select {
+	case <-sessionClosed:
+	default:
+		close(sessionClosed)
 	}
 }
 
