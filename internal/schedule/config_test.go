@@ -236,92 +236,89 @@ func TestParseByteSize(t *testing.T) {
 // parseCIDRList
 // ─────────────────────────────────────────────────────────────────────────────
 
-func TestParseCIDRList(t *testing.T) {
-	t.Run("single_ipv4_cidr", func(t *testing.T) {
-		nets, err := parseCIDRList("192.168.0.0/24")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(nets) != 1 {
-			t.Fatalf("got %d networks, want 1", len(nets))
-		}
-	})
+func TestParseCIDRList_SingleIPv4CIDR(t *testing.T) {
+	nets, err := parseCIDRList("192.168.0.0/24")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(nets) != 1 {
+		t.Fatalf("got %d networks, want 1", len(nets))
+	}
+}
 
-	t.Run("multiple_cidrs", func(t *testing.T) {
-		nets, err := parseCIDRList("192.168.0.0/24,10.0.0.0/8")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(nets) != 2 {
-			t.Fatalf("got %d networks, want 2", len(nets))
-		}
-	})
+func TestParseCIDRList_MultipleCIDRs(t *testing.T) {
+	nets, err := parseCIDRList("192.168.0.0/24,10.0.0.0/8")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(nets) != 2 {
+		t.Fatalf("got %d networks, want 2", len(nets))
+	}
+}
 
-	t.Run("plain_ipv4_becomes_slash32", func(t *testing.T) {
-		nets, err := parseCIDRList("10.0.0.5")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(nets) != 1 {
-			t.Fatalf("got %d networks, want 1", len(nets))
-		}
-		// /32 means only that exact IP is in the network.
-		ip := net.ParseIP("10.0.0.5")
-		if !nets[0].Contains(ip) {
-			t.Errorf("network %v does not contain its own IP %v", nets[0], ip)
-		}
-		outsideIP := net.ParseIP("10.0.0.6")
-		if nets[0].Contains(outsideIP) {
-			t.Errorf("/32 network %v should not contain %v", nets[0], outsideIP)
-		}
-	})
+func TestParseCIDRList_PlainIPv4BecomesSlash32(t *testing.T) {
+	nets, err := parseCIDRList("10.0.0.5")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(nets) != 1 {
+		t.Fatalf("got %d networks, want 1", len(nets))
+	}
+	ip := net.ParseIP("10.0.0.5")
+	if !nets[0].Contains(ip) {
+		t.Errorf("network %v does not contain its own IP %v", nets[0], ip)
+	}
+	outsideIP := net.ParseIP("10.0.0.6")
+	if nets[0].Contains(outsideIP) {
+		t.Errorf("/32 network %v should not contain %v", nets[0], outsideIP)
+	}
+}
 
-	t.Run("plain_ipv6_becomes_slash128", func(t *testing.T) {
-		nets, err := parseCIDRList("::1")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(nets) != 1 {
-			t.Fatalf("got %d networks, want 1", len(nets))
-		}
-		if !nets[0].Contains(net.ParseIP("::1")) {
-			t.Errorf("network %v does not contain ::1", nets[0])
-		}
-	})
+func TestParseCIDRList_PlainIPv6BecomesSlash128(t *testing.T) {
+	nets, err := parseCIDRList("::1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(nets) != 1 {
+		t.Fatalf("got %d networks, want 1", len(nets))
+	}
+	if !nets[0].Contains(net.ParseIP("::1")) {
+		t.Errorf("network %v does not contain ::1", nets[0])
+	}
+}
 
-	t.Run("empty_entries_skipped", func(t *testing.T) {
-		nets, err := parseCIDRList(",192.168.1.0/24,,")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(nets) != 1 {
-			t.Fatalf("got %d networks, want 1", len(nets))
-		}
-	})
+func TestParseCIDRList_EmptyEntriesSkipped(t *testing.T) {
+	nets, err := parseCIDRList(",192.168.1.0/24,,")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(nets) != 1 {
+		t.Fatalf("got %d networks, want 1", len(nets))
+	}
+}
 
-	t.Run("empty_string_returns_nil", func(t *testing.T) {
-		nets, err := parseCIDRList("")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if nets != nil {
-			t.Errorf("expected nil for empty input, got %v", nets)
-		}
-	})
+func TestParseCIDRList_EmptyStringReturnsNil(t *testing.T) {
+	nets, err := parseCIDRList("")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if nets != nil {
+		t.Errorf("expected nil for empty input, got %v", nets)
+	}
+}
 
-	t.Run("invalid_ip_returns_error", func(t *testing.T) {
-		_, err := parseCIDRList("not.an.ip")
-		if err == nil {
-			t.Error("expected error for invalid IP, got nil")
-		}
-	})
+func TestParseCIDRList_InvalidIPReturnsError(t *testing.T) {
+	_, err := parseCIDRList("not.an.ip")
+	if err == nil {
+		t.Error("expected error for invalid IP, got nil")
+	}
+}
 
-	t.Run("invalid_cidr_returns_error", func(t *testing.T) {
-		_, err := parseCIDRList("192.168.0.0/99")
-		if err == nil {
-			t.Error("expected error for invalid CIDR prefix length, got nil")
-		}
-	})
+func TestParseCIDRList_InvalidCIDRReturnsError(t *testing.T) {
+	_, err := parseCIDRList("192.168.0.0/99")
+	if err == nil {
+		t.Error("expected error for invalid CIDR prefix length, got nil")
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
