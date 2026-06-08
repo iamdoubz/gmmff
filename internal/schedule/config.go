@@ -81,7 +81,9 @@ func ConfigFromEnv() (Config, error) {
 	cfg.CompleteDir = filepath.Join(cfg.Dir, "complete")
 
 	// Parse upload IP allowlist.
-	if raw := os.Getenv("GMMFF_SCHEDULE_UPLOAD_IP"); raw != "" {
+	// isAllowAllCIDR guards against "0.0.0.0" being parsed as a /32 host
+	// address that no real client will ever match.
+	if raw := os.Getenv("GMMFF_SCHEDULE_UPLOAD_IP"); raw != "" && !isAllowAllCIDR(raw) {
 		nets, err := parseCIDRList(raw)
 		if err != nil {
 			return cfg, fmt.Errorf("schedule: GMMFF_SCHEDULE_UPLOAD_IP: %w", err)
@@ -90,7 +92,7 @@ func ConfigFromEnv() (Config, error) {
 	}
 
 	// Parse download IP allowlist.
-	if raw := os.Getenv("GMMFF_SCHEDULE_DOWNLOAD_IP"); raw != "" && raw != "0.0.0.0" {
+	if raw := os.Getenv("GMMFF_SCHEDULE_DOWNLOAD_IP"); raw != "" && !isAllowAllCIDR(raw) {
 		nets, err := parseCIDRList(raw)
 		if err != nil {
 			return cfg, fmt.Errorf("schedule: GMMFF_SCHEDULE_DOWNLOAD_IP: %w", err)
@@ -110,6 +112,35 @@ func ConfigFromEnv() (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// isAllowAllCIDR reports whether a raw IP/CIDR string means "everyone".
+// The following values (and any comma-separated combination of them) are
+// treated as "no restriction" — equivalent to leaving the env var unset:
+//
+//	""           — empty
+//	0.0.0.0      — IPv4 any-host (not a valid client address)
+//	0.0.0.0/0    — IPv4 default route (all addresses)
+//	::           — IPv6 any-host
+//	::/0         — IPv6 default route (all addresses)
+//
+// This prevents a common operator mistake where setting
+// GMMFF_SCHEDULE_DOWNLOAD_IP=0.0.0.0 intending "allow all" would instead
+// be parsed as a /32 host address that no real client ever has.
+func isAllowAllCIDR(raw string) bool {
+	allowAll := map[string]bool{
+		"":          true,
+		"0.0.0.0":   true,
+		"0.0.0.0/0": true,
+		"::":        true,
+		"::/0":      true,
+	}
+	for _, entry := range strings.Split(raw, ",") {
+		if !allowAll[strings.TrimSpace(entry)] {
+			return false
+		}
+	}
+	return true
 }
 
 // EnsureDirs creates the pending and complete directories if they don't exist.
