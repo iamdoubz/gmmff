@@ -338,15 +338,29 @@ func validateScheduleVars(add warnAdder) {
 	}
 }
 
+// allowAllIP holds the IP/CIDR entries that mean "no restriction — allow
+// everyone". It mirrors the set in schedule.isAllowAllCIDR so ValidateEnv
+// treats the same forms as allow-all rather than as addresses to validate.
+// The broker and schedule packages are deliberately decoupled (neither
+// imports the other), so this set is duplicated on purpose — keep the two
+// in sync if either changes.
+var allowAllIP = map[string]bool{
+	"":          true,
+	"0.0.0.0":   true,
+	"0.0.0.0/0": true,
+	"::":        true,
+	"::/0":      true,
+}
+
 func validateIPVars(add warnAdder) {
 	for _, key := range []string{"GMMFF_SCHEDULE_UPLOAD_IP", "GMMFF_SCHEDULE_DOWNLOAD_IP"} {
 		raw := strings.TrimSpace(os.Getenv(key))
-		if raw == "" || raw == "0.0.0.0" {
+		if raw == "" {
 			continue
 		}
 		for _, entry := range strings.Split(raw, ",") {
 			entry = strings.TrimSpace(entry)
-			if entry == "" {
+			if entry == "" || allowAllIP[entry] {
 				continue
 			}
 			if msg := validateIPOrCIDR(entry); msg != "" {
