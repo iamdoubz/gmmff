@@ -210,9 +210,9 @@ func TestPrepare_NestedDirectory_StructurePreserved(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string][]byte{
-		"myapp/main.go":      []byte("package main"),
-		"myapp/lib/util.go":  []byte("package lib"),
-		"myapp/lib/math.go":  []byte("package lib // math"),
+		"myapp/main.go":     []byte("package main"),
+		"myapp/lib/util.go": []byte("package lib"),
+		"myapp/lib/math.go": []byte("package lib // math"),
 	}
 	if err := os.WriteFile(filepath.Join(srcDir, "main.go"), want["myapp/main.go"], 0o644); err != nil {
 		t.Fatal(err)
