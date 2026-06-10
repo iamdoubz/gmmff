@@ -39,6 +39,7 @@ clang and a non-Windows host.
 | 3 | Schedule HTTP | `schedule` (handler) | auth, probe, upload init/chunk/complete, download, meta, delete, TTL options, end-to-end — **found the auth-bypass bug** |
 | 4 | Wire protocol | `transfer` | all 17 tag-byte values pinned, frame round-trips, relayed frames, resume frames, receive state machine — **found the path-traversal bug** |
 | 5 | Crypto/slot/pake | `crypto`, `slot`, `pake` | 3-word code format + wordlist integrity, slot state machine, HKDF subkey derivation vs spec, MITM/cross-key rejection |
+| 6 | Archive & store | `archive`, `store` | zip round-trip (fs + in-memory), nested dirs, large payloads, `InjectMessage`, `Summary`; `MemStore` full contract suite reusable for Tier 8 Redis integration |
 
 ---
 
@@ -46,15 +47,18 @@ clang and a non-Windows host.
 
 ### Tier 6 — Archive & in-memory store
 
-**Status:** not started. Pure additive; no production changes expected.
+**Status:** complete.
 
-- `internal/archive`: zip round-trip — create an archive from a set of files,
-  extract it, assert byte-identical contents and preserved structure. Edge
-  cases: empty archive, nested directories, a file whose name needs
-  `sanitiseName` treatment on extraction.
-- `internal/store` `MemStore`: full `SlotStore` interface coverage — create,
-  get-by-id, get-by-code, update, delete, expiry. Assert `MemStore` and the
-  Redis store behave identically for the same operations (shared test table).
+- `internal/archive`: 25 tests covering `Prepare` (pass-through, single dir,
+  multiple files, nested dirs, error cases), `Result.Cleanup` (removes temp,
+  safe on non-temp, idempotent), `ZipFilesFromMemory` (pass-through, nested,
+  round-trip byte-identical, large payload, common/mixed prefix naming),
+  `InjectMessage`, and `Summary`.
+- `internal/store` `MemStore`: `storeContractSuite` shared test table (9
+  sub-tests) run against `MemStore`; plus 4 MemStore-specific tests covering
+  blind-write Update, code index cleanup on Delete, independent multi-slot
+  entries, and Update preserving code index. The contract suite is designed to
+  be reused against the Redis-backed Store in Tier 8.
 
 ### Tier 7 — Transfer & broker coverage with mocks
 
