@@ -40,10 +40,11 @@ clang and a non-Windows host.
 | 4 | Wire protocol | `transfer` | all 17 tag-byte values pinned, frame round-trips, relayed frames, resume frames, receive state machine — **found the path-traversal bug** |
 | 5 | Crypto/slot/pake | `crypto`, `slot`, `pake` | 3-word code format + wordlist integrity, slot state machine, HKDF subkey derivation vs spec, MITM/cross-key rejection |
 | 6 | Archive & store | `archive`, `store` | zip round-trip (fs + in-memory), nested dirs, large payloads, `InjectMessage`, `Summary`; `MemStore` full contract suite reusable for Tier 8 Redis integration |
+| 7 | Transfer & broker | `transfer`, `broker` | sender sliding-window via `mockDataChannel` (8 tests); broker hub via httptest+gorilla WS (12 tests) covering version mismatch, code validation, expired/full slots, star relay, targeted relay, disconnect peer.left, bye propagation |
 
 ---
 
-## Pending tiers (6–8)
+## Pending tiers (8)
 
 ### Tier 6 — Archive & in-memory store
 
@@ -62,16 +63,25 @@ clang and a non-Windows host.
 
 ### Tier 7 — Transfer & broker coverage with mocks
 
-**Status:** not started. Target the largest coverage gaps.
+**Status:** complete.
 
-- `internal/transfer` (currently ~32%): exercise `runFromReader` (the sender
-  sliding-window loop) with a mock `DataChannelWriter` that records frames,
-  simulates backpressure, and can inject ACK timing. Verify window advancement,
-  resume after a gap, and integrity-failure handling.
-- `internal/broker` (currently ~18%): drive `handleSlotJoin`,
-  `validateJoinRequest`, `notifyJoinedPeers`, and `relay` with fake connections.
-  Cover version mismatch, invalid code, expired slot, full slot, initiator
-  disconnect mid-join, and targeted vs star relay.
+- `internal/transfer`: 8 sender tests exercising `RunFromBytes` through
+  `runFromReader` via a `mockDataChannel` that records frames and fires a
+  synchronous `onSend` callback. Covers: single-chunk frame sequence, file-header
+  metadata, multi-chunk ordering, window-size-1 sequential delivery, context
+  cancel (emits `TagCancelled`), remote cancel (`ErrCancelled`), resume-from-seq
+  (seeks to offset, skips earlier chunks), and dc.Send error propagation.
+  The `resumeFrom <- 0` pre-load trick skips the 2-second wait in `runFromReader`
+  making all tests deterministic and fast.
+- `internal/broker`: 12 tests driving the full hub goroutine via an httptest
+  server and real gorilla WebSocket connections. Covers: slot creation (code,
+  slot ID, TTL returned), version mismatch on create and join, invalid code
+  format (`ERR_INVALID_CODE`), slot not found, expired slot (backdated via
+  MemStore), slot full (third peer rejected), successful join (joiner gets
+  `role=responder`, initiator gets `peer.joined` then `slot.ready`), relay without
+  slot (`ERR_NOT_IN_SLOT`), star-topology relay (joiner→initiator), targeted relay
+  (initiator→specific joiner peer ID), initiator disconnect triggers `peer.left`
+  to joiner, graceful bye propagation, and unknown message type.
 
 ### Tier 8 — Integration
 
@@ -94,8 +104,8 @@ clang and a non-Windows host.
 | Package | Coverage |
 |---|---|
 | turn | ~93% |
-| transfer | ~32% (Tier 7 target) |
-| broker | ~18% (Tier 7 target) |
+| transfer | sender path covered (Tier 7); receiver path pending |
+| broker | hub + relay covered (Tier 7); ICE endpoint pending |
 | schedule | handler covered; store integration pending (Tier 8) |
 | crypto, slot, pake | covered (Tier 5) |
 | session | ~0% (Tier 8 target — the big one) |
