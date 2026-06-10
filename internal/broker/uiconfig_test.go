@@ -200,6 +200,48 @@ func TestValidateEnv_InvalidBoolValues(t *testing.T) {
 	}
 }
 
+func TestValidateEnv_IPAllowAllNoWarning(t *testing.T) {
+	// Allow-all IP forms (and comma-combinations of them) mean "no
+	// restriction" and must not be flagged as invalid addresses — mirroring
+	// schedule.isAllowAllCIDR. See allowAllIP in uiconfig.go.
+	allowAll := []string{
+		"0.0.0.0",
+		"0.0.0.0/0",
+		"::",
+		"::/0",
+		"0.0.0.0, ::/0",
+		" ::/0 , 0.0.0.0 ",
+	}
+	for _, key := range []string{"GMMFF_SCHEDULE_UPLOAD_IP", "GMMFF_SCHEDULE_DOWNLOAD_IP"} {
+		for _, val := range allowAll {
+			key, val := key, val
+			t.Run(key+"="+val, func(t *testing.T) {
+				setEnv(t, key, val)
+				for _, w := range ValidateEnv() {
+					if w.Key == key {
+						t.Errorf("allow-all %s=%q should not warn, got: %s", key, val, w.Message)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestValidateEnv_IPInvalidEntryWarns(t *testing.T) {
+	// A genuinely malformed entry must still be flagged, including when it is
+	// mixed in with an allow-all entry.
+	setEnv(t, "GMMFF_SCHEDULE_UPLOAD_IP", "0.0.0.0/0, 10.0.0.0/zz")
+	found := false
+	for _, w := range ValidateEnv() {
+		if w.Key == "GMMFF_SCHEDULE_UPLOAD_IP" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected warning for malformed IP entry, got none")
+	}
+}
+
 func TestValidateEnv_ValidBoolValues(t *testing.T) {
 	validBools := []string{"true", "false", "1", "0", "TRUE", "FALSE"}
 	for _, val := range validBools {
