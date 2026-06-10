@@ -42,3 +42,5 @@ web/static/wasm_exec.js
 # The .gitkeep file is tracked so the embed pattern resolves at build time.
 internal/localmode/static/*
 !internal/localmode/static/.gitkeep
+
+.claude/
