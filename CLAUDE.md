@@ -6,6 +6,27 @@ bugs already fixed — do not reintroduce them.
 
 ---
 
+## Companion docs — read these too
+
+Two files in `docs/` extend this guide. Read both at the start of any
+non-trivial session; treat them as authoritative alongside this file.
+
+- **`docs/DECISIONS.md`** — architecture decision log. The *why* behind choices
+  that aren't obvious from the code: why `/api/ice` is gated, why chat uses the
+  full session model, why wire bytes are frozen, why `0.0.0.0` means allow-all.
+  Before changing anything load-bearing, check whether a decision record already
+  explains the current design. When you make a new non-obvious decision, append
+  an ADR entry.
+- **`docs/TEST-PLAN.md`** — the tiered test strategy: what's covered (Tiers 1–5),
+  what's pending (Tiers 6–8), the coverage snapshot, and which tests are
+  security-load-bearing. Consult it before writing tests or planning coverage
+  work, and update the status as tiers land.
+
+If guidance here conflicts with a companion doc, this file wins for *conventions*
+and `DECISIONS.md` wins for *rationale*; reconcile and flag the conflict.
+
+---
+
 ## What gmmff is
 
 gmmff (pronounced "gimph") is a secure peer-to-peer file transfer and chat
@@ -171,6 +192,10 @@ the shared helper so both tabs benefit — don't fork per-tab logic.
 ---
 
 ## Testing philosophy
+
+> Full strategy, coverage snapshot, and pending work live in
+> **`docs/TEST-PLAN.md`** — that file is the source of truth; the summary here
+> is orientation only.
 
 Tests have repeatedly caught **real production bugs** (auth bypass, path
 traversal, non-deterministic byte-size parsing, `formatDurationLabel(0)`).
