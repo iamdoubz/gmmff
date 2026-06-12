@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -88,6 +87,10 @@ func (s *Store) InitUpload(chunksTotal int, totalSize int64, expires time.Time, 
 		ExpiresAt:    expires,
 		MaxDownloads: maxDownloads,
 		CreatedAt:    time.Now().UTC(),
+	}
+	// Give this upload its own directory so its files never collide with others.
+	if err := os.MkdirAll(s.pendingDir(id), 0o750); err != nil {
+		return nil, fmt.Errorf("schedule: create pending dir: %w", err)
 	}
 	if err := s.writePendingMeta(meta); err != nil {
 		return nil, err
@@ -177,15 +180,18 @@ func (s *Store) FinalizeUpload(uploadID string, fileNameEnc, fileNameNonce, sha2
 		CreatedAt:     meta.CreatedAt,
 	}
 
-	// Move enc file.
+	// Give the completed file its own directory, then move the enc file into it.
+	if err := os.MkdirAll(s.completeDir(fileID), 0o750); err != nil {
+		return nil, fmt.Errorf("schedule: create complete dir: %w", err)
+	}
 	if err := os.Rename(s.pendingEncPath(uploadID), s.completeEncPath(fileID)); err != nil {
 		return nil, fmt.Errorf("schedule: move enc: %w", err)
 	}
-	// Write final meta and remove pending meta.
+	// Write final meta and remove the entire pending directory for this upload.
 	if err := s.writeFileMeta(fm); err != nil {
 		return nil, err
 	}
-	_ = os.Remove(s.pendingMetaPath(uploadID))
+	_ = os.RemoveAll(s.pendingDir(uploadID))
 
 	return fm, nil
 }
@@ -239,8 +245,7 @@ func (s *Store) Delete(fileID, deleteKey string) error {
 	if meta.DeleteKey != deleteKey {
 		return fmt.Errorf("schedule: invalid delete key")
 	}
-	_ = os.Remove(s.completeEncPath(fileID))
-	_ = os.Remove(s.completeMetaPath(fileID))
+	_ = os.RemoveAll(s.completeDir(fileID))
 	return nil
 }
 
@@ -255,13 +260,14 @@ func (s *Store) CleanExpired() (int, error) {
 	removed := 0
 	now := time.Now()
 
-	// Clean complete files.
+	// Clean complete uploads. Each lives in its own directory named by file ID;
+	// an expired or download-exhausted upload has its whole directory removed.
 	entries, _ := os.ReadDir(s.cfg.CompleteDir)
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".meta") {
+		if !e.IsDir() {
 			continue
 		}
-		fileID := strings.TrimSuffix(e.Name(), ".meta")
+		fileID := e.Name()
 		meta, err := s.ReadFileMeta(fileID)
 		if err != nil {
 			continue
@@ -269,27 +275,25 @@ func (s *Store) CleanExpired() (int, error) {
 		expired := now.After(meta.ExpiresAt)
 		exhausted := meta.DownloadsLeft == 0
 		if expired || exhausted {
-			_ = os.Remove(s.completeEncPath(fileID))
-			_ = os.Remove(s.completeMetaPath(fileID))
+			_ = os.RemoveAll(s.completeDir(fileID))
 			removed++
 		}
 	}
 
-	// Clean stale pending uploads (older than 24h).
+	// Clean stale pending uploads (older than 24h). Each is its own directory.
 	staleThreshold := now.Add(-24 * time.Hour)
 	pendingEntries, _ := os.ReadDir(s.cfg.PendingDir)
 	for _, e := range pendingEntries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".meta") {
+		if !e.IsDir() {
 			continue
 		}
-		uploadID := strings.TrimSuffix(e.Name(), ".meta")
+		uploadID := e.Name()
 		meta, err := s.ReadPendingMeta(uploadID)
 		if err != nil {
 			continue
 		}
 		if meta.CreatedAt.Before(staleThreshold) {
-			_ = os.Remove(s.pendingEncPath(uploadID))
-			_ = os.Remove(s.pendingMetaPath(uploadID))
+			_ = os.RemoveAll(s.pendingDir(uploadID))
 			removed++
 		}
 	}
@@ -339,17 +343,27 @@ func (s *Store) writeFileMeta(m *FileMeta) error {
 // Path helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Each upload lives in its own directory named by its ID, so an upload's
+// ciphertext and meta sidecar are isolated from every other upload's files.
+// pending/<uploadID>/ during transfer; complete/<fileID>/ once finalized.
+
+func (s *Store) pendingDir(id string) string {
+	return filepath.Join(s.cfg.PendingDir, id)
+}
 func (s *Store) pendingEncPath(id string) string {
-	return filepath.Join(s.cfg.PendingDir, id+".enc")
+	return filepath.Join(s.pendingDir(id), "data.enc")
 }
 func (s *Store) pendingMetaPath(id string) string {
-	return filepath.Join(s.cfg.PendingDir, id+".meta")
+	return filepath.Join(s.pendingDir(id), "meta.json")
+}
+func (s *Store) completeDir(id string) string {
+	return filepath.Join(s.cfg.CompleteDir, id)
 }
 func (s *Store) completeEncPath(id string) string {
-	return filepath.Join(s.cfg.CompleteDir, id+".enc")
+	return filepath.Join(s.completeDir(id), "data.enc")
 }
 func (s *Store) completeMetaPath(id string) string {
-	return filepath.Join(s.cfg.CompleteDir, id+".meta")
+	return filepath.Join(s.completeDir(id), "meta.json")
 }
 
 func randomHex(n int) (string, error) {
