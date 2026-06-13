@@ -4,9 +4,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"syscall"
 	"time"
 )
 
@@ -184,7 +187,7 @@ func (s *Store) FinalizeUpload(uploadID string, fileNameEnc, fileNameNonce, sha2
 	if err := os.MkdirAll(s.completeDir(fileID), 0o750); err != nil {
 		return nil, fmt.Errorf("schedule: create complete dir: %w", err)
 	}
-	if err := os.Rename(s.pendingEncPath(uploadID), s.completeEncPath(fileID)); err != nil {
+	if err := moveFile(s.pendingEncPath(uploadID), s.completeEncPath(fileID)); err != nil {
 		return nil, fmt.Errorf("schedule: move enc: %w", err)
 	}
 	// Write final meta and remove the entire pending directory for this upload.
@@ -378,4 +381,44 @@ func randomHex(n int) (string, error) {
 // Used internally by the download handler after auth is confirmed.
 func (s *Store) OpenComplete(fileID string) (*os.File, error) {
 	return os.Open(s.completeEncPath(fileID))
+}
+
+// moveFile moves src to dst. It first tries an atomic os.Rename, which only
+// works within a single filesystem. When pending/ and complete/ live on
+// different devices (e.g. separate Docker volumes, a tmpfs, or distinct
+// mounts), rename fails with EXDEV ("invalid cross-device link"); in that case
+// we fall back to copying the bytes and removing the original.
+func moveFile(src, dst string) error {
+	if err := os.Rename(src, dst); err == nil {
+		return nil
+	} else if !errors.Is(err, syscall.EXDEV) {
+		return err
+	}
+	if err := copyFileContents(src, dst); err != nil {
+		return err
+	}
+	return os.Remove(src)
+}
+
+// copyFileContents copies src to dst, flushing to disk before returning.
+func copyFileContents(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o640)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	if err := out.Sync(); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
 }
