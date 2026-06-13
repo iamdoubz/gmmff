@@ -662,3 +662,68 @@ func TestCleanExpired_MixedFiles(t *testing.T) {
 		t.Error("active file should not have been removed")
 	}
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// moveFile / copyFileContents — cross-device-safe move used by FinalizeUpload
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestMoveFile_MovesAndRemovesOriginal(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.bin")
+	dst := filepath.Join(dir, "sub", "dst.bin")
+	want := []byte("encrypted-payload-bytes")
+
+	if err := os.WriteFile(src, want, 0o640); err != nil {
+		t.Fatalf("write src: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o750); err != nil {
+		t.Fatalf("mkdir dst: %v", err)
+	}
+
+	if err := moveFile(src, dst); err != nil {
+		t.Fatalf("moveFile: %v", err)
+	}
+
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read dst: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("dst contents: got %q, want %q", got, want)
+	}
+	if _, err := os.Stat(src); !os.IsNotExist(err) {
+		t.Error("source should be gone after moveFile")
+	}
+}
+
+func TestCopyFileContents_ByteIdentical(t *testing.T) {
+	// copyFileContents is the cross-device fallback path in moveFile; verify it
+	// reproduces the source bytes exactly.
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.bin")
+	dst := filepath.Join(dir, "dst.bin")
+	want := make([]byte, 4096)
+	for i := range want {
+		want[i] = byte(i % 251)
+	}
+	if err := os.WriteFile(src, want, 0o640); err != nil {
+		t.Fatalf("write src: %v", err)
+	}
+
+	if err := copyFileContents(src, dst); err != nil {
+		t.Fatalf("copyFileContents: %v", err)
+	}
+
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatalf("read dst: %v", err)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("dst size: got %d, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("byte %d differs: got %d, want %d", i, got[i], want[i])
+		}
+	}
+}
