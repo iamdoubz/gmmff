@@ -8,7 +8,7 @@ The `gmmff` binary is an all-in-one file. From this file, you can start the sign
 
 - golang >= 1.23 (1.26 recommended) [Download here](https://go.dev/)
 - git (For Windows users I use [this](https://git-scm.com/install/windows))
-- redis-server (For production environments)
+- redis-server **or** valkey-server (For production environments — either works; they are wire-compatible)
 
 ### Optional
 
