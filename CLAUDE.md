@@ -34,10 +34,12 @@ system with a scheduled-delivery ("Schedule") feature.
 
 - **Module path:** `github.com/iamdoubz/gmmff/v2` — this is a **v2 module**.
   The `/v2` suffix is **mandatory** in every internal import. Never drop it.
-- **Architecture:** Star-topology WebRTC. A Go signaling server (Redis-backed)
-  brokers WebSocket connections between peers. Peers then establish a
-  CPace PAKE + HKDF-authenticated WebRTC DTLS 1.3 data channel (SCTP) for the
-  actual transfer. The signaling server never sees file contents.
+- **Architecture:** Star-topology WebRTC. A Go signaling server (backed by
+  Redis **or** Valkey — they are wire-compatible drop-ins, selected via
+  `GMMFF_REDIS_URL`) brokers WebSocket connections between peers. Peers then
+  establish a CPace PAKE + HKDF-authenticated
+  WebRTC DTLS 1.3 data channel (SCTP) for the actual transfer. The signaling
+  server never sees file contents.
 - **Clients:** Browser client is Go compiled to Wasm (`web/cmd/gmmff-wasm`).
   There is also a native CLI (`cmd/gmmff`).
 - **Repo:** https://github.com/iamdoubz/gmmff
@@ -263,7 +265,8 @@ Treat them as a safety net worth investing in.
 ## Outstanding security tracking (verify before release)
 
 - pion/dtls/v3 ≥ v3.1.1 (CVE-2026-26014)
-- Redis ≥ 7.4.6 (CVE-2025-49844)
+- Redis ≥ 7.4.6 / Valkey ≥ 7.2.8 (CVE-2025-49844 — the "RediShell" Lua flaw is
+  shared lineage and affects both; patch whichever backend you deploy)
 - golang.org/x/crypto ≥ v0.45.0 (CVE-2025-47914, CVE-2025-58181)
 
 Confirm current versions in `go.mod` against these floors when cutting a
