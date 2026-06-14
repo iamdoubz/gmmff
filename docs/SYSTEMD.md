@@ -69,9 +69,13 @@ sudo chmod 750 /var/log/gmmff
 
 ---
 
-## Redis Unix socket access (optional)
+## Redis / Valkey Unix socket access (optional)
 
-If you are connecting to Redis via a Unix socket (`unix:///var/run/redis/redis.sock`),
+The store may be Redis or Valkey — Valkey is a wire-compatible drop-in, so the
+steps below are identical (substitute `valkey-server` / `valkey-cli` and the
+`valkey` group/socket path if you run Valkey).
+
+If you are connecting via a Unix socket (`unix:///var/run/redis/redis.sock`),
 the `gmmff` user needs to be in the `redis` group to access the socket file:
 
 ```bash
