@@ -199,7 +199,7 @@ func setupStore(l loggerFn) (store.SlotStore, error) {
 		l().Warn().Msg("using in-memory store — data will be lost on restart; NOT for production")
 		return store.NewMemStore(), nil
 	}
-	opts, err := redis.ParseURL(serveCfg.redisURL)
+	opts, err := redis.ParseURL(normalizeCacheURL(serveCfg.redisURL))
 	if err != nil {
 		return nil, fmt.Errorf("invalid --redis-url: %w", err)
 	}
@@ -207,11 +207,11 @@ func setupStore(l loggerFn) (store.SlotStore, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := rdb.Ping(ctx).Err(); err != nil {
-		return nil, fmt.Errorf("cannot reach Redis at %q: %w\n"+
-			"  Tip: start Redis with `redis-server` or set --memory for dev mode",
+		return nil, fmt.Errorf("cannot reach Redis/Valkey at %q: %w\n"+
+			"  Tip: start a server with `redis-server` or `valkey-server`, or set --memory for dev mode",
 			serveCfg.redisURL, err)
 	}
-	l().Info().Str("redis_url", redactURL(serveCfg.redisURL)).Msg("Redis connected")
+	l().Info().Str("redis_url", redactURL(serveCfg.redisURL)).Msg("Redis/Valkey connected")
 	return store.New(rdb, serveCfg.slotTTL), nil
 }
 
@@ -366,10 +366,25 @@ func parseTURNServers(raw []string) ([]turn.Server, error) {
 	return turn.ParseAll(raw)
 }
 
-// redactURL strips credentials from a Redis URL before logging.
+// normalizeCacheURL accepts Valkey-style URL schemes and rewrites them to the
+// Redis schemes that redis.ParseURL understands. Valkey is wire-compatible with
+// Redis, so go-redis talks to either server unchanged; this only lets operators
+// write a natural valkey:// (or valkeys:// for TLS) URL in GMMFF_REDIS_URL.
+func normalizeCacheURL(raw string) string {
+	switch {
+	case strings.HasPrefix(raw, "valkeys://"):
+		return "rediss://" + strings.TrimPrefix(raw, "valkeys://")
+	case strings.HasPrefix(raw, "valkey://"):
+		return "redis://" + strings.TrimPrefix(raw, "valkey://")
+	default:
+		return raw
+	}
+}
+
+// redactURL strips credentials from a Redis/Valkey URL before logging.
 // Handles both tcp (redis://) and unix socket (unix://) URLs.
 func redactURL(raw string) string {
-	opts, err := redis.ParseURL(raw)
+	opts, err := redis.ParseURL(normalizeCacheURL(raw))
 	if err != nil {
 		return "<invalid url>"
 	}
