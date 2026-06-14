@@ -125,18 +125,19 @@ docker compose up -d
 # Server available at ws://localhost:8080/ws
 ```
 
-### Option B — Local Go + Redis
+### Option B — Local Go + Redis or Valkey
 
-Prerequisites: **Go 1.23+**, **Redis 7+**
+Prerequisites: **Go 1.23+**, and **Redis 7+** *or* **Valkey 7.2+** (wire-compatible
+drop-in — the same client talks to either; use a `valkey://` URL if you prefer).
 
 ```bash
-# Start Redis
+# Start Redis (or: valkey-server)
 redis-server
 
-# Run with in-memory store (no Redis needed for dev)
+# Run with in-memory store (no Redis/Valkey needed for dev)
 go run ./cmd/gmmff serve --memory --log-pretty --log-level debug
 
-# Or with Redis
+# Or with Redis/Valkey (set GMMFF_REDIS_URL; valkey:// is accepted)
 go run ./cmd/gmmff serve --log-pretty --log-level debug
 ```
 

@@ -1,11 +1,17 @@
 services:
+  # Cache/store. Redis by default; Valkey is a wire-compatible drop-in.
+  # To use Valkey instead, set these in your shell or project-root .env:
+  #   GMMFF_CACHE_IMAGE=valkey/valkey:8-alpine
+  #   GMMFF_CACHE_SERVER=valkey-server
+  # The service is intentionally named "redis" so GMMFF_REDIS_URL=redis://redis:6379
+  # keeps working for either backend. The server flags are identical for both.
   redis:
-    image: redis:8-alpine
+    image: ${GMMFF_CACHE_IMAGE:-redis:8-alpine}
     container_name: gmmff-redis
     mem_limit: 92M
     restart: unless-stopped
     command: >
-      redis-server
+      ${GMMFF_CACHE_SERVER:-redis-server}
         --save 60 1
         --loglevel warning
         --maxmemory 64mb
@@ -13,7 +19,8 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # Works on both images: whichever CLI exists answers; the other is skipped.
+      test: ["CMD-SHELL", "redis-cli ping || valkey-cli ping"]
       interval: 5s
       timeout: 3s
       retries: 3
