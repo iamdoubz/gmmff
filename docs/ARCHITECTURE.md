@@ -42,7 +42,12 @@ out of the loop. File data never passes through it.
 
 ---
 
-## Redis storage layout
+## Redis / Valkey storage layout
+
+> The store is any RESP-compatible server. **Redis** and **Valkey** are both
+> supported — Valkey is a wire-compatible drop-in, so the `go-redis` client and
+> the key layout below are identical for either. Pick one via `GMMFF_REDIS_URL`
+> (a `valkey://` URL is accepted as an alias for `redis://`).
 
 ```
 Key              Type     TTL      Value
