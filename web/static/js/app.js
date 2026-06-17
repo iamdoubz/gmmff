@@ -1706,10 +1706,19 @@ function schedShowTab() {
 
 // ── Auth check ────────────────────────────────────────────────────────────────
 function schedCheckAuth() {
+  // A download/delete share link (?type=schedule&id=...) is NEVER subject to
+  // upload auth. The upload password and upload IP allowlist gate *uploading*
+  // only; download access is governed solely by GMMFF_SCHEDULE_DOWNLOAD_IP and
+  // enforced server-side. So if the page was opened via a share link, dispatch
+  // it directly and skip the upload-password gate — otherwise a remote
+  // downloader who isn't in the upload allowlist would be wrongly prompted for
+  // the upload password and could never reach the download view.
+  const hasShareLink = !!(window._schedURLCache && window._schedURLCache.fileID);
+
   fetch('/api/schedule/auth', { method: 'POST' })
     .then(r => r.json())
     .then(data => {
-      if (data.needs_password) {
+      if (data.needs_password && !hasShareLink) {
         schedSetState('password');
       } else {
         schedSetState('landing');
@@ -1717,7 +1726,10 @@ function schedCheckAuth() {
         schedHandleURLParams();
       }
     })
-    .catch(() => schedSetState('landing'));
+    .catch(() => {
+      schedSetState('landing');
+      schedHandleURLParams();
+    });
 }
 
 // ── Password gate ─────────────────────────────────────────────────────────────
