@@ -59,6 +59,13 @@ func NormaliseServerURL(raw string) (string, error) {
 	u.Path = strings.TrimSuffix(u.Path, "/ws")
 	u.Path = strings.TrimSuffix(u.Path, "/")
 
+	// Drop any query and fragment. Callers routinely pass a full share URL
+	// (e.g. "https://host/?type=schedule&id=X#key=Y") as the server argument;
+	// if these are kept, appending "/api/schedule/..." to the base produces a
+	// malformed URL whose real path is "/", which the SPA answers with HTML.
+	u.RawQuery = ""
+	u.Fragment = ""
+
 	if u.Scheme != "https" && u.Scheme != "http" {
 		return "", fmt.Errorf("unsupported scheme %q — use https://, http://, wss://, or ws://", u.Scheme)
 	}
@@ -70,9 +77,13 @@ func NormaliseServerURL(raw string) (string, error) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // AuthStatus describes the server's upload access requirements for the caller.
+// The JSON tags are required: the server sends snake_case keys, and without
+// tags the "needs_password" key would silently fail to decode (Go's tagless
+// field matching is case-insensitive but does not bridge the underscore),
+// leaving NeedsPassword false and breaking the password-required upload path.
 type AuthStatus struct {
-	Allowed       bool // IP is in the upload allowlist
-	NeedsPassword bool // password is required to proceed
+	Allowed       bool `json:"allowed"`        // IP is in the upload allowlist
+	NeedsPassword bool `json:"needs_password"` // password is required to proceed
 }
 
 // CheckAuth calls POST /api/schedule/auth and returns the server's verdict.
