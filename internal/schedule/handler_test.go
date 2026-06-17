@@ -746,6 +746,51 @@ func TestHandleDownload_DownloadIPRestricted(t *testing.T) {
 	assertStatus(t, w, http.StatusForbidden)
 }
 
+// TestHandleDownload_NotGatedByUploadAuth pins the invariant that download
+// access is governed ONLY by GMMFF_SCHEDULE_DOWNLOAD_IP — never by the upload
+// password or upload IP allowlist. A remote downloader who is not in the upload
+// allowlist (and supplies no password) must still be able to download when the
+// download allowlist is empty (global). This guards against a regression where
+// the download path is accidentally tied to upload auth.
+func TestHandleDownload_NotGatedByUploadAuth(t *testing.T) {
+	h, handler := newTestHandler(t, func(cfg *Config) {
+		nets, _ := parseCIDRList("192.168.0.0/16")
+		cfg.UploadIPs = nets          // uploads restricted to LAN
+		cfg.UploadPassword = "secret" // and password-gated off-LAN
+		cfg.DownloadIPs = nil         // downloads global (empty = allow all)
+	})
+
+	// Create a completed file directly via the store, bypassing the upload HTTP
+	// auth (an authorised LAN uploader would have done this).
+	fm := doFullUpload(t, h.store, 1, 256)
+
+	// Remote downloader: not in 192.168.0.0/16, sends no upload password.
+	w := do(t, handler, http.MethodGet,
+		"/api/schedule/download/"+fm.FileID, nil,
+		map[string]string{"X-Forwarded-For": "203.0.113.7"})
+	assertStatus(t, w, http.StatusOK)
+	if w.Body.Len() == 0 {
+		t.Error("remote downloader received an empty body")
+	}
+}
+
+// TestHandleMeta_NotGatedByUploadAuth is the same invariant for the /meta
+// endpoint the browser join flow calls before downloading.
+func TestHandleMeta_NotGatedByUploadAuth(t *testing.T) {
+	h, handler := newTestHandler(t, func(cfg *Config) {
+		nets, _ := parseCIDRList("192.168.0.0/16")
+		cfg.UploadIPs = nets
+		cfg.UploadPassword = "secret"
+		cfg.DownloadIPs = nil
+	})
+	fm := doFullUpload(t, h.store, 1, 256)
+
+	w := do(t, handler, http.MethodGet,
+		"/api/schedule/meta/"+fm.FileID, nil,
+		map[string]string{"X-Forwarded-For": "203.0.113.7"})
+	assertStatus(t, w, http.StatusOK)
+}
+
 func TestHandleDownload_ContentLengthMatchesBody(t *testing.T) {
 	_, handler := newTestHandler(t, nil)
 	completeResp := doFullUploadViaHTTP(t, handler, 3, 256)
