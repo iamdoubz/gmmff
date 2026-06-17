@@ -28,11 +28,13 @@ RUN mkdir -p internal/localmode/static && \
 FROM golang:1.26-alpine AS builder
 
 # TARGETARCH is set automatically by Docker Buildx for multi-platform builds.
+# Defaults ensure a plain `docker build` (no --build-arg) still produces
+# meaningful values instead of empty ldflags that blank out version/commit/date.
 ARG TARGETARCH
 ARG TARGETOS=linux
-ARG BUILD_DATE
-ARG APP_VERSION
-ARG APP_COMMIT
+ARG BUILD_DATE=unknown
+ARG APP_VERSION=dev
+ARG APP_COMMIT=unknown
 
 RUN apk add --no-cache ca-certificates git
 
@@ -95,6 +97,12 @@ EOF
 RUN apk add --no-cache su-exec
 
 EXPOSE 8080
+
+# Build args don't cross stages — redeclare them so the OCI labels below are
+# populated (otherwise ${APP_VERSION}/${APP_COMMIT}/${BUILD_DATE} expand empty).
+ARG BUILD_DATE=unknown
+ARG APP_VERSION=dev
+ARG APP_COMMIT=unknown
 
 # OCI labels for image metadata
 LABEL description="Fast, secure, private, simple open source file transfer and messaging application" \

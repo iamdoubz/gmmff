@@ -59,10 +59,10 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=raw,value=latest,enable={{is_default_branch}}
-          build-args: |
-            BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-            APP_VERSION={{version}}
-            APP_COMMIT=${{ github.sha }}
+
+      - name: Compute build date
+        id: date
+        run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -72,6 +72,15 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # build-args belong here on build-push-action, NOT on metadata-action
+          # (which has no build-args input and silently drops them, leaving the
+          # binary's version/commit/date empty). steps.meta.outputs.version is the
+          # resolved release version; the date is computed in a prior step because
+          # $(...) does not evaluate inside a build-args value.
+          build-args: |
+            BUILD_DATE=${{ steps.date.outputs.value }}
+            APP_VERSION=${{ steps.meta.outputs.version }}
+            APP_COMMIT=${{ github.sha }}
           annotation: index:org.opencontainers.image.description="Fast, secure, private, simple open source file transfer and messaging application"
           cache-from: type=gha
           cache-to: type=gha,mode=max
