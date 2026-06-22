@@ -1337,7 +1337,7 @@ func initiatorHandshakeWithPeer(
 	}
 	// Send pake.a targeted to this specific peer.
 	if err := sig.SendTargeted(peerID, "", protocol.MustEnvelope(protocol.MsgPakeA,
-		protocol.OpaquePayload{Data: encodeB64(msgA)})); err != nil {
+		protocol.OpaquePayload{Data: signaling.EncodeB64(msgA)})); err != nil {
 		return nil, nil, fmt.Errorf("session: send targeted pake.a: %w", err)
 	}
 
@@ -1436,7 +1436,7 @@ func initiatorHandshakeWithPeer(
 		struct {
 			SDP string `json:"sdp"`
 			MAC string `json:"mac"`
-		}{SDP: encodeB64(sdpJSON), MAC: offerMAC})
+		}{SDP: signaling.EncodeB64(sdpJSON), MAC: offerMAC})
 	if err := sig.SendTargeted(peerID, "", inner); err != nil {
 		return nil, nil, fmt.Errorf("session: send targeted sdp.offer: %w", err)
 	}
@@ -1524,7 +1524,7 @@ func initiatorAcceptMorePeers(
 					return
 				}
 				if err := sig.SendTargeted(peerID, "", protocol.MustEnvelope(protocol.MsgPakeA,
-					protocol.OpaquePayload{Data: encodeB64(msgA)})); err != nil {
+					protocol.OpaquePayload{Data: signaling.EncodeB64(msgA)})); err != nil {
 					return
 				}
 				msgBMsg, err := td.waitFor(ctx, protocol.MsgPakeB)
@@ -1577,7 +1577,7 @@ func initiatorAcceptMorePeers(
 						SDP string `json:"sdp"`
 						MAC string `json:"mac"`
 					}{
-						SDP: encodeB64(sdpJSON), MAC: offerMAC,
+						SDP: signaling.EncodeB64(sdpJSON), MAC: offerMAC,
 					})
 				if err := sig.SendTargeted(peerID, "", inner); err != nil {
 					pc.Close()
@@ -1755,11 +1755,6 @@ func pumpICETargeted(ctx context.Context, pc *webrtc.PeerConnection, disp *dispa
 			processCandidate(cp)
 		}
 	}
-}
-
-// encodeB64 encodes bytes to standard base64. Declared here to avoid import cycle.
-func encodeB64(b []byte) string {
-	return signaling.EncodeB64(b)
 }
 
 // doSessionHandshake does PAKE + WebRTC + control DC for the responder (joiner).

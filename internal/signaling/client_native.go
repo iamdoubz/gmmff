@@ -142,7 +142,7 @@ func (c *Client) JoinSlot(code string) error {
 
 // SendOpaque sends a message with a base64-encoded byte payload.
 func (c *Client) SendOpaque(msgType string, data []byte) error {
-	return c.Send(protocol.MustEnvelope(msgType, protocol.OpaquePayload{Data: encodeB64(data)}))
+	return c.Send(protocol.MustEnvelope(msgType, protocol.OpaquePayload{Data: EncodeB64(data)}))
 }
 
 // SendSignedSDP sends a signed SDP payload.
@@ -150,7 +150,7 @@ func (c *Client) SendOpaque(msgType string, data []byte) error {
 // produced by pake.Session.SignOffer / SignAnswer.
 func (c *Client) SendSignedSDP(msgType string, sdpJSON []byte, mac string) error {
 	return c.Send(protocol.MustEnvelope(msgType, signedSDPPayload{
-		SDP: encodeB64(sdpJSON),
+		SDP: EncodeB64(sdpJSON),
 		MAC: mac,
 	}))
 }
@@ -277,7 +277,7 @@ func DecodeOpaque(msg Message) ([]byte, error) {
 	if err := json.Unmarshal(msg.Payload, &p); err != nil {
 		return nil, fmt.Errorf("signaling: decode opaque: %w", err)
 	}
-	return decodeB64(p.Data)
+	return DecodeB64(p.Data)
 }
 
 // DecodeSignedSDP extracts the raw SDP bytes and MAC string from a signed
@@ -287,7 +287,7 @@ func DecodeSignedSDP(msg Message) (sdpJSON []byte, mac string, err error) {
 	if err := json.Unmarshal(msg.Payload, &p); err != nil {
 		return nil, "", fmt.Errorf("signaling: decode signed SDP: %w", err)
 	}
-	sdpJSON, err = decodeB64(p.SDP)
+	sdpJSON, err = DecodeB64(p.SDP)
 	if err != nil {
 		return nil, "", fmt.Errorf("signaling: decode SDP bytes: %w", err)
 	}

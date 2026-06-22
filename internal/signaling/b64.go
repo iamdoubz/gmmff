@@ -5,14 +5,6 @@ import (
 	"fmt"
 )
 
-func encodeB64(data []byte) string {
-	return EncodeB64(data)
-}
-
-func decodeB64(s string) ([]byte, error) {
-	return DecodeB64(s)
-}
-
 // EncodeB64 encodes bytes to standard base64.
 func EncodeB64(data []byte) string {
 	return base64.StdEncoding.EncodeToString(data)

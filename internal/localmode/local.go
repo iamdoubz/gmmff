@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/iamdoubz/gmmff/v2/internal/broker"
+	"github.com/iamdoubz/gmmff/v2/internal/display"
 	"github.com/iamdoubz/gmmff/v2/internal/peer"
 	"github.com/iamdoubz/gmmff/v2/internal/peerconfig"
 	"github.com/iamdoubz/gmmff/v2/internal/session"
@@ -331,7 +332,7 @@ func runLocalEvents(sess *session.Session) {
 				bar := strings.Repeat("█", pct/5) + strings.Repeat("░", 20-pct/5)
 				fmt.Printf("\r  %s %d%%  %s / %s",
 					bar, pct,
-					formatBytes(ev.Done), formatBytes(ev.Total))
+					display.FormatBytes(ev.Done), display.FormatBytes(ev.Total))
 			}
 		case session.EventTransferDone:
 			fmt.Print("\r\033[K")
@@ -364,7 +365,7 @@ func sendLocalFiles(ctx context.Context, sess *session.Session, args []string) {
 				pct := int(float64(sent) / float64(total) * 100)
 				bar := strings.Repeat("█", pct/5) + strings.Repeat("░", 20-pct/5)
 				fmt.Printf("\r  %s %d%%  %s / %s",
-					bar, pct, formatBytes(sent), formatBytes(total))
+					bar, pct, display.FormatBytes(sent), display.FormatBytes(total))
 			}
 		})
 		select {
@@ -514,22 +515,4 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n-3] + "..."
-}
-
-func formatBytes(b int64) string {
-	const (
-		KB = 1024
-		MB = 1024 * KB
-		GB = 1024 * MB
-	)
-	switch {
-	case b >= GB:
-		return fmt.Sprintf("%.1f GB", float64(b)/GB)
-	case b >= MB:
-		return fmt.Sprintf("%.1f MB", float64(b)/MB)
-	case b >= KB:
-		return fmt.Sprintf("%.1f KB", float64(b)/KB)
-	default:
-		return fmt.Sprintf("%d B", b)
-	}
 }
