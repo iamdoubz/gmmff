@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/iamdoubz/gmmff/v2/internal/archive"
+	"github.com/iamdoubz/gmmff/v2/internal/display"
 	"github.com/iamdoubz/gmmff/v2/internal/peer"
 	"github.com/iamdoubz/gmmff/v2/internal/session"
 	"github.com/iamdoubz/gmmff/v2/internal/signaling"
@@ -313,8 +314,8 @@ func printSessionEvent(ev session.Event) {
 			bar := strings.Repeat("█", pct/5) + strings.Repeat("░", 20-pct/5)
 			fmt.Printf("\r  %s %d%%  %s / %s",
 				bar, pct,
-				formatBytes(ev.Done),
-				formatBytes(ev.Total))
+				display.FormatBytes(ev.Done),
+				display.FormatBytes(ev.Total))
 		}
 	case session.EventTransferDone:
 		// Clear the progress bar line first, then print the result.
@@ -345,25 +346,7 @@ func makeSessionProgressFn() func(done, total int64) {
 		bar := strings.Repeat("█", pct/5) + strings.Repeat("░", 20-pct/5)
 		fmt.Printf("\r  %s %d%%  %s / %s",
 			bar, pct,
-			formatBytes(done),
-			formatBytes(total))
-	}
-}
-
-func formatBytes(b int64) string {
-	const (
-		KB = 1024
-		MB = 1024 * KB
-		GB = 1024 * MB
-	)
-	switch {
-	case b >= GB:
-		return fmt.Sprintf("%.1f GB", float64(b)/GB)
-	case b >= MB:
-		return fmt.Sprintf("%.1f MB", float64(b)/MB)
-	case b >= KB:
-		return fmt.Sprintf("%.1f KB", float64(b)/KB)
-	default:
-		return fmt.Sprintf("%d B", b)
+			display.FormatBytes(done),
+			display.FormatBytes(total))
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/iamdoubz/gmmff/v2/internal/display"
 	"github.com/iamdoubz/gmmff/v2/internal/schedule"
 	"github.com/mdp/qrterminal/v3"
 	"github.com/schollz/progressbar/v3"
@@ -139,7 +140,7 @@ func runScheduleUpload(cmd *cobra.Command, args []string) error {
 
 	// ── 5. Upload with progress bar ───────────────────────────────────────────
 	if !schedUploadFlags.jsonOut {
-		fmt.Fprintf(os.Stderr, "Uploading %s (%s)...\n", filename, formatBytes(size))
+		fmt.Fprintf(os.Stderr, "Uploading %s (%s)...\n", filename, display.FormatBytes(size))
 	}
 
 	bar := progressbar.NewOptions64(size,
@@ -200,7 +201,7 @@ func printUploadResult(r *schedule.UploadResult, speed float64, outFile string, 
 		fmt.Sprintf("  Delete URL:      %s", r.DeleteURL),
 		"",
 		fmt.Sprintf("  Expires:         %s (in %s)", timeStr, inStr),
-		fmt.Sprintf("  Avg speed:       %s/s", formatBytes(int64(speed))),
+		fmt.Sprintf("  Avg speed:       %s/s", display.FormatBytes(int64(speed))),
 		"",
 	}
 	output := strings.Join(lines, "\n")
@@ -347,7 +348,7 @@ func runScheduleDownload(cmd *cobra.Command, args []string) error {
 // printDownloadInfo prints file metadata to stderr before downloading.
 func printDownloadInfo(meta *schedule.PublicFileMeta) {
 	fmt.Fprintf(os.Stderr, "\n  File:       (encrypted — name revealed after decryption)\n")
-	fmt.Fprintf(os.Stderr, "  Size:       ~%s (plaintext)\n", formatBytes(meta.TotalSize))
+	fmt.Fprintf(os.Stderr, "  Size:       ~%s (plaintext)\n", display.FormatBytes(meta.TotalSize))
 	fmt.Fprintf(os.Stderr, "  Expires:    %s\n", meta.ExpiresAt.Local().Format("2006-01-02 15:04 MST"))
 	switch {
 	case meta.DownloadsLeft == 1:
@@ -421,8 +422,8 @@ func printDownloadResult(result *schedule.DownloadResult, outPath string, avgSpe
 	}
 	if !toStdout {
 		fmt.Fprintf(os.Stderr, "\n  Saved to:   %s\n", outPath)
-		fmt.Fprintf(os.Stderr, "  Size:       %s\n", formatBytes(result.BytesRead))
-		fmt.Fprintf(os.Stderr, "  Avg speed:  %s/s\n\n", formatBytes(int64(avgSpeed)))
+		fmt.Fprintf(os.Stderr, "  Size:       %s\n", display.FormatBytes(result.BytesRead))
+		fmt.Fprintf(os.Stderr, "  Avg speed:  %s/s\n\n", display.FormatBytes(int64(avgSpeed)))
 	}
 	return nil
 }
