@@ -90,21 +90,6 @@ type MDNSServer struct {
 	instance string // the unique instance name we registered under
 }
 
-// RegisterMDNS advertises this gmmff instance on the local network via mDNS.
-// Runs with a 3-second timeout — if mDNS setup fails or hangs it returns an
-// error without blocking startup.
-func RegisterMDNS(port int, scheme string) (*MDNSServer, error) {
-	select {
-	case srv := <-RegisterMDNSAsync(port, scheme):
-		if srv == nil {
-			return nil, fmt.Errorf("local: mDNS register failed")
-		}
-		return srv, nil
-	case <-time.After(3 * time.Second):
-		return nil, fmt.Errorf("local: mDNS register timed out")
-	}
-}
-
 // RegisterMDNSAsync starts mDNS registration in a goroutine and returns a
 // channel that receives the result. Sends nil on failure.
 func RegisterMDNSAsync(port int, scheme string) <-chan *MDNSServer {
@@ -147,37 +132,6 @@ func (m *MDNSServer) Shutdown() {
 type PeerInfo struct {
 	Addr   string // e.g. "192.168.1.42:8787"
 	Scheme string // "http" or "https"
-}
-
-// DiscoverPeers scans the local network for other gmmff instances.
-// self is the MDNSServer returned by RegisterMDNS — its instance name is
-// excluded from results so we never return ourselves.
-// Pass nil if registration was skipped or failed.
-func DiscoverPeers(ctx context.Context, scanDuration time.Duration, self *MDNSServer) ([]PeerInfo, error) {
-	selfName := ""
-	if self != nil {
-		selfName = self.instance
-	}
-
-	type result struct {
-		peers []PeerInfo
-		err   error
-	}
-	ch := make(chan result, 1)
-
-	go func() {
-		peers, err := discoverPeers(ctx, scanDuration, selfName)
-		ch <- result{peers, err}
-	}()
-
-	select {
-	case r := <-ch:
-		return r.peers, r.err
-	case <-time.After(scanDuration + 500*time.Millisecond):
-		return nil, nil
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
 }
 
 func discoverPeers(ctx context.Context, scanDuration time.Duration, selfName string) ([]PeerInfo, error) {
