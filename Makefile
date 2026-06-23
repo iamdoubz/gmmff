@@ -1,4 +1,4 @@
-.PHONY: build local run-server create join chat dev test test-race test-cover cover lint fmt fmt-check tidy docker up down clean wasm wasm-serve cleanup help
+.PHONY: build install local run-server create join chat dev test test-race test-cover cover lint fmt fmt-check tidy docker up down clean wasm wasm-serve cleanup help
 
 BINARY    := gmmff
 CMD       := ./cmd/gmmff
@@ -25,6 +25,10 @@ build: wasm
 	mkdir -p internal/localmode/static
 	cp -rf web/static/. internal/localmode/static/
 	go build -ldflags="$(LDFLAGS)" -o bin/$(BINARY) $(CMD)
+
+## install: install gmmff to /usr/local/bin (requires sudo)
+install: build
+	install -m 755 bin/$(BINARY) /usr/local/bin/$(BINARY)
 
 ## local: alias for running gmmff local after building
 local: build
