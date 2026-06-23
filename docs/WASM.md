@@ -83,11 +83,73 @@ page loads — useful for links shared via email or messaging apps.
 Open the delete URL shown on the success screen. The file is removed immediately.
 You can also use the CLI: `gmmff schedule delete "<delete-url>"`
 
+## Theming
+
+Copy `web/static/themes/default.json`, edit the values, and point the `THEME_URL`
+constant at the top of `app.js` at your new file. Every CSS custom property
+is overridable — colors, spacing, radii, fonts, max-width — with no build step required.
+
+---
+
+## Translations
+
+The UI ships with 32 languages including English, Spanish, French, German,
+Italian, Swedish, Portuguese, Arabic, Bengali, Persian, Finnish, Hindi,
+Indonesian, Japanese, Korean, Marathi, Malay, Dutch, Norwegian, Polish,
+Russian, Thai, Filipino, Turkish, Ukrainian, Urdu, Vietnamese, Chinese
+(Simplified and Traditional), Tamil, and Sinhala. The language picker in
+the footer auto-detects your browser preference and persists your choice
+for 7 days.
+
+To add a language: copy `web/static/i18n/en.json`, translate the values, save
+as `web/static/i18n/<code>.json`, and add an entry to `web/static/i18n/languages.json`.
+No build step required.
+
+---
+
+## ICE settings
+
+A collapsible **ICE servers** panel sits below the tab bar on the Files and Chat
+tabs. STUN servers you add are appended to the default. TURN servers use the
+same format as the CLI (`turn:host:port?transport=udp&secret=s`).
+Settings persist in `localStorage` for 7 days.
+
+---
+
+## UI feature flags
+
+The browser UI behaviour is controlled by environment variables served via
+`GET /config.json`.  All default to the most permissive setting.
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `GMMFF_SHOW_FILES` | `true` | Show the Files tab |
+| `GMMFF_SHOW_CHAT` | `true` | Show the Chat tab |
+| `GMMFF_SHOW_SCHEDULE` | `false` | Show the Schedule tab |
+| `GMMFF_SHOW_ICE_SETTINGS` | `true` | Show the ICE settings panel |
+| `GMMFF_ALLOW_STUN` | `true` | Allow user modification of STUN servers |
+| `GMMFF_ALLOW_TURN` | `true` | Allow user modification of TURN servers |
+| `GMMFF_SHOW_SHARE_LINK` | `true` | Show copy-link / QR buttons on code screens |
+| `GMMFF_SHOW_QR_CODE` | `true` | Show QR codes on code screens |
+| `GMMFF_ALLOW_CUSTOM_SERVER` | `false` | Show the signaling server URL field |
+| `GMMFF_SHOW_PEERS_LIMIT` | `true` | Show the max-peers slider |
+| `GMMFF_MAX_PEERS_LIMIT` | `10` | Hard cap on the max-peers slider (2–10) |
+| `GMMFF_MAX_WINDOW` | `2` | Transfer sliding window size (server-enforced, 1–16) |
+| `GMMFF_MAX_CHUNK_SIZE` | `65526` | Transfer chunk size in bytes (server-enforced) |
+| `GMMFF_ALLOWED_LANGS` | `all` | Comma-separated language codes, or `all`; single code hides the picker |
+| `GMMFF_MOTD` | — | Message of the day shown as a banner at the top of the UI |
+| `GMMFF_TAB_ORDER` | `files,chat,schedule` | Comma-separated display order of tabs; valid names: `files`, `chat`, `schedule` |
+| `GMMFF_TAB_DEFAULT` | (first in `GMMFF_TAB_ORDER`) | Tab shown on page load; valid names: `files`, `chat`, `schedule` |
+
+---
+
 ## Screenshots
 
 <p align="center">
   <img src="../imgs/wasm.png" alt="Wasm web interface with black and gray default theme">
 </p>
+
+---
 
 ## Next steps
 
