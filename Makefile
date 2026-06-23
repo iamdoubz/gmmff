@@ -2,6 +2,7 @@
 
 BINARY    := gmmff
 CMD       := ./cmd/gmmff
+PREFIX    ?= /usr/local
 VERSION   := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT    := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 DATE      := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -26,9 +27,9 @@ build: wasm
 	cp -rf web/static/. internal/localmode/static/
 	go build -ldflags="$(LDFLAGS)" -o bin/$(BINARY) $(CMD)
 
-## install: install gmmff to /usr/local/bin (requires sudo)
+## install: install gmmff to PREFIX/bin (default /usr/local/bin, requires sudo)
 install: build
-	install -m 755 bin/$(BINARY) /usr/local/bin/$(BINARY)
+	install -m 755 bin/$(BINARY) $(PREFIX)/bin/$(BINARY)
 
 ## local: alias for running gmmff local after building
 local: build
