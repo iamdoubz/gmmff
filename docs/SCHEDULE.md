@@ -322,3 +322,8 @@ https://host/?type=schedule&id={file_id}&dl=1#key={hex_key}
 # Delete URL (uploader only)
 https://host/?type=schedule&id={file_id}&action=delete&dk={delete_key}
 ```
+
+### Limitations
+
+The crypto api is only available in secure contexts: https and localhost. If
+you attempt to use schedule using http, it will not work!
