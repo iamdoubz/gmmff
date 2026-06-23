@@ -310,7 +310,7 @@ func printSessionEvent(ev session.Event) {
 		fmt.Printf("\r\033[KParticipant is sending a file (%.1f MB)...\n", float64(ev.Total)/1024/1024)
 	case session.EventTransferProgress:
 		if ev.Total > 0 {
-			pct := int(float64(ev.Done) / float64(ev.Total) * 100)
+			pct := min(int(float64(ev.Done)/float64(ev.Total)*100), 100)
 			bar := strings.Repeat("█", pct/5) + strings.Repeat("░", 20-pct/5)
 			fmt.Printf("\r  %s %d%%  %s / %s",
 				bar, pct,
@@ -342,7 +342,7 @@ func makeSessionProgressFn() func(done, total int64) {
 		if total <= 0 {
 			return
 		}
-		pct := int(float64(done) / float64(total) * 100)
+		pct := min(int(float64(done)/float64(total)*100), 100)
 		bar := strings.Repeat("█", pct/5) + strings.Repeat("░", 20-pct/5)
 		fmt.Printf("\r  %s %d%%  %s / %s",
 			bar, pct,
