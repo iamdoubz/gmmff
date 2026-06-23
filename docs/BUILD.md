@@ -45,6 +45,21 @@ go build -ldflags="-s -w -X main.version=$(shell git describe --tags --always --
 go build -ldflags="-s -w -X main.version=$(shell git describe --tags --always --dirty 2>/dev/null || echo dev) -X main.commit=$(shell git rev-parse --short HEAD 2>/dev/null || echo unknown) -X main.date=$(shell date -u +%Y-%m-%dT%H:%M:%SZ)" -o bin/gmmff ./cmd/gmmff
 ```
 
+## Installing system-wide
+
+After building, you can install `gmmff` to your system path:
+
+```
+sudo make install
+```
+
+This copies the binary to `/usr/local/bin/gmmff`. To install somewhere else, pass `PREFIX`:
+
+```
+sudo make install PREFIX=/opt
+make install PREFIX=$HOME/.local
+```
+
 ## Next steps
 
 - Read the documentation for how to use the [CLI client here](CLI.md)
