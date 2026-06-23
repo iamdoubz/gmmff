@@ -30,7 +30,7 @@ clang and a non-Windows host.
 
 ---
 
-## Completed tiers (1–5)
+## Completed tiers (1–8d)
 
 | Tier | Area | Package(s) | Notable coverage |
 |---|---|---|---|
@@ -41,49 +41,16 @@ clang and a non-Windows host.
 | 5 | Crypto/slot/pake | `crypto`, `slot`, `pake` | 3-word code format + wordlist integrity, slot state machine, HKDF subkey derivation vs spec, MITM/cross-key rejection |
 | 6 | Archive & store | `archive`, `store` | zip round-trip (fs + in-memory), nested dirs, large payloads, `InjectMessage`, `Summary`; `MemStore` full contract suite reusable for Tier 8 Redis integration |
 | 7 | Transfer & broker | `transfer`, `broker` | sender sliding-window via `mockDataChannel` (8 tests); broker hub via httptest+gorilla WS (12 tests) covering version mismatch, code validation, expired/full slots, star relay, targeted relay, disconnect peer.left, bye propagation |
+| 8a | Pure-logic units | `display`, `protocol`, `transfer`, `chat` | `FormatBytes` table tests; envelope marshal/roundtrip/panic; `ReceiveStateMem` edge cases (done-before-header, unknown tag, ack error, short chunk); chat frame dispatch + callbacks (8 tests) |
+| 8b | Broker HTTP routes | `broker` (server) | `/healthz`, `/readyz`, `/metrics`, `/config.json`, landing page, security headers (CSP enforcing/report-only/local-mode, X-Frame-Options, COOP, COEP); **`/api/ice` gating** (no bearer→401, bad code→401, closed slot→401, waiting/active/full→200, STUN+TURN response); `bearerToken` helper — **20 tests** |
+| 8c | Transfer disk receiver | `transfer` | full disk `ReceiveState.Feed` path: fresh single/multi-chunk, hash mismatch preserves partial, resume from partial+meta, `checkPartial` edge cases (no meta, SHA mismatch, size mismatch), ack error, resume error, filename sanitisation, `AckFrame` round-trip — **19 tests** |
+| 8d | Schedule client | `schedule` (client) | `ParseDeleteURL` (5 cases), `ParseShareURL` (7 cases), `selectChunkSize` (8 boundary values), `NewClient`/`NormaliseServerURL` edge cases; **full round-trip** via httptest: Upload→FetchMeta→Download→Delete with AES-256-GCM crypto interop, password-gated upload, wrong-key decryption error, not-found/invalid-key delete — **21 tests** |
 
 ---
 
-## Pending tiers (8)
+## Pending tiers (8e)
 
-### Tier 6 — Archive & in-memory store
-
-**Status:** complete.
-
-- `internal/archive`: 25 tests covering `Prepare` (pass-through, single dir,
-  multiple files, nested dirs, error cases), `Result.Cleanup` (removes temp,
-  safe on non-temp, idempotent), `ZipFilesFromMemory` (pass-through, nested,
-  round-trip byte-identical, large payload, common/mixed prefix naming),
-  `InjectMessage`, and `Summary`.
-- `internal/store` `MemStore`: `storeContractSuite` shared test table (9
-  sub-tests) run against `MemStore`; plus 4 MemStore-specific tests covering
-  blind-write Update, code index cleanup on Delete, independent multi-slot
-  entries, and Update preserving code index. The contract suite is designed to
-  be reused against the Redis-backed Store in Tier 8.
-
-### Tier 7 — Transfer & broker coverage with mocks
-
-**Status:** complete.
-
-- `internal/transfer`: 8 sender tests exercising `RunFromBytes` through
-  `runFromReader` via a `mockDataChannel` that records frames and fires a
-  synchronous `onSend` callback. Covers: single-chunk frame sequence, file-header
-  metadata, multi-chunk ordering, window-size-1 sequential delivery, context
-  cancel (emits `TagCancelled`), remote cancel (`ErrCancelled`), resume-from-seq
-  (seeks to offset, skips earlier chunks), and dc.Send error propagation.
-  The `resumeFrom <- 0` pre-load trick skips the 2-second wait in `runFromReader`
-  making all tests deterministic and fast.
-- `internal/broker`: 12 tests driving the full hub goroutine via an httptest
-  server and real gorilla WebSocket connections. Covers: slot creation (code,
-  slot ID, TTL returned), version mismatch on create and join, invalid code
-  format (`ERR_INVALID_CODE`), slot not found, expired slot (backdated via
-  MemStore), slot full (third peer rejected), successful join (joiner gets
-  `role=responder`, initiator gets `peer.joined` then `slot.ready`), relay without
-  slot (`ERR_NOT_IN_SLOT`), star-topology relay (joiner→initiator), targeted relay
-  (initiator→specific joiner peer ID), initiator disconnect triggers `peer.left`
-  to joiner, graceful bye propagation, and unknown message type.
-
-### Tier 8 — Integration
+### Tier 8e — Integration (session + Redis)
 
 **Status:** not started. Slower tests; consider a build tag (e.g.
 `//go:build integration`) so `make test` stays fast and CI runs them separately.
@@ -91,26 +58,41 @@ clang and a non-Windows host.
 - Redis store integration: run against a real Redis (miniredis or a container).
   Verify TTL expiry, concurrent updates (last-write-wins), and the code→id
   index consistency.
-- `internal/session` via `net.Pipe`: wire two `Session` instances together over
-  an in-memory pipe to exercise `execTransfer`, `handleControlFrame`,
-  `broadcastToExtraPeers`, and `prepareInboundTransfer` without real WebRTC.
-  This is the highest-value integration target — it covers the multi-peer
-  coordination logic that's currently only exercised manually.
+- `internal/session` via pion loopback: wire two `Session` instances together
+  using `webrtc.NewAPI` with in-process transports to exercise `Run`,
+  `handleControlFrame`, `execTransfer`, `prepareInboundTransfer`, `SendMessage`,
+  `Close`, `Leave`, `saveReceivedFile`, and the idle timeout path — without
+  real networking. This is the highest-value integration target: it covers the
+  multi-peer coordination logic currently only exercised manually.
+  **Estimated coverage: ~65–75%** of session statements (20 of 25 functions
+  reachable; `broadcastToExtraPeers` and multi-peer `AddPeer` paths are harder
+  to set up and may require a dedicated 3-peer harness).
 
 ---
 
-## Coverage snapshot (last recorded)
+## Coverage snapshot (recorded 2026-06-23, after Tier 8d)
 
-| Package | Coverage |
-|---|---|
-| turn | ~93% |
-| transfer | sender path covered (Tier 7); receiver path pending |
-| broker | hub + relay covered (Tier 7); ICE endpoint pending |
-| schedule | handler covered; store integration pending (Tier 8) |
-| crypto, slot, pake | covered (Tier 5) |
-| session | ~0% (Tier 8 target — the big one) |
-
-Re-run `make cover` to refresh these numbers before planning the next tier.
+| Package | Coverage | Notes |
+|---|---|---|
+| slot | **100%** | complete |
+| protocol | **100%** | complete (Tier 8a) |
+| display | **100%** | complete (Tier 8a) |
+| turn | **93.3%** | complete |
+| crypto | **91.7%** | complete |
+| pake | **88.9%** | complete |
+| transfer | **84.3%** | sender + disk receiver + in-memory receiver covered (Tiers 4, 7, 8c) |
+| archive | **81.5%** | complete (Tier 6); small gap in `writeZip` error paths |
+| schedule | **80.0%** | handler + client round-trip covered (Tiers 3, 8d); store integration pending (8e) |
+| broker | **78.6%** | hub + HTTP routes + ICE gating covered (Tiers 7, 8b) |
+| store | **25.7%** | MemStore covered (Tier 6); Redis Store needs real Redis (Tier 8e) |
+| chat | **23.2%** | frame dispatch covered (Tier 8a); REPL needs live DC |
+| cmd/gmmff | **9.5%** | CLI commands — hard to unit test, low ROI |
+| session | **0%** | **Tier 8e target — estimated ~65–75% reachable with pion loopback** |
+| peer | **0%** | live WebRTC orchestration — impractical to unit test (see Out-of-scope) |
+| signaling | **0%** | WebSocket client — needs live server or full mock |
+| localmode | **0%** | integration-only (embeds full server, mDNS, TLS) |
+| log | **0%** | trivial init — low value |
+| **Total** | **35.7%** | up from 26.3% before Tiers 8a–8d |
 
 ---
 
