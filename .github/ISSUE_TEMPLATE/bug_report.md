@@ -45,5 +45,13 @@ Please list all platforms that you have used while being effected by this proble
 - iOS 26.3
 - Android 16.0
 
+### gmmff version
+
+Please type `gmmff version` and output it here:
+
+```
+
+```
+
 **Additional context**
 Add any other information that is needed by the maintainers to help diagnose the issue?
