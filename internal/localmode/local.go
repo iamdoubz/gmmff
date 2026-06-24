@@ -37,21 +37,87 @@ type Config struct {
 	PeerCfg    peerconfig.Config
 }
 
+// tlsResult holds the output of TLS setup for local mode.
+type tlsResult struct {
+	certPaths CertPaths
+	cleanup   func()
+	scheme    string
+	wsScheme  string
+}
+
 // Run starts local mode and blocks until the user quits or context is cancelled.
 // This is the entry point called by cmd/gmmff/local.go.
 func Run(cfg Config) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// ── 1. Discover other gmmff peers (best-effort, never blocks startup) ────
+	discoverExistingPeers(ctx)
+
+	tls, err := setupTLS(cfg)
+	if err != nil {
+		return err
+	}
+	if tls.cleanup != nil {
+		defer tls.cleanup()
+	}
+
+	port := cfg.Port
+	if port == 0 {
+		port, err = findFreePort()
+		if err != nil {
+			return fmt.Errorf("local: find port: %w", err)
+		}
+	}
+	fmt.Printf("Using port %d\n", port)
+
+	httpServer, err := startEmbeddedServer(ctx, cfg, tls, port)
+	if err != nil {
+		return err
+	}
+
+	mdnsSrv := registerMDNS(port, tls.scheme)
+	if mdnsSrv != nil {
+		defer mdnsSrv.Shutdown()
+	}
+
+	sig, err := connectToBroker(ctx, cfg, tls.wsScheme, port)
+	if err != nil {
+		return err
+	}
+
+	created, maxPeers, err := createSlot(ctx, sig, cfg.MaxPeers)
+	if err != nil {
+		return err
+	}
+
+	printBanner(tls.scheme, port, created.Code, cfg.NoTLS)
+
+	sess, err := peer.StartSession(ctx, sig, created.Code, cfg.PeerCfg, maxPeers)
+	if err != nil {
+		return fmt.Errorf("local: start session: %w", err)
+	}
+	sess.OutDir = "."
+	fmt.Println("Peer connected! Session is live.")
+	fmt.Println()
+
+	go runLocalEvents(sess)
+	go sess.Run()
+
+	replErr := runLocalREPL(ctx, sess, stop)
+
+	fmt.Println("\nShutting down...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_ = httpServer.Shutdown(shutdownCtx)
+
+	return replErr
+}
+
+func discoverExistingPeers(ctx context.Context) {
 	fmt.Print("Scanning for other gmmff instances on the local network... ")
-	// selfName is set once mDNS registration completes (step 5 below).
-	// Because discovery and registration run concurrently, we pass a pointer
-	// so the browse callback always compares against the most up-to-date name.
-	selfName := ""
 	discoverCh := make(chan []PeerInfo, 1)
 	go func() {
-		peers, _ := discoverPeers(ctx, 2*time.Second, selfName)
+		peers, _ := discoverPeers(ctx, 2*time.Second, "")
 		discoverCh <- peers
 	}()
 	select {
@@ -67,150 +133,137 @@ func Run(cfg Config) error {
 	case <-time.After(3 * time.Second):
 		fmt.Println("scan timed out.")
 	}
+}
 
-	// ── 2. TLS certificate ────────────────────────────────────────────────────
-	var certPaths CertPaths
-	var certCleanup func()
-	scheme := "http"
-	wsScheme := "ws"
-
-	if !cfg.NoTLS {
-		fmt.Print("Generating self-signed TLS certificate... ")
-		var err error
-		certPaths, certCleanup, err = GenerateSelfSignedCert()
-		if err != nil {
-			return fmt.Errorf("local: TLS: %w", err)
-		}
-		defer certCleanup()
-		scheme = "https"
-		wsScheme = "wss"
-		fmt.Println("done.")
-		fmt.Println("  Note: browsers will show a security warning for self-signed certs.")
-		fmt.Println("  Mobile users: tap Advanced → Proceed to connect.")
+func setupTLS(cfg Config) (tlsResult, error) {
+	if cfg.NoTLS {
+		return tlsResult{scheme: "http", wsScheme: "ws"}, nil
 	}
-
-	// ── 3. Pick a port ───────────────────────────────────────────────────────
-	port := cfg.Port
-	if port == 0 {
-		var err error
-		port, err = findFreePort()
-		if err != nil {
-			return fmt.Errorf("local: find port: %w", err)
-		}
+	fmt.Print("Generating self-signed TLS certificate... ")
+	certPaths, cleanup, err := GenerateSelfSignedCert()
+	if err != nil {
+		return tlsResult{}, fmt.Errorf("local: TLS: %w", err)
 	}
-	fmt.Printf("Using port %d\n", port)
+	fmt.Println("done.")
+	fmt.Println("  Note: browsers will show a security warning for self-signed certs.")
+	fmt.Println("  Mobile users: tap Advanced → Proceed to connect.")
+	return tlsResult{certPaths: certPaths, cleanup: cleanup, scheme: "https", wsScheme: "wss"}, nil
+}
 
-	// ── 4. Start the embedded broker and web server ───────────────────────────
+func startEmbeddedServer(ctx context.Context, cfg Config, tls tlsResult, port int) (*http.Server, error) {
 	fmt.Print("Starting embedded server... ")
 	st := store.NewMemStore()
 	b := broker.New(st)
-	go b.Run(ctx) // must be running before any WebSocket connections are accepted
+	go b.Run(ctx)
 
 	staticFS, err := StaticFS()
 	if err != nil {
-		return fmt.Errorf("local: embedded assets: %w", err)
+		return nil, fmt.Errorf("local: embedded assets: %w", err)
 	}
 
 	srv := broker.NewServerWithFS(b, st, staticFS, false)
-
-	addr := fmt.Sprintf(":%d", port)
 	httpServer := &http.Server{
-		Addr:    addr,
+		Addr:    fmt.Sprintf(":%d", port),
 		Handler: srv.Handler(),
 	}
 
 	serverErr := make(chan error, 1)
 	go func() {
-		if !cfg.NoTLS {
-			serverErr <- httpServer.ListenAndServeTLS(certPaths.CertFile, certPaths.KeyFile)
+		if tls.scheme == "https" {
+			serverErr <- httpServer.ListenAndServeTLS(tls.certPaths.CertFile, tls.certPaths.KeyFile)
 		} else {
 			serverErr <- httpServer.ListenAndServe()
 		}
 	}()
 
-	// Optional plain-HTTP health endpoint for Docker healthchecks.
-	// When gmmff local runs with TLS, the main server is HTTPS on a random port
-	// which the Docker healthcheck can't reach. This starts a minimal HTTP-only
-	// listener on a fixed port that answers GET /healthz with 200 OK.
 	if cfg.HealthPort > 0 {
-		healthMux := http.NewServeMux()
-		healthMux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("ok")) //nolint:errcheck
-		})
-		healthSrv := &http.Server{
-			Addr:    fmt.Sprintf(":%d", cfg.HealthPort),
-			Handler: healthMux,
-		}
-		go func() {
-			if err := healthSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				fmt.Fprintf(os.Stderr, "local: health server error: %v\n", err)
-			}
-		}()
-		fmt.Printf("Health endpoint: http://localhost:%d/healthz\n", cfg.HealthPort)
+		startHealthEndpoint(cfg.HealthPort)
 	}
 
 	time.Sleep(200 * time.Millisecond)
 	select {
 	case err := <-serverErr:
-		return fmt.Errorf("local: server failed to start: %w", err)
+		return nil, fmt.Errorf("local: server failed to start: %w", err)
 	default:
 	}
 	fmt.Println("done.")
+	return httpServer, nil
+}
 
-	// ── 5. Register on mDNS (best-effort, never blocks startup) ──────────────
+func startHealthEndpoint(port int) {
+	healthMux := http.NewServeMux()
+	healthMux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok")) //nolint:errcheck
+	})
+	healthSrv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: healthMux,
+	}
+	go func() {
+		if err := healthSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Fprintf(os.Stderr, "local: health server error: %v\n", err)
+		}
+	}()
+	fmt.Printf("Health endpoint: http://localhost:%d/healthz\n", port)
+}
+
+func registerMDNS(port int, scheme string) *MDNSServer {
 	fmt.Print("Registering on mDNS... ")
 	select {
 	case mdnsSrv := <-RegisterMDNSAsync(port, scheme):
 		if mdnsSrv != nil {
-			selfName = mdnsSrv.instance
-			defer mdnsSrv.Shutdown()
 			fmt.Println("done.")
-		} else {
-			fmt.Println("failed (mDNS unavailable, continuing anyway).")
+			return mdnsSrv
 		}
+		fmt.Println("failed (mDNS unavailable, continuing anyway).")
 	case <-time.After(3 * time.Second):
 		fmt.Println("timed out (mDNS unavailable, continuing anyway).")
 	}
+	return nil
+}
 
-	// ── 6. Connect to our own broker as a client ─────────────────────────────
+func connectToBroker(ctx context.Context, cfg Config, wsScheme string, port int) (*signaling.Client, error) {
 	fmt.Print("Connecting to local broker... ")
 	wsURL := fmt.Sprintf("%s://127.0.0.1:%d/ws", wsScheme, port)
-
 	var sig *signaling.Client
+	var err error
 	if !cfg.NoTLS {
 		sig, err = signaling.ConnectInsecure(ctx, wsURL)
 	} else {
 		sig, err = signaling.Connect(ctx, wsURL)
 	}
 	if err != nil {
-		return fmt.Errorf("local: connect to own broker: %w", err)
+		return nil, fmt.Errorf("local: connect to own broker: %w", err)
 	}
 	fmt.Println("done.")
+	return sig, nil
+}
 
-	// ── 7. Create a session slot ──────────────────────────────────────────────
+func createSlot(ctx context.Context, sig *signaling.Client, maxPeers int) (protocol.SlotCreatedPayload, int, error) {
 	fmt.Print("Creating session... ")
-	maxPeers := cfg.MaxPeers
 	if maxPeers < 2 {
 		maxPeers = 2
 	}
 	if err := sig.CreateSlot("files", maxPeers); err != nil {
-		return fmt.Errorf("local: create slot: %w", err)
+		return protocol.SlotCreatedPayload{}, 0, fmt.Errorf("local: create slot: %w", err)
 	}
 	createdMsg, err := sig.WaitFor(ctx, protocol.MsgSlotCreated)
 	if err != nil {
-		return fmt.Errorf("local: wait slot.created: %w", err)
+		return protocol.SlotCreatedPayload{}, 0, fmt.Errorf("local: wait slot.created: %w", err)
 	}
 	var created protocol.SlotCreatedPayload
 	if err := json.Unmarshal(createdMsg.Payload, &created); err != nil {
-		return fmt.Errorf("local: decode slot.created: %w", err)
+		return protocol.SlotCreatedPayload{}, 0, fmt.Errorf("local: decode slot.created: %w", err)
 	}
 	fmt.Println("done.")
+	return created, maxPeers, nil
+}
 
-	// ── 8. Build and print the banner + QR code ───────────────────────────────
+func printBanner(scheme string, port int, code string, noTLS bool) {
 	localIP := getPreferredLocalIP()
 	joinURL := fmt.Sprintf("%s://%s:%d/?code=%s&type=files&autoconnect=1&local=1",
-		scheme, localIP, port, created.Code)
+		scheme, localIP, port, code)
 	serverURL := fmt.Sprintf("%s://%s:%d", scheme, localIP, port)
 
 	fmt.Println()
@@ -218,7 +271,7 @@ func Run(cfg Config) error {
 	fmt.Printf("║  gmmff local mode                                    ║\n")
 	fmt.Printf("╠══════════════════════════════════════════════════════╣\n")
 	fmt.Printf("║  Server:   %-41s║\n", serverURL)
-	fmt.Printf("║  Code:     %-41s║\n", created.Code)
+	fmt.Printf("║  Code:     %-41s║\n", code)
 	fmt.Printf("║  Join URL: %-41s║\n", truncate(joinURL, 41))
 	fmt.Printf("╚══════════════════════════════════════════════════════╝\n")
 	fmt.Println()
@@ -228,7 +281,7 @@ func Run(cfg Config) error {
 	fmt.Println()
 	fmt.Printf("Or open: %s\n\n", joinURL)
 
-	if !cfg.NoTLS {
+	if !noTLS {
 		fmt.Println("⚠  Self-signed certificate: tap 'Advanced → Proceed' in your browser.")
 		fmt.Println()
 	}
@@ -236,29 +289,6 @@ func Run(cfg Config) error {
 	fmt.Println("Waiting for first peer to connect...")
 	fmt.Println("Once connected, commands: send <file>  message <text>  \\q (quit+shutdown)")
 	fmt.Println()
-
-	// ── 9. Start the session (blocks until first peer connects) ───────────────
-	sess, err := peer.StartSession(ctx, sig, created.Code, cfg.PeerCfg, maxPeers)
-	if err != nil {
-		return fmt.Errorf("local: start session: %w", err)
-	}
-	sess.OutDir = "."
-	fmt.Println("Peer connected! Session is live.")
-	fmt.Println()
-
-	// ── 10. Run the session REPL ─────────────────────────────────────────────
-	go runLocalEvents(sess)
-	go sess.Run()
-
-	replErr := runLocalREPL(ctx, sess, stop)
-
-	// ── 11. Shutdown ─────────────────────────────────────────────────────────
-	fmt.Println("\nShutting down...")
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	_ = httpServer.Shutdown(shutdownCtx)
-
-	return replErr
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
