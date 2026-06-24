@@ -1,5 +1,35 @@
 # CLI Documentation
 
+## One-off file send
+
+To send a file without entering an interactive session, use `gmmff send`:
+
+```bash
+gmmff send report.pdf --server wss://your-server/ws
+```
+
+```
+  ╔══════════════════════════════════════╗
+  ║  Share this code with the receiver   ║
+  ║                                      ║
+  ║    acid-lake-drum                    ║
+  ║                                      ║
+  ║  Expires in 10 minutes               ║
+  ╚══════════════════════════════════════╝
+
+  Queued: "report.pdf" (1.5 MB)
+  Waiting for receiver to join...
+```
+
+Once the receiver joins (`gmmff join` or web UI), the file transfers automatically and the session closes when done. No REPL, no interaction needed.
+
+Multiple files or directories are zipped on the fly:
+
+```bash
+gmmff send file1.txt file2.txt --message "both files"
+gmmff send ./project-folder
+```
+
 ## Creating a file session
 
 Peer A creates the session and receives a code:
