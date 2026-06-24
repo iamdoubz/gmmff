@@ -14,6 +14,30 @@ Usage: gmmff create [flags]
 | `--out` / `-o` | — | `.` | Directory to save received files |
 | `--max-peers` | — | `2` | Maximum participants including yourself (2–10) |
 
+### `gmmff send` — one-off file transfer
+
+```
+Usage: gmmff send <file|dir> [file|dir ...] [flags]
+```
+
+Creates a session, waits for a peer to join, sends the file(s), and exits
+automatically once the transfer is complete and verified. No interactive REPL.
+
+Multiple files or directories are zipped on the fly before sending.
+
+| Flag | Env var | Default | Description |
+|------|---------|---------|-------------|
+| `--server` | `GMMFF_SERVER` | `ws://localhost:8080/ws` | Signaling server WebSocket URL |
+| `--stun` | `GMMFF_STUN` | Google STUN | STUN/STUNS URL, repeatable |
+| `--turn` | `GMMFF_TURN` | — | TURN server, repeatable |
+| `--message` / `-m` | — | — | Message to attach to the transfer |
+
+```bash
+gmmff send report.pdf
+gmmff send photos/
+gmmff send file1.txt file2.txt --message "both files"
+```
+
 ### `gmmff join <code>` — join any session
 
 ```
