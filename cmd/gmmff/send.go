@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -24,6 +26,7 @@ var sendCfg struct {
 	stunServers []string
 	turnServers []string
 	message     string
+	recursive   bool
 }
 
 var sendCmd = &cobra.Command{
@@ -34,9 +37,14 @@ sends the specified file(s), and exits once the transfer is verified.
 
 The receiver can use 'gmmff join <code>' or the web UI to receive.
 
+Glob patterns are expanded by gmmff itself, so they work even on shells that
+don't expand them (e.g. Windows PowerShell). Use -r to match recursively.
+
 Examples:
   gmmff send report.pdf
   gmmff send photos/
+  gmmff send '*.txt'              # all .txt files in the current dir
+  gmmff send -r '*.go'           # all .go files in this dir and below
   gmmff send file1.txt file2.txt --message "both files"`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: runSend,
@@ -53,9 +61,70 @@ func init() {
 	f.StringArrayVar(&sendCfg.turnServers, "turn", turnServersDefault(),
 		"TURN server, repeatable (GMMFF_TURN)")
 	f.StringVarP(&sendCfg.message, "message", "m", "", "Message to attach to the transfer")
+	f.BoolVarP(&sendCfg.recursive, "recursive", "r", false,
+		"Match glob patterns recursively (e.g. '*.txt' in all subdirectories)")
+}
+
+// expandArgs turns glob patterns in args into concrete paths. Literal paths
+// that already exist are kept untouched, so non-glob args (and dirs) behave as
+// before. With recursive, patterns match against filenames at any depth.
+func expandArgs(args []string, recursive bool) ([]string, error) {
+	var out []string
+	for _, a := range args {
+		if _, err := os.Stat(a); err == nil {
+			out = append(out, a) // literal existing path
+			continue
+		}
+		var matches []string
+		var err error
+		if recursive {
+			matches, err = globRecursive(a)
+		} else {
+			matches, err = filepath.Glob(a)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("send: bad pattern %q: %w", a, err)
+		}
+		if len(matches) == 0 {
+			return nil, fmt.Errorf("send: no files match %q", a)
+		}
+		out = append(out, matches...)
+	}
+	return out, nil
+}
+
+// globRecursive walks the pattern's directory and matches the filename part of
+// the pattern against every file at any depth below it.
+func globRecursive(pattern string) ([]string, error) {
+	dir, base := filepath.Dir(pattern), filepath.Base(pattern)
+	var matches []string
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		ok, err := filepath.Match(base, d.Name())
+		if err != nil {
+			return err // ErrBadPattern
+		}
+		if ok {
+			matches = append(matches, path)
+		}
+		return nil
+	})
+	return matches, err
 }
 
 func runSend(_ *cobra.Command, args []string) error {
+	// Expand glob patterns ourselves so they work on shells that don't (e.g.
+	// PowerShell). Already-expanded args from POSIX shells pass through.
+	args, err := expandArgs(args, sendCfg.recursive)
+	if err != nil {
+		return err
+	}
+
 	// Validate and prepare files before connecting.
 	result, err := archive.Prepare(args)
 	if err != nil {
