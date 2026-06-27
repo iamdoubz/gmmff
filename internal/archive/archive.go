@@ -74,16 +74,22 @@ func Prepare(paths []string) (Result, error) {
 	return zipPaths(paths)
 }
 
+// Name returns the display name for an archive of the given paths: "<dir>.zip"
+// for a single directory, else a timestamped "gmmff-<ts>.zip".
+func Name(paths []string) string {
+	if len(paths) == 1 {
+		return filepath.Base(paths[0]) + ".zip"
+	}
+	return fmt.Sprintf("gmmff-%s.zip", time.Now().Format("20060102-150405"))
+}
+
+// WriteZip streams a zip of all given paths into w. Use this to send a
+// multi-file archive without staging it on disk first (see transfer.RunFromStream).
+func WriteZip(w io.Writer, paths []string) error { return writeZip(w, paths) }
+
 // zipPaths creates a temp zip containing all given paths and returns its location.
 func zipPaths(paths []string) (Result, error) {
-	// Choose a display name for the archive.
-	var archiveName string
-	if len(paths) == 1 {
-		// Single directory — name after the directory.
-		archiveName = filepath.Base(paths[0]) + ".zip"
-	} else {
-		archiveName = fmt.Sprintf("gmmff-%s.zip", time.Now().Format("20060102-150405"))
-	}
+	archiveName := Name(paths)
 
 	// Create temp file in the OS temp directory.
 	tmp, err := os.CreateTemp("", "gmmff-*.zip")
