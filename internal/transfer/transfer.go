@@ -228,6 +228,58 @@ func (s *Sender) RunFromBytes(name string, data []byte) error {
 	return s.runFromReader(bytes.NewReader(data), name, int64(len(data)), hexHash)
 }
 
+// RunFromStream sends data produced on the fly by produce, without buffering it
+// to a temp file. produce must be deterministic: it is called twice — once to
+// compute the size and SHA-256 for the header, once to stream the bytes onto the
+// wire. Used by 'gmmff send' for multi-file/dir zips so a 7GB archive never has
+// to fit in /tmp.
+func (s *Sender) RunFromStream(name string, produce func(io.Writer) error) error {
+	// Pass 1: size + hash, discarding the bytes.
+	h := sha256.New()
+	cw := &countWriter{}
+	if err := produce(io.MultiWriter(h, cw)); err != nil {
+		return fmt.Errorf("transfer: hash stream: %w", err)
+	}
+
+	// Pass 2: regenerate straight onto the wire through a pipe.
+	pr, pw := io.Pipe()
+	go func() { pw.CloseWithError(produce(pw)) }()
+	defer pr.Close() // unblocks the producer if runFromReader returns early
+	return s.runFromReader(&fwdSeeker{r: pr}, name, cw.n, fmt.Sprintf("%x", h.Sum(nil)))
+}
+
+// countWriter counts bytes written and discards them.
+type countWriter struct{ n int64 }
+
+func (c *countWriter) Write(p []byte) (int, error) { c.n += int64(len(p)); return len(p), nil }
+
+// fwdSeeker adapts a non-seekable stream to io.ReadSeeker for the resume path.
+// Only forward seeks from the current position work (by discarding); a stream
+// can't seek backward. For a fresh send startSeq is 0, so Seek is never called.
+type fwdSeeker struct {
+	r   io.Reader
+	pos int64
+}
+
+func (f *fwdSeeker) Read(p []byte) (int, error) {
+	n, err := f.r.Read(p)
+	f.pos += int64(n)
+	return n, err
+}
+
+func (f *fwdSeeker) Seek(offset int64, whence int) (int64, error) {
+	if whence != io.SeekStart || offset < f.pos {
+		return 0, fmt.Errorf("transfer: stream not seekable to %d (at %d)", offset, f.pos)
+	}
+	if offset > f.pos {
+		if _, err := io.CopyN(io.Discard, f.r, offset-f.pos); err != nil {
+			return 0, err
+		}
+		f.pos = offset
+	}
+	return f.pos, nil
+}
+
 // runFromReader is the shared implementation of Run and RunFromBytes.
 func (s *Sender) runFromReader(r io.ReadSeeker, name string, size int64, hexHash string) error {
 	totalChunks := (size + int64(s.chunkSize) - 1) / int64(s.chunkSize)
