@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/signal"
@@ -117,6 +118,11 @@ func globRecursive(pattern string) ([]string, error) {
 	return matches, err
 }
 
+func isDir(p string) bool {
+	info, err := os.Stat(p)
+	return err == nil && info.IsDir()
+}
+
 func runSend(_ *cobra.Command, args []string) error {
 	// Expand glob patterns ourselves so they work on shells that don't (e.g.
 	// PowerShell). Already-expanded args from POSIX shells pass through.
@@ -125,12 +131,12 @@ func runSend(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Validate and prepare files before connecting.
-	result, err := archive.Prepare(args)
-	if err != nil {
-		return err
+	// Validate all paths exist before connecting.
+	for _, p := range args {
+		if _, err := os.Stat(p); err != nil {
+			return fmt.Errorf("send: cannot access %q: %w", p, err)
+		}
 	}
-	defer result.Cleanup()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -182,7 +188,7 @@ func runSend(_ *cobra.Command, args []string) error {
 
 	fmt.Printf("Receiver connected. Sending %s...\n", archive.Summary(args))
 
-	done := sess.SendFile(result.Path, sendCfg.message, func(sent, total int64) {
+	progress := func(sent, total int64) {
 		if total > 0 {
 			pct := min(int(float64(sent)/float64(total)*100), 100)
 			bar := strings.Repeat("█", pct/5) + strings.Repeat("░", 20-pct/5)
@@ -191,7 +197,20 @@ func runSend(_ *cobra.Command, args []string) error {
 				display.FormatBytes(sent),
 				display.FormatBytes(total))
 		}
-	})
+	}
+
+	// A single regular file streams straight from disk. Multiple files or a
+	// directory are zipped on the fly into the wire — no temp archive on disk,
+	// so a 7GB send never has to fit in /tmp.
+	var done <-chan error
+	if single := len(args) == 1 && !isDir(args[0]); single {
+		done = sess.SendFile(args[0], sendCfg.message, progress)
+	} else {
+		paths := args
+		done = sess.SendFileStream(archive.Name(paths), func(w io.Writer) error {
+			return archive.WriteZip(w, paths)
+		}, sendCfg.message, progress)
+	}
 
 	// Wait for transfer result or session events.
 	for {
