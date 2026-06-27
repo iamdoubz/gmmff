@@ -19,6 +19,7 @@ package session
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,7 +38,8 @@ const IdleTimeout = 10 * time.Minute
 type transferRequest struct {
 	filePath   string // empty = bytes transfer
 	fileName   string
-	fileData   []byte // non-nil = in-memory (Wasm)
+	fileData   []byte                // non-nil = in-memory (Wasm)
+	produce    func(io.Writer) error // non-nil = streamed (e.g. on-the-fly zip)
 	isZip      bool
 	message    string
 	onProgress transfer.ProgressFunc
@@ -211,6 +213,22 @@ func (s *Session) IsInitiator() bool { return s.isInitiator }
 func (s *Session) SendFile(filePath, message string, onProgress transfer.ProgressFunc) <-chan error {
 	req := &transferRequest{
 		filePath:   filePath,
+		message:    message,
+		onProgress: onProgress,
+		done:       make(chan error, 1),
+	}
+	s.outbound <- req
+	s.resetIdle()
+	return req.done
+}
+
+// SendFileStream enqueues a transfer whose bytes are produced on the fly by
+// produce (called twice — see transfer.RunFromStream). Used for multi-file zips
+// so a large archive never has to be staged on disk first.
+func (s *Session) SendFileStream(name string, produce func(io.Writer) error, message string, onProgress transfer.ProgressFunc) <-chan error {
+	req := &transferRequest{
+		fileName:   name,
+		produce:    produce,
 		message:    message,
 		onProgress: onProgress,
 		done:       make(chan error, 1),
@@ -612,9 +630,12 @@ func (s *Session) execTransfer(req *transferRequest) error {
 	}
 
 	var runErr error
-	if req.fileData != nil {
+	switch {
+	case req.produce != nil:
+		runErr = sender.RunFromStream(req.fileName, req.produce)
+	case req.fileData != nil:
 		runErr = sender.RunFromBytes(req.fileName, req.fileData)
-	} else {
+	default:
 		runErr = sender.Run()
 	}
 	if runErr != nil {
