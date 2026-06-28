@@ -1,11 +1,11 @@
 // Package archive provides on-the-fly zip archiving for multi-file transfers.
 //
-// When gmmff send receives multiple paths (or a single directory), it calls
-// ZipToTemp to produce a single temporary .zip file.  The caller sends that
-// file normally through the transfer pipeline, then calls the returned cleanup
-// function to remove the temp file.
+// When gmmff send receives multiple paths (or a single directory), the caller
+// streams a zip straight onto the wire with WriteZip (see transfer.RunFromStream)
+// — no temp file is staged on disk. Name supplies the display name shown to the
+// receiver. Single regular files are sent unchanged, with no zip overhead.
 //
-// Single regular files are passed through unchanged — no zip overhead.
+// ZipFilesFromMemory serves the browser Wasm client, which has no filesystem.
 package archive
 
 import (
@@ -19,95 +19,18 @@ import (
 	"time"
 )
 
-// Result describes the file that should be sent.
-type Result struct {
-	// Path is the file to send (either the original or a temp zip).
-	Path string
-
-	// Name is the display name — what the receiver will see.
-	Name string
-
-	// IsTemp is true when Path is a temporary file that must be removed
-	// after the transfer by calling Cleanup.
-	IsTemp bool
-}
-
-// Cleanup removes the temp file if one was created.  Always safe to call.
-func (r Result) Cleanup() {
-	if r.IsTemp {
-		_ = os.Remove(r.Path)
-	}
-}
-
-// Prepare decides whether to zip or pass through based on the given paths.
-//
-//   - Single regular file → returned as-is, no temp file created.
-//   - Single directory    → zipped into a temp file named after the directory.
-//   - Multiple paths      → zipped into a temp file named gmmff-<timestamp>.zip.
-//
-// Callers must call Result.Cleanup() when the transfer is done.
-func Prepare(paths []string) (Result, error) {
-	if len(paths) == 0 {
-		return Result{}, fmt.Errorf("archive: no paths provided")
-	}
-
-	// Validate all paths exist up front.
-	for _, p := range paths {
-		if _, err := os.Stat(p); err != nil {
-			return Result{}, fmt.Errorf("archive: cannot access %q: %w", p, err)
-		}
-	}
-
-	// Single regular file — pass through unchanged.
+// Name returns the display name for an archive of the given paths: "<dir>.zip"
+// for a single directory, else a timestamped "gmmff-<ts>.zip".
+func Name(paths []string) string {
 	if len(paths) == 1 {
-		info, _ := os.Stat(paths[0])
-		if !info.IsDir() {
-			return Result{
-				Path:   paths[0],
-				Name:   filepath.Base(paths[0]),
-				IsTemp: false,
-			}, nil
-		}
+		return filepath.Base(paths[0]) + ".zip"
 	}
-
-	// One directory or multiple paths — zip them.
-	return zipPaths(paths)
+	return fmt.Sprintf("gmmff-%s.zip", time.Now().Format("20060102-150405"))
 }
 
-// zipPaths creates a temp zip containing all given paths and returns its location.
-func zipPaths(paths []string) (Result, error) {
-	// Choose a display name for the archive.
-	var archiveName string
-	if len(paths) == 1 {
-		// Single directory — name after the directory.
-		archiveName = filepath.Base(paths[0]) + ".zip"
-	} else {
-		archiveName = fmt.Sprintf("gmmff-%s.zip", time.Now().Format("20060102-150405"))
-	}
-
-	// Create temp file in the OS temp directory.
-	tmp, err := os.CreateTemp("", "gmmff-*.zip")
-	if err != nil {
-		return Result{}, fmt.Errorf("archive: create temp file: %w", err)
-	}
-	tmpPath := tmp.Name()
-
-	if err := writeZip(tmp, paths); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpPath)
-		return Result{}, err
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpPath)
-		return Result{}, fmt.Errorf("archive: close temp file: %w", err)
-	}
-
-	return Result{
-		Path:   tmpPath,
-		Name:   archiveName,
-		IsTemp: true,
-	}, nil
-}
+// WriteZip streams a zip of all given paths into w. Use this to send a
+// multi-file archive without staging it on disk first (see transfer.RunFromStream).
+func WriteZip(w io.Writer, paths []string) error { return writeZip(w, paths) }
 
 // writeZip writes a zip archive containing all paths into w.
 func writeZip(w io.Writer, paths []string) error {

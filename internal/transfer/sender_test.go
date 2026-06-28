@@ -3,9 +3,12 @@ package transfer
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"sync"
 	"testing"
 )
@@ -87,6 +90,44 @@ func filterChunks(frames [][]byte) [][]byte {
 // ─────────────────────────────────────────────────────────────────────────────
 // Sender.RunFromBytes tests
 // ─────────────────────────────────────────────────────────────────────────────
+
+// TestSender_RunFromStream verifies the two-pass streaming path: the FileHeader
+// size/hash describe the produced bytes, and the reassembled chunk payloads equal
+// what produce wrote — without any temp file.
+func TestSender_RunFromStream(t *testing.T) {
+	want := bytes.Repeat([]byte("abcdefgh"), 1000) // 8000 bytes, spans many chunks
+	produce := func(w io.Writer) error { _, err := w.Write(want); return err }
+
+	recvAck, resumeFrom, remoteCancel := senderPipes()
+	dc := &mockDataChannel{}
+	autoACK(dc, recvAck)
+
+	s := NewSender(context.Background(), remoteCancel, dc, "", recvAck, resumeFrom, 4, 64)
+	if err := s.RunFromStream("bundle.zip", produce); err != nil {
+		t.Fatalf("RunFromStream: %v", err)
+	}
+
+	frames := dc.sentFrames()
+	var hdr FileHeader
+	if err := json.Unmarshal(frames[0][1:], &hdr); err != nil {
+		t.Fatalf("unmarshal FileHeader: %v", err)
+	}
+	if hdr.Size != int64(len(want)) {
+		t.Errorf("Size: got %d, want %d", hdr.Size, len(want))
+	}
+	if sum := fmt.Sprintf("%x", sha256.Sum256(want)); hdr.SHA256 != sum {
+		t.Errorf("SHA256: got %s, want %s", hdr.SHA256, sum)
+	}
+
+	// Reassemble chunk payloads in order and compare to the source.
+	var got []byte
+	for _, c := range filterChunks(frames) {
+		got = append(got, c[9:]...)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("reassembled %d bytes, want %d, content mismatch", len(got), len(want))
+	}
+}
 
 func TestSender_RunFromBytes_SingleChunk_FrameSequence(t *testing.T) {
 	// 50-byte payload fits in one chunk of 64 bytes.

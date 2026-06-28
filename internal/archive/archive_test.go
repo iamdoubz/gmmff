@@ -14,18 +14,6 @@ import (
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-// extractZipFile opens a zip on disk and returns a map of entry path → content.
-// Directory entries are skipped.
-func extractZipFile(t *testing.T, path string) map[string][]byte {
-	t.Helper()
-	r, err := zip.OpenReader(path)
-	if err != nil {
-		t.Fatalf("open zip %q: %v", path, err)
-	}
-	defer r.Close()
-	return readZipEntries(t, r.File)
-}
-
 // extractZipBytes opens a zip from a byte slice and returns a map of entry path → content.
 func extractZipBytes(t *testing.T, data []byte) map[string][]byte {
 	t.Helper()
@@ -77,132 +65,10 @@ func zipEntryNames(m map[string][]byte) []string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Prepare — no paths
+// WriteZip — directory structure preserved (nested), via a streamed buffer
 // ─────────────────────────────────────────────────────────────────────────────
 
-func TestPrepare_NoPaths_Error(t *testing.T) {
-	if _, err := Prepare(nil); err == nil {
-		t.Error("Prepare(nil) should return error")
-	}
-	if _, err := Prepare([]string{}); err == nil {
-		t.Error("Prepare([]) should return error")
-	}
-}
-
-func TestPrepare_NonexistentPath_Error(t *testing.T) {
-	if _, err := Prepare([]string{"/does/not/exist/ever.txt"}); err == nil {
-		t.Error("Prepare with nonexistent path should return error")
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Prepare — single regular file passes through unchanged
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestPrepare_SingleFile_PassThrough(t *testing.T) {
-	dir := t.TempDir()
-	content := []byte("hello world")
-	path := writeTempFile(t, dir, "report.txt", content)
-
-	result, err := Prepare([]string{path})
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
-	}
-	defer result.Cleanup()
-
-	if result.IsTemp {
-		t.Error("single regular file should not create a temp archive")
-	}
-	if result.Path != path {
-		t.Errorf("Path: got %q, want %q", result.Path, path)
-	}
-	if result.Name != "report.txt" {
-		t.Errorf("Name: got %q, want %q", result.Name, "report.txt")
-	}
-}
-
-func TestPrepare_SingleFile_CleanupDoesNotRemoveOriginal(t *testing.T) {
-	dir := t.TempDir()
-	path := writeTempFile(t, dir, "keep.txt", []byte("keep me"))
-
-	result, err := Prepare([]string{path})
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
-	}
-	result.Cleanup()
-
-	if _, err := os.Stat(path); err != nil {
-		t.Error("Cleanup on a pass-through result must not remove the original file")
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Prepare — single directory is zipped and named after the directory
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestPrepare_SingleDirectory_NamedAfterDir(t *testing.T) {
-	root := t.TempDir()
-	srcDir := filepath.Join(root, "sendme")
-	if err := os.Mkdir(srcDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	writeTempFile(t, srcDir, "x.bin", []byte{0x01})
-
-	result, err := Prepare([]string{srcDir})
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
-	}
-	defer result.Cleanup()
-
-	if !result.IsTemp {
-		t.Error("single directory should produce a temp zip")
-	}
-	if result.Name != "sendme.zip" {
-		t.Errorf("Name: got %q, want %q", result.Name, "sendme.zip")
-	}
-}
-
-func TestPrepare_SingleDirectory_RoundTrip(t *testing.T) {
-	root := t.TempDir()
-	srcDir := filepath.Join(root, "project")
-	if err := os.Mkdir(srcDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	want := map[string][]byte{
-		"project/alpha.txt": []byte("alpha content"),
-		"project/beta.bin":  {0xCA, 0xFE, 0xBA, 0xBE},
-	}
-	for relPath, content := range want {
-		dest := filepath.Join(root, filepath.FromSlash(relPath))
-		if err := os.WriteFile(dest, content, 0o644); err != nil {
-			t.Fatalf("setup %q: %v", dest, err)
-		}
-	}
-
-	result, err := Prepare([]string{srcDir})
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
-	}
-	defer result.Cleanup()
-
-	got := extractZipFile(t, result.Path)
-	for zipPath, wantData := range want {
-		gotData, ok := got[zipPath]
-		if !ok {
-			t.Errorf("zip missing %q (entries: %v)", zipPath, zipEntryNames(got))
-			continue
-		}
-		if !bytes.Equal(gotData, wantData) {
-			t.Errorf("entry %q: content mismatch", zipPath)
-		}
-	}
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Prepare — nested directory structure is preserved
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestPrepare_NestedDirectory_StructurePreserved(t *testing.T) {
+func TestWriteZip_NestedDirectory_StructurePreserved(t *testing.T) {
 	root := t.TempDir()
 	srcDir := filepath.Join(root, "myapp")
 	subDir := filepath.Join(srcDir, "lib")
@@ -214,23 +80,18 @@ func TestPrepare_NestedDirectory_StructurePreserved(t *testing.T) {
 		"myapp/lib/util.go": []byte("package lib"),
 		"myapp/lib/math.go": []byte("package lib // math"),
 	}
-	if err := os.WriteFile(filepath.Join(srcDir, "main.go"), want["myapp/main.go"], 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(subDir, "util.go"), want["myapp/lib/util.go"], 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(subDir, "math.go"), want["myapp/lib/math.go"], 0o644); err != nil {
-		t.Fatal(err)
+	for rel, content := range want {
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(rel)), content, 0o644); err != nil {
+			t.Fatalf("setup %q: %v", rel, err)
+		}
 	}
 
-	result, err := Prepare([]string{srcDir})
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
+	var buf bytes.Buffer
+	if err := WriteZip(&buf, []string{srcDir}); err != nil {
+		t.Fatalf("WriteZip: %v", err)
 	}
-	defer result.Cleanup()
 
-	got := extractZipFile(t, result.Path)
+	got := extractZipBytes(t, buf.Bytes())
 	for zipPath, wantData := range want {
 		gotData, ok := got[zipPath]
 		if !ok {
@@ -243,11 +104,7 @@ func TestPrepare_NestedDirectory_StructurePreserved(t *testing.T) {
 	}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Prepare — multiple files → timestamped zip name
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestPrepare_MultipleFiles_RoundTrip(t *testing.T) {
+func TestWriteZip_MultipleFiles_RoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	want := map[string][]byte{
 		"one.txt": []byte("one"),
@@ -258,17 +115,12 @@ func TestPrepare_MultipleFiles_RoundTrip(t *testing.T) {
 		paths = append(paths, writeTempFile(t, dir, name, content))
 	}
 
-	result, err := Prepare(paths)
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
-	}
-	defer result.Cleanup()
-
-	if !result.IsTemp {
-		t.Error("multiple files should produce a temp zip")
+	var buf bytes.Buffer
+	if err := WriteZip(&buf, paths); err != nil {
+		t.Fatalf("WriteZip: %v", err)
 	}
 
-	got := extractZipFile(t, result.Path)
+	got := extractZipBytes(t, buf.Bytes())
 	for name, wantData := range want {
 		gotData, ok := got[name]
 		if !ok {
@@ -281,57 +133,21 @@ func TestPrepare_MultipleFiles_RoundTrip(t *testing.T) {
 	}
 }
 
-func TestPrepare_MultipleFiles_TimestampedName(t *testing.T) {
-	dir := t.TempDir()
-	p1 := writeTempFile(t, dir, "a.txt", []byte("a"))
-	p2 := writeTempFile(t, dir, "b.txt", []byte("b"))
+// ─────────────────────────────────────────────────────────────────────────────
+// Name — archive display name
+// ─────────────────────────────────────────────────────────────────────────────
 
-	result, err := Prepare([]string{p1, p2})
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
-	}
-	defer result.Cleanup()
-
-	if !strings.HasPrefix(result.Name, "gmmff-") {
-		t.Errorf("multi-file archive name should start with gmmff-, got %q", result.Name)
-	}
-	if !strings.HasSuffix(result.Name, ".zip") {
-		t.Errorf("multi-file archive name should end with .zip, got %q", result.Name)
+func TestName_SingleDirectory_NamedAfterDir(t *testing.T) {
+	if got := Name([]string{filepath.Join("some", "sendme")}); got != "sendme.zip" {
+		t.Errorf("Name: got %q, want %q", got, "sendme.zip")
 	}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Result.Cleanup
-// ─────────────────────────────────────────────────────────────────────────────
-
-func TestResult_Cleanup_RemovesTempZip(t *testing.T) {
-	dir := t.TempDir()
-	p1 := writeTempFile(t, dir, "x.txt", []byte("x"))
-	p2 := writeTempFile(t, dir, "y.txt", []byte("y"))
-
-	result, err := Prepare([]string{p1, p2})
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
+func TestName_MultipleFiles_Timestamped(t *testing.T) {
+	got := Name([]string{"a.txt", "b.txt"})
+	if !strings.HasPrefix(got, "gmmff-") || !strings.HasSuffix(got, ".zip") {
+		t.Errorf("multi-file archive name should be gmmff-<ts>.zip, got %q", got)
 	}
-	tmpPath := result.Path
-	result.Cleanup()
-
-	if _, err := os.Stat(tmpPath); !os.IsNotExist(err) {
-		t.Error("Cleanup should remove the temp zip")
-	}
-}
-
-func TestResult_Cleanup_SafeToCallTwice(t *testing.T) {
-	dir := t.TempDir()
-	p1 := writeTempFile(t, dir, "a.txt", []byte("a"))
-	p2 := writeTempFile(t, dir, "b.txt", []byte("b"))
-
-	result, err := Prepare([]string{p1, p2})
-	if err != nil {
-		t.Fatalf("Prepare: %v", err)
-	}
-	result.Cleanup()
-	result.Cleanup() // second call must not panic
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

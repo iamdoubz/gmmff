@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"strings"
@@ -252,19 +253,26 @@ func handleSessionCommand(ctx context.Context, sess *session.Session, line strin
 }
 
 func sendFilesInSession(ctx context.Context, sess *session.Session, args []string) error {
-	result, err := archive.Prepare(args)
-	if err != nil {
-		return err
+	for _, p := range args {
+		if _, err := os.Stat(p); err != nil {
+			return fmt.Errorf("send: cannot access %q: %w", p, err)
+		}
 	}
-	defer result.Cleanup()
 
-	if result.IsTemp {
-		fmt.Printf("Archiving %s → %s\n", archive.Summary(args), result.Name)
-	} else {
+	// Single regular file streams from disk; multiple files or a directory are
+	// zipped on the fly onto the wire — no temp archive staged in /tmp.
+	var done <-chan error
+	if single := len(args) == 1 && !isDir(args[0]); single {
 		fmt.Printf("Sending %s\n", archive.Summary(args))
+		done = sess.SendFile(args[0], "", makeSessionProgressFn())
+	} else {
+		paths := args
+		name := archive.Name(paths)
+		fmt.Printf("Archiving %s → %s\n", archive.Summary(args), name)
+		done = sess.SendFileStream(name, func(w io.Writer) error {
+			return archive.WriteZip(w, paths)
+		}, "", makeSessionProgressFn())
 	}
-
-	done := sess.SendFile(result.Path, "", makeSessionProgressFn())
 	select {
 	case <-ctx.Done():
 		return nil
