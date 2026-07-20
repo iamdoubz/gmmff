@@ -291,13 +291,20 @@ Treat them as a safety net worth investing in.
 
 ## Outstanding security tracking (verify before release)
 
+- Go toolchain ≥ go1.26.5 (GO-2026-5856 crypto/tls ECH privacy leak — reachable
+  via outbound TLS in signaling dial, schedule client, embedded web server;
+  pinned via the `toolchain` directive in `go.mod`, not the `go` directive)
+- filippo.io/edwards25519 ≥ v1.1.1 (GO-2026-4503, indirect via cpace/ristretto)
 - pion/dtls/v3 ≥ v3.1.1 (CVE-2026-26014)
 - Redis ≥ 7.4.6 / Valkey ≥ 7.2.8 (CVE-2025-49844 — the "RediShell" Lua flaw is
   shared lineage and affects both; patch whichever backend you deploy)
 - golang.org/x/crypto ≥ v0.45.0 (CVE-2025-47914, CVE-2025-58181)
 
-Confirm current versions in `go.mod` against these floors when cutting a
-release.
+Run `make vuln` (govulncheck, reachability-aware) to check these; it also runs
+in CI on every push/PR (`.github/workflows/vuln.yml`). Confirm current versions
+in `go.mod` against these floors when cutting a release. Note: `x/crypto/openpgp`
+(GO-2026-5932) is unmaintained with no fix, but gmmff does not import it —
+govulncheck reports it as not-called, which is expected.
 
 ---
 

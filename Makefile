@@ -1,4 +1,4 @@
-.PHONY: build install local run-server create join chat dev test test-race test-cover cover lint fmt fmt-check tidy docker up down clean wasm wasm-serve cleanup help
+.PHONY: build install local run-server create join chat dev test test-race test-cover cover lint vuln fmt fmt-check tidy docker up down clean wasm wasm-serve cleanup help
 
 BINARY    := gmmff
 CMD       := ./cmd/gmmff
@@ -91,6 +91,15 @@ fmt-check:
 ## lint: run golangci-lint (go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
 lint:
 	golangci-lint run ./...
+
+## vuln: reachability-aware vulnerability scan (native + Wasm targets)
+# govulncheck must be a native binary; GOOS/GOARCH select the *analysis* target,
+# so `go run` under GOOS=js would cross-compile the tool itself and fail.
+# ponytail: assumes GOBIN unset so install lands in GOPATH/bin.
+vuln:
+	go install golang.org/x/vuln/cmd/govulncheck@latest
+	"$$(go env GOPATH)/bin/govulncheck" ./...
+	GOOS=js GOARCH=wasm "$$(go env GOPATH)/bin/govulncheck" ./web/...
 
 ## tidy: tidy Go modules
 tidy:
