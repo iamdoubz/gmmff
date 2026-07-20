@@ -1,7 +1,7 @@
 filippo.io/cpace v0.0.0-20210101143347-24d601e2e469 h1:+gAICE3DIgwMKUzUuVCjd5R4ws+HFL19bKegPYkcgmQ=
 filippo.io/cpace v0.0.0-20210101143347-24d601e2e469/go.mod h1:b8UFwXF0HGYD8OWBGJEPwu3IMDHqTpzCtGFtY2xRwTU=
-filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
-filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
+filippo.io/edwards25519 v1.1.1 h1:YpjwWWlNmGIDyXOn8zLzqiD+9TyIlPhGFG96P39uBpw=
+filippo.io/edwards25519 v1.1.1/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
 github.com/betamos/zeroconf v0.1.7 h1:WGxNCNshUktoZlsp4Bgm89iMs7qTuefvKXa8t9rZBQU=
 github.com/betamos/zeroconf v0.1.7/go.mod h1:DJFwPpvRAX5q/rc4vLsr0srQVN/7MockudtrP/55Doo=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=

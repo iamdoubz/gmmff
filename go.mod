@@ -2,6 +2,8 @@ module github.com/iamdoubz/gmmff/v2
 
 go 1.25.0
 
+toolchain go1.26.5
+
 require (
 	filippo.io/cpace v0.0.0-20210101143347-24d601e2e469
 	github.com/betamos/zeroconf v0.1.7
@@ -18,7 +20,7 @@ require (
 )
 
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
+	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/gtank/ristretto255 v0.2.0 // indirect
 	github.com/miekg/dns v1.1.72 // indirect
 	github.com/pion/transport/v4 v4.0.2 // indirect
