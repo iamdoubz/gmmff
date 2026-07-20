@@ -1,11 +1,7 @@
 name: Vuln Scan
 
 on:
-  push:
   pull_request:
-  schedule:
-    - cron: '0 6 * * 1' # weekly Monday 06:00 UTC — catch newly-disclosed CVEs
-  workflow_dispatch:
 
 jobs:
   govulncheck:
