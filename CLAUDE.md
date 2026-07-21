@@ -327,3 +327,13 @@ GMMFF_LOG_LEVEL                                           trace|debug|info|warn|
 `ValidateEnv` in `uiconfig.go` warns (never fatally) on malformed values and
 applies safe defaults. Keep that behavior: invalid config should degrade, not
 crash.
+
+<!-- OPENWIKI:START -->
+
+## OpenWiki
+
+This repository uses OpenWiki for recurring code documentation. Start with `openwiki/quickstart.md`, then follow its links to architecture, workflows, domain concepts, operations, integrations, testing guidance, and source maps.
+
+The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
+
+<!-- OPENWIKI:END -->
