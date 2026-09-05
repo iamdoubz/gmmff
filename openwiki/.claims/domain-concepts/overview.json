@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:c47614aa40237de27ecd75909509b071c80f93445ef6a007c09e1c243f068c95",
+  "claims": [
+    {
+      "id": "claim_f50e6fce0d334ad8af891d0e5966e830",
+      "statement": "A session in gmmff represents a peer-to-peer file and message transfer session between 2-10 peers that is established when peers share a secret code and complete PAKE authentication and WebRTC handshake.",
+      "evidence": [
+        {
+          "resource": "repo://docs/SECURITY.md",
+          "version": "repo-file-v1:sha256:b8ffd53ce05787a3d4985d3d888cc1f1f6a225860e430944c22ef127917fcd1f"
+        },
+        {
+          "resource": "repo://internal/session/session.go",
+          "version": "repo-file-v1:sha256:b182dd57b769d13177bf627ef724220ee849af8d0cebd2e11897d723dc487843"
+        }
+      ]
+    },
+    {
+      "id": "claim_beaa483d315740acb3f7728d1f48dfd7",
+      "statement": "A slot is the server-side representation of a session waiting for peers to join, with lifecycle states: WAITING (StateWaiting), ACTIVE (StateActive), FULL (StateFull), CLOSED (StateClosed) as defined in internal/slot/slot.go.",
+      "evidence": [
+        {
+          "resource": "repo://internal/slot/slot.go",
+          "version": "repo-file-v1:sha256:bc38f7058ea18adfdbdef6e76a75db9d7950905d6d2acc1045a87612358034b7"
+        }
+      ]
+    },
+    {
+      "id": "claim_c548cce6af8c4a45b619b572a0b6a87d",
+      "statement": "gmmff uses the CPace PAKE protocol over ristretto255 group to establish a shared secret from a 3-word code, which is used to derive HKDF subkeys for HMAC-signing SDP messages to prevent man-in-the-middle attacks on the signaling server.",
+      "evidence": [
+        {
+          "resource": "repo://docs/SECURITY.md",
+          "version": "repo-file-v1:sha256:b8ffd53ce05787a3d4985d3d888cc1f1f6a225860e430944c22ef127917fcd1f"
+        },
+        {
+          "resource": "repo://internal/pake/session.go",
+          "version": "repo-file-v1:sha256:846371e1ff61469b2acc00b6ff2c55155e57abe7a358517a29d8f1285c7e5a41"
+        }
+      ]
+    },
+    {
+      "id": "claim_c99d10ab0b374e04b06450d8b96428be",
+      "statement": "Once peers establish a shared secret via PAKE, they create a direct WebRTC data channel encrypted with DTLS 1.3, using SCTP over DTLS for transport, with separate persistent control channel and ephemeral transfer channels per file.",
+      "evidence": [
+        {
+          "resource": "repo://docs/PROTOCOL.md",
+          "version": "repo-file-v1:sha256:46151d75c94888651a90982cac7bcd7f68a64529c53e646af473c87aa6e07a55"
+        },
+        {
+          "resource": "repo://internal/session/session.go",
+          "version": "repo-file-v1:sha256:b182dd57b769d13177bf627ef724220ee849af8d0cebd2e11897d723dc487843"
+        }
+      ]
+    },
+    {
+      "id": "claim_5fee7faa1c3f4f9198f743c6447582a8",
+      "statement": "The gmmff wire protocol defines specific binary tags for WebRTC data channel frames (0x01-0x0F) that are frozen and cannot be renumbered without breaking deployed clients.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md",
+          "version": "repo-file-v1:sha256:b3378a28efd6afae3effc1ed703c653f07f74e3d7744e9352c6903d1741b8fcf"
+        },
+        {
+          "resource": "repo://docs/PROTOCOL.md",
+          "version": "repo-file-v1:sha256:46151d75c94888651a90982cac7bcd7f68a64529c53e646af473c87aa6e07a55"
+        }
+      ]
+    },
+    {
+      "id": "claim_4682f6f05ec24cfd8824dd0a5f63b789",
+      "statement": "Any filename arriving from a peer must be processed through the sanitiseName function before touching the filesystem to strip path separators, null bytes, and prevent path traversal attacks.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md",
+          "version": "repo-file-v1:sha256:b3378a28efd6afae3effc1ed703c653f07f74e3d7744e9352c6903d1741b8fcf"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.0",
+    "at": "2026-09-05T11:33:48.919Z"
+  }
+}

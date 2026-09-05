@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:f904599c5039dc50403d9c311b6c5bac61197b575d3e1cf5981869908dc7d8a3",
+  "claims": [
+    {
+      "id": "claim_bc2e93d5e0d445eb8a12eb141822d8f0",
+      "statement": "The internal/archive/archive.go file provides on-the-fly zip archiving for multi-file transfers.",
+      "evidence": [
+        {
+          "resource": "repo://internal/archive/archive.go#L1-L2",
+          "version": "repo-lines-v1:sha256:a2b15289640b5d12453f75cbd474c814b4ff5db5e9d54942b167561c1f58693b:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzlhY2VmNTRjYmUyYTQwZjBlMjcxYmYzODc0NTY2NDA5N2RlOGRkYmJjNDNiY2RmYmQ4MzJkZmE1ZGI2NmQ3OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMTAxZWFkOTM2YTIyODFkNTNkY2MwNjRiN2UyYTJhYjBkNTNiOTJlZjNlZjdiMzRiNjY4NjczMDA3ODk1Yzg2MCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDFkOTZiZjFkYWExM2E5ZGM4NmNhZjcyYTk4NTg1ZGNhZGVkZDYxNzM1NjcxOWFhM2E0NWM0YzQ1MTdhYjFiNCJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.0",
+    "at": "2026-09-05T11:33:48.919Z"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:018690737736b6441f5eb0ec8c5a241d0068989eda86b600245b2f8b80977d48",
+  "claims": [
+    {
+      "id": "claim_e48116df41784e899b2510c1fe3bbb8d",
+      "statement": "The default test command is `make test` which runs `go test -count=1 ./...` (CGO-disabled, works on Windows).",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L91-L92",
+          "version": "repo-lines-v1:sha256:502e7d4219f7779101133221e7b36aa202eb9c7fc12a66fe8de235d4fd1afce4:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjYyYWYxYmMwMjhlNDU2MDY3NzEyY2NjZTU2ZDIyMjQ5ODM5MTgyYmY3MWFlNTgwZDgwNTI0YzBmNDVhZDJjMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODZlNGRjNWQyMjhmZTg0Y2NhNTViMWIyN2I0MDVjMjIxOTA1M2RjMGQyODU4ZWJiNzZmMGE5OGQ2YWUzNzkxMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiN2JhMDM5NjE4NDFmZmE2OTA2ZjM3NjBhMmQ3NDBiZmUyY2RiZDBhYmM5MTBkNWZjNmExZTM4NzY1MzI0MGVjNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNjI3ZjFjZGM2MzI0MzRmZGEyZTAzOTg1M2FhOWRiNDMxMGU1Y2UzNjA5YzNkMTM0ZmZlZGE0ZWQ0OWZiYzU3YyJ9"
+        },
+        {
+          "resource": "repo://Makefile#L58-L60",
+          "version": "repo-lines-v1:sha256:4acef642f782ed61a521329294adc4a6f9d226b2c8a6288b2d3f5ae5d881c884:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZGJjMmNmZDFjZDcxNzExNmEyOGQ0ZTZhZTk4YTcwZjFmYjQ3ZWYxYTUzNWMyYWFmMzQxYmEyYjkxMGFjMzkxOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWQ3ZjBhMDYxYjE4OGIwNzliNjdjMmJkZDFkY2RiNDEzODNlYjhjZmU4ZGZlMTFlY2FjYzI1ZDMyYzQ0MGI0MyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjE0YTliYTllOTFjMGRmNWZmN2NmMjFlZmVhMDFhZDkxMzVhMDAyYWJlODI4ZjE3ZDViMzMyZDM5YmRjNDlhOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzdhOGU3NTllNzUwNmMxOGViNDExM2U3OGZkOWQwZWQzNTFmYzY1ZWU0ZDNlZDE3MTIwMTMzMzJhY2I5NGIxZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_85b8db94bc74455bbe372872352e2794",
+      "statement": "The race detector test command is `make test-race` which requires clang and a non-Windows host (does not work on Windows MSVC).",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L92-L93",
+          "version": "repo-lines-v1:sha256:990ed7354bf6f4c12281c5ae7e526b05876daf04ae067e0fe1dfa74b52f1010c:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODZlNGRjNWQyMjhmZTg0Y2NhNTViMWIyN2I0MDVjMjIxOTA1M2RjMGQyODU4ZWJiNzZmMGE5OGQ2YWUzNzkxMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWZkODQ3YTk1NTllNjJmNTFmYjRjYzNmNWUzODcyNzlkYjQyM2U5MGQxMjcxNjYzM2MwN2NjOTE1OWEyNThkNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTc0MjhjYjI3MGNmZDA4NjQxMzk1ZjJhZjljNWE3MjcxOTQ4NWNlN2VkNDYzZDFmMDM4NzE1NzcwNWI1OWE5MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjk0ZGVhN2ZkNzJiMGI1ZWE3ZmQyNzVlZWE5Y2ExNTA0N2NjZTkxNDQ4YTdhOGU5MDUwZDJiNDM5ODFlY2MzYiJ9"
+        },
+        {
+          "resource": "repo://Makefile#L62-L64",
+          "version": "repo-lines-v1:sha256:fb7c157bef806edff456427e48a89ab2790a779bd976311f8b0f107f16b563d7:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDJkY2MxODUzZGRhMTIzNWM0MjkzMDNjOThkYjA3YmZiZTRiZjM4YjMyZGVmNzNlMTMxYTUzN2FkMzQxOGY4YyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzcxODQ2MzJhNjk5OTY1ZmE2YzEzNzIwMzA3YzkwMGY3ZWEzOTdhZGQ2MjQxNzg3NmY1MzUzNTExYWExOWQwNCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiN2ZkMzA4MTcyZDcxZTQ4ZDY2ZmVjMjRjNTk0MDA2ZjFlZmUwMDU5OTkzMThkMDIzODAwOGMyYzAzNzM5YTZjZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTM0ZGRhZDdkYjhkYjFjMDQ0NDBjM2UyNjk3YWU1NjhiYjgwZmQzZTJjZGE0ZTA1NWUwYzNkYjI3NDVjM2IxMSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_c67532f836f1483fae3a4eae5b4b3cb8",
+      "statement": "Coverage profile is generated with `make test-cover` and HTML view with `make cover`.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L93-L94",
+          "version": "repo-lines-v1:sha256:45ce343afb024c59e46481cf7e8d8ffca66a356d2babf8628deae1bbde940281:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNWZkODQ3YTk1NTllNjJmNTFmYjRjYzNmNWUzODcyNzlkYjQyM2U5MGQxMjcxNjYzM2MwN2NjOTE1OWEyNThkNiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjg3YmVmMWI3ZTAzNDMzOTQyZTdlOGRmMGM4Y2Q3ZDgyZTUyYWJiODEzM2RjMjc2MzAzNjdiMGYwMDFhZDVjNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzljZGUxNWI4ODk0NjQxZDdiMWY4NjVhMWVhODY4ZjllZTUwYzcxM2IyZmJhZTYxMjVjYzhiZjI3Y2ZjZTVkMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzkxMDM0ZTA2NmY3ZWE2Y2U1ZGJhYmY1MDBhMTU2YTM4ZGQ4MmI5Y2NmMWM1OTI5YmYzN2Q5ODcyYWE1ZWFiOSJ9"
+        },
+        {
+          "resource": "repo://Makefile#L66-L75",
+          "version": "repo-lines-v1:sha256:b4243f36756596d59580ee53fc1498c1044cc3ca78b39219681f99c21bc47bf9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRlNjc0YTI3YzU3OGUwMjNlOTU3ZGQ3OWIzNWE5YWJkNzc1ZDBjYzM1YWY3NTVkMWFkMzFkMmJmMmRmOTA0MTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNjMTMxMWU1NWE4M2FlMjllYTZjZmE1MTE1MDIxZmE0M2NjYzkzMDI2MWQyZmU5MTk0NTRiNGFjNGFhMjBiOWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYyYjcxZjVjMjViZDdkMGI1ZTQwODEzNjRlZmE4MWUyMzdmZDBlMjY4ZjQ5NmIzNWZlN2NmMjJmODlhZDEzYjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk5MzIyNjdkZTQwZWViZjk1ZWFlYjM4MzIyN2NjMjE4ZTkwYTI5ZjAzZWIwOWEwODc1YTJiMDEwM2I2YmFmOWUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d51f53e6c8d34c099ba509985f0025f7",
+      "statement": "Tests are organized in a tiered strategy with completed tiers 1-8d covering unit and integration tests for core packages, and pending tier 8e for Redis and session/WebRTC integration.",
+      "evidence": [
+        {
+          "resource": "repo://docs/TEST-PLAN.md#L33-L48",
+          "version": "repo-lines-v1:sha256:c22fa7c5b13f2bc55e72046213363f6516beec35eed31564eb0081dde7f6ff82:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1NGJjYWY4MTc2MWU2NzUyYmMyM2JmYjgwOGUyOWNjNWY2ZmM1YmQ1ZmE3YWQyN2Y2NmZjOTNiNDA5MGM0NGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMjdlYmZlZGE1MzMwNjA4NjU4NWU2NGRhMjkzOTVkZTE2YWE2N2ZmZDU4ODg5NjAwYjAxYjc3NzA0YjdlNzgifQ"
+        },
+        {
+          "resource": "repo://docs/TEST-PLAN.md#L51-L70",
+          "version": "repo-lines-v1:sha256:90c98a51e619b28ea3918347b2dae95d1e08da2e824b5368fedc77281f80a60d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjExNDVjNWJlZmI0ZjQzYThiNGE2M2MxYmU0ZTdlZWJlYmRlODFiYmM0ZWEzZmQ1ZGFlZjU3YWNkOGU4ODE5MTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNhOGQ1MTAzMDA2ZjlkZmViNWRiMGQ1ZjVhY2YyMWIzY2IzYzYyMWU0NDc5YmE5NTFjNjkxYzdhN2UyZmJhNDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b5e979be50b845698a9456f04afa3de1",
+      "statement": "Security-relevant tests are load-bearing and should not be changed without deliberate justification.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L59-L60",
+          "version": "repo-lines-v1:sha256:d40638eba0e215ec51e4d22860b8e11a365c5df12f9319aa5cb0561d3b178417:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWE1NzJjYzNjYzNlNGJjMjMyZmMzOTYyN2ZlNTExMWU4MWZiYmIzYjIwZDdmYzEzZmJmNDEyMTk1NWZkZmFhMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTQ1N2IwOWU2NjlkZGQxZTMyYTk1NzdlOTFjZWViYWZjM2I1ZDJjNjU5YzQ0MzFkNDYwY2M0NTdjMGFmYjVjOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOGQ3NjlkODUwYzU5NzBlYmUxNWYyNzcyMDYyYzRhYjQ3MGE2YzZmYjdkNWExNGNjNDVkYjEwYjRjZDQ3M2U3OCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzc0NWFkZjRkZWIwMjNlNDZiM2JlN2NiMWMxNmU2NjQ1YTlhN2FkODI0ZDc1MzA0NmJlMGY5NGU2MzBmOTJiOSJ9"
+        },
+        {
+          "resource": "repo://docs/TEST-PLAN.md#L20-L27",
+          "version": "repo-lines-v1:sha256:8d3fd9e815149b8c4f1ba00cee0ad83829cf01aa492375024abbd576f8339666:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNWJmZDQ3YTRlNTA0NTkwMTBhNjhhYjRmOWM1NmZmNDk5NmRiYTEyNzIzNTFkODU0ZGVkZjkyMDVhZWVlMjBiMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDBmMGU4ZTgwYWZhODcxODk0MWM4MWI0YmVmYzZiNjMyZTg5ODlkYzIyMDc5MjkxYzczYTdmNDM5YzU2MjBkYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiN2Y2NGQ4NTNhMjk0MzM4YWZlMTZhYzg5MzU1YzZmZjQ1MmZmYzY3ZGJmNDA0YTBiODljYTljZmNiZDA3NWZkNiJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.0",
+    "at": "2026-09-05T11:33:48.919Z"
+  }
+}

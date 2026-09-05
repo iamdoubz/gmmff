@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:8cd1813b9d137694ea75c96807c3982373f3701405aef76ed7e58af330bcdf5c",
+  "claims": [
+    {
+      "id": "claim_5793b21324d84b2cb0a1a045dd2de31e",
+      "statement": "gmmff is a brutally simple, cryptographically sound peer-to-peer file and message transfer system.",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L14-L15",
+          "version": "repo-lines-v1:sha256:f8f7150f883cf46dea6a3b96cc9bcd7617dbe17f982c6c546248f23705c04dae:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjlkNDNjMTY2MjgyOGMxN2NmNjdhMzA1NGFkOTFiNDYyNGM5YmUzZTZjMGEzMmJhMTg0NGQzNDBiODc1ZWNhZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmRhZWQwMzVhODYxOWU2YTM0MTU4MzU5YWYyZjNkMTk4Y2Q2MWRhMGVlMzI5ZGE5NzA3NDBiZDBiZDk0ZjU5NiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDhmZDhlYmRlMzFkOWJkYzU1NWViOTEwNjA5NmM5NTAwMTE0ZGU0NzcxOWM1ZmI4MWUxYjQ0YTcxNmNiMmNiZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjA2NjFjNzMxOGY0NzBkZGQ5YTg5MmI4MTFmZDUzYzY5ZjRhYjk1OGQxYzcwYWE2NjVhMTFhNTI2OGI4N2Q3YiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_ab24e420d788441fa0beaf0366dd52ef",
+      "statement": "gmmff consists of two main components: a signaling server that brokers initial connections between peers (WebSocket server) and a CLI client that handles actual file/message transfer over encrypted WebRTC data channels.",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L17-L20",
+          "version": "repo-lines-v1:sha256:f32aa3aea54ddca45efc391b9d1826827708800e56a5a96b6f229ae1a177c473:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOThhYzMxZGU4YzIzY2Q3OGI5YzMwODFkYjIzYjFhMDcyOWM3OWM5NjE3NjQ5ZDZjNDhjMmI0NjJiMDFjMTc4MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDEwYzViZWZlOWVjM2M1N2YyNThhOWU1OWU4Y2RkZTBiOWRkNTA0Njc1NzNhZGYxOTYwNGExY2FkOGE5NDIwMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMWU2OTEyZjkyMDg1NzY1MjY2OTcxNjhlN2I2ZmZmODRlZGI3OTEzOTgwYzU4ZjYxY2FjYjc4MWMxNjVmYzkxYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        },
+        {
+          "resource": "repo://docs/ARCHITECTURE.md#L5-L15",
+          "version": "repo-lines-v1:sha256:c88c2682ad7347306415bbfae286fa64cc6d2a0640b8bb83f963bb74b3de7a5c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlYmFmN2M5ZjAwZTJmMWU5ZjAzMzBjYzc3MjNiYzg3MzlhMWE0NDMzZjYyYzY4NzZiZDdiNDg1YmVlMWY1NmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxYWYwZjg4OTA1ZTRjM2Q3MGQxN2U5OTE5ZWIxMjIyMTc3NDhhYjY0ZTJkYTM2Njk3Y2ZmNzVjMDA3MzhjYTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjExYjM4NTc3YjRhYjMyYjE2MTZhNWVkMzFiYjkxYjliMmIxZmY2MTdhMmJiNGI1Mzc1MGU2YWIzOTNiYjM0YjMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_deb09973aaa947c38bb7d27958982eae",
+      "statement": "The signaling server never sees file contents; once peers connect, data flows directly between them over encrypted WebRTC data channels.",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L19-L20",
+          "version": "repo-lines-v1:sha256:d4a3bfa3107a5fb1e9758ee60a56248fd002aa3ef3b8c1515dc5d42d0c333936:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDNlMGEyYWQwMTkxNWZmOWM2NDQ1MGQ1MmJhZmY5NWFmOGVmNzZlYmRhOGE2NjY2ZTk0ZGJjMGMxN2Q2YTk1OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDEwYzViZWZlOWVjM2M1N2YyNThhOWU1OWU4Y2RkZTBiOWRkNTA0Njc1NzNhZGYxOTYwNGExY2FkOGE5NDIwMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYjA2NjFjNzMxOGY0NzBkZGQ5YTg5MmI4MTFmZDUzYzY5ZjRhYjk1OGQxYzcwYWE2NjVhMTFhNTI2OGI4N2Q3YiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        },
+        {
+          "resource": "repo://docs/ARCHITECTURE.md#L14-L15",
+          "version": "repo-lines-v1:sha256:ef31674fce0b565cd4a8aa9e7d8e925c4d2da44ecf073bf8ddc3d62cdbeca84f:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzFhNWVkYmNmMDUyNzJkNWE4ZDQ1YTM0OGUwOWIzMDI4ZDIxMTNhYzFjOTBiMWYwNmIwOGFiZTQyNTJhMDM4OSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDFhZjBmODg5MDVlNGMzZDcwZDE3ZTk5MTllYjEyMjIxNzc0OGFiNjRlMmRhMzY2OTdjZmY3NWMwMDczOGNhNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODEwOTBmYjcxYjllNzJmZDZhMWZjZDBhYTc0M2U4OGNlNGE3ZDVlNzU4MDc1ZjRkNTcyYjRkMGVjZjk1Y2Y4MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.0",
+    "at": "2026-09-05T11:33:48.919Z"
+  }
+}

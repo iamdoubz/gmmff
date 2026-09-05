@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:49235e92d4f9c54c97109a2ce5d57254fb2181c8e1978e7eb3270425d6dc4736",
+  "claims": [
+    {
+      "id": "claim_f864b44737164472a73d7cf5c285ac2f",
+      "statement": "The `gmmff create` command outputs a 3-word code that the user must share with a peer to establish a session.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/create.go#L87-L92",
+          "version": "repo-lines-v1:sha256:a2a81ad66a8fe897bd4b8a08bfdf9ce5cac73f0792672a0d231fccf4bdf560d9:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiN2I0N2Y1MDczYmI0ZWZmMTI5MWJkZjVmZGFhODY0NDRiYTgzZDEzY2FiZTVkZGI2MGI0YjA4MjRkYzMxNjAwOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNGFjMjllZTUzZjk1NTk5NDVjZjQzNTY1OWVmYzQ5Y2VhYWZhYTRhNTgyMDk5MGQ4N2UyY2Q5Y2ZkMTAyZjZjZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDFmZWFmNzZlMzA3ZGNiNTk4Y2RmMjVjMjZhMWI4MjEyZjc3ODlmNmRhNTI0MWY0MGFjYjlhYzdmY2FmMTEwMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjAxNGU3M2Q2MjdhNDRiZTk4Nzk5YjAzNTFlMWE5NTlkOWI1NWZlMGE4NmQ4MGNiNjI3NmZkNDVjMzRkZjUxNSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.0",
+    "at": "2026-09-05T11:33:48.919Z"
+  }
+}

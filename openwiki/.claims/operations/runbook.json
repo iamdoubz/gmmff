@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:6c944c870615bfcb570bc72150e6d796786c181f3c6d044bcc05aac161a9714a",
+  "claims": [
+    {
+      "id": "claim_4897935632ef4e8aadeb6f78beb7a3da",
+      "statement": "In schedule mode, access control follows a strict precedence: (1) no IP list and no password allows everyone, (2) IP in non-empty allowlist allows without password, (3) password set requires verification, (4) otherwise deny; this prevents password from being silently ignored when IP allowlist is configured.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L155-L164",
+          "version": "repo-lines-v1:sha256:5bdd7764cf0f3410b0ca431ed00b5850170dd367ac34f4deebce24a89596d83a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyM2EzNzU2N2MyNGZlYjFmYjY1ZWVmMmNkN2QyZTViNWZhODFmMGI3YTE0YzE1Y2Q1MDY4YTZmN2IwNTVmMjEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM4YTBmZjI2ZDI4YzA1ODljZjI0YTlkNzAzZDdkYWJkZmEyODY4YTBlN2Y5YjNiODFmZGVjNGQ0NmQ1Mjk1ZjIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRhODI4YmE2YzZhYjBlMGFkMzhjYzU4MzVjOTI4YjliNTMyNzQyYzAxMGM3MGVkOGNmOGY4ODJkZjE4ZDVmMDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQyNjBjYmU2MTEyODZhMDU3OGQ3ZGQ3N2ZhNTM5OTg3NzFmMmJmZDU2ODI3MjlkYWRmMTgzZDhhOTk3NDJkMmUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.0",
+    "at": "2026-09-05T11:33:48.919Z"
+  }
+}

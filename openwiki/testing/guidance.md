@@ -2,6 +2,17 @@
 type: Documentation
 title: Testing Guidance
 description: How to run tests, understand test coverage, and contribute tests for gmmff.
+verified:
+  - by: openwiki/0.5.0
+    at: 2026-09-05T11:33:48.919Z
+sources:
+  - id: openwiki-source-a2371d6362e5db4bc834ad03
+    resource: repo://CLAUDE.md
+  - id: openwiki-source-f3afda225ef2a83eb7d696c1
+    resource: repo://docs/TEST-PLAN.md
+  - id: openwiki-source-012f2c78e3b1446dfc35803f
+    resource: repo://Makefile
+generated: { by: "openwiki/0.5.0", at: "2026-09-05T11:33:48.919Z" }
 ---
 # Testing Guidance
 
@@ -11,27 +22,25 @@ description: How to run tests, understand test coverage, and contribute tests fo
 ```bash
 make test
 ```
-Runs all unit tests (CGO-disabled, works on Windows). This is the default test command.
+Runs all tests (CGO-disabled, works on Windows). This is the default test command.
 
 ### Race Detection
 ```bash
 make test-race
 ```
 Runs tests with race detector enabled. Requires clang and a non-Windows host.
+Does not work on Windows (MSVC `-mthreads` error) — use `make test` there.
 
 ### Coverage
-## Test Coverage
-
 ```bash
 make test-cover
 ```
-Runs tests and generates a coverage profile, then opens the coverage report in your browser.
+Runs tests and generates a coverage profile, then prints functional coverage.
 
-Alternative:
 ```bash
-go test ./... -coverprofile=coverage.out
-go tool cover -html=coverage.out
+make cover
 ```
+Runs `make test-cover` and then opens an HTML coverage report in the browser.
 
 ### Specific Packages
 ```bash
@@ -41,17 +50,40 @@ go test ./internal/transfer/  # Test transfer package
 
 ## Test Structure
 
+### Test Philosophy
+Tests here have caught **real production bugs**, not hypothetical ones:
+- Schedule auth bypass (empty IP list short-circuited the password check)
+- Path traversal (`sanitiseName` left `..` in `../../x`)
+- Non-deterministic byte-size parsing (`"gb"` matching as `"b"`)
+- `formatDurationLabel(0)` edge case
+
+Because of that track record, tests are treated as a first-class safety net, not
+a box to tick. Two working rules:
+
+1. **When a test fails, decide whether the test or the code is wrong.** Both
+   happen. The schedule max-downloads cap is a *ceiling*, not a floor — a test
+   once asserted the wrong direction and the test was the bug.
+2. **Security-relevant tests are load-bearing.** The PAKE cross-key rejection,
+   offer≠answer MAC separation, `sanitiseName` traversal stripping, schedule
+   auth precedence, and wire-tag pinning all encode security invariants.
+   Changing them should require deliberate justification.
+
 ### Test Tiers
+<!-- openwiki: broken internal link [docs/TEST-PLAN.md] file "docs/TEST-PLAN.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 The project follows a tiered testing approach documented in [TEST-PLAN.md](docs/TEST-PLAN.md):
 
-- **Tiers 1-8d**: Completed unit and integration tests covering core packages
-- **Tier 8e (pending)**: Integration tests with real Redis and session/WebRTC integration
+- **Completed tiers (1–8d)**: Unit and integration tests covering core packages
+<!-- openwiki: broken internal link [docs/TEST-PLAN.md] file "docs/TEST-PLAN.md" does not exist. Fix the href or restore the target, then delete this comment. -->
+  (see [TEST-PLAN.md](docs/TEST-PLAN.md) for detailed coverage by package).
+- **Pending tier (8e)**: Integration tests with real Redis and session/WebRTC
+  integration.
 
 ### Test Organization
 - Unit tests live alongside the code they test (`*_test.go`)
 - Table-driven tests are preferred for pure logic
 - Mocks are used for external dependencies (e.g., `mockDataChannel` for WebRTC)
-- Integration tests use `httptest` for HTTP handlers and `miniredis` for Redis integration where applicable
+- Integration tests use `httptest` for HTTP handlers and `miniredis` for Redis
+  integration where applicable
 
 ## Writing Tests
 
@@ -75,7 +107,8 @@ Particular attention is paid to:
 - Authentication precedence
 - Wire-tag pinning
 
-These tests should not be changed without deliberate justification and preferably accompanied by a security review.
+These tests should not be changed without deliberate justification and preferably
+accompanied by a security review.
 
 ## Continuous Integration
 
@@ -87,7 +120,8 @@ GitHub Actions runs:
 
 ## Benchmarks
 
-Benchmarks are located alongside tests in `*_test.go` files and follow the naming convention `Benchmark*`.
+Benchmarks are located alongside tests in `*_test.go` files and follow the naming
+convention `Benchmark*`.
 
 Run benchmarks:
 ```bash
@@ -98,53 +132,3 @@ Run with allocation profiling:
 ```bash
 go test ./... -bench=. -benchmem
 ```
-
-## Performance Testing
-
-Performance-sensitive areas:
-- WebSocket hub performance (concurrent connections)
-- Slot creation/join throughput
-- Data channel throughput
-- Cryptographic operations (PAKE, HKDF)
-
-See `internal/broker/hub_test.go` for example concurrent connection tests.
-
-## Troubleshooting Tests
-
-### Flaky Tests
-If a test fails intermittently:
-1. Check for race conditions (use `go test -race`)
-2. Verify proper cleanup of resources (especially goroutines, channels, temporary files)
-3. Look for dependencies on external state (time, random seeds, global variables)
-4. Use `go test -count=1000 .` to reproduce flaky tests locally
-
-### Slow Tests
-Tests marked as slow or requiring external resources (Redis, network) should be:
-- Tagged appropriately (if using build tags)
-- Considered for integration test suite (Tier 8e)
-- Run less frequently in local development
-
-### Test Coverage Gaps
-As of the latest coverage snapshot (see [TEST-PLAN.md](docs/TEST-PLAN.md)), the following packages have low coverage and are targets for improvement:
-- `store` (Redis integration needed)
-- `chat` (REPL requires live data channel)
-- `session` (WebRTC orchestration)
-- `peer`, `signaling`, `localmode` (require live WebRTC/WebSocket)
-
-## Resources
-
-- [TEST-PLAN.md](docs/TEST-PLAN.md) - Detailed test strategy and coverage
-- [docs/DECISIONS.md](docs/DECISIONS.md) - Architectural decisions that may affect testing
-- [internal/mocks/] - Mock implementations for testing
-- [scripts/] - Helper scripts for development (if any exist)
-
-## Contributing Tests
-
-When adding features:
-1. Write unit tests for new functions and methods
-2. Test error paths and edge cases
-3. For security-sensitive code, add tests that verify the security invariants
-4. Update mocks if interfaces change
-5. Consider adding integration tests if the feature involves multiple components
-
-Run `make test` before submitting changes to ensure nothing is broken.

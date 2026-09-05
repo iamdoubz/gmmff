@@ -1,15 +1,31 @@
 ---
 type: Documentation
 title: Domain Concepts Overview
-description: Core domain concepts in gmmff including sessions, slots, PAKE, WebRTC data channels, and slot lifecycle.
+description: Explains the core domain concepts in gmmff such as sessions, slots, PAKE, WebRTC data channels, and the slot lifecycle.
+tags: [domain-concepts, architecture, session, slot, pake, webrtc]
+verified:
+  - by: openwiki/0.5.0
+    at: 2026-09-05T11:33:48.919Z
+sources:
+  - id: openwiki-source-a2371d6362e5db4bc834ad03
+    resource: repo://CLAUDE.md
+  - id: openwiki-source-eb7ce360a58ffe4cced33e72
+    resource: repo://docs/PROTOCOL.md
+  - id: openwiki-source-3ec59b00d289a615f79b6f15
+    resource: repo://docs/SECURITY.md
+  - id: openwiki-source-d32161ee45da410429870c3e
+    resource: repo://internal/pake/session.go
+  - id: openwiki-source-c3138a2e20a1bb95abc1c522
+    resource: repo://internal/session/session.go
+  - id: openwiki-source-ce826a3573a98651b26c85cd
+    resource: repo://internal/slot/slot.go
+generated: { by: "openwiki/0.5.0", at: "2026-09-05T11:33:48.919Z" }
 ---
 # Domain Concepts Overview
 
-## Core Concepts
-
 gmmff revolves around several core domain concepts that enable secure peer-to-peer communication:
 
-### Session
+## Session
 
 A **session** represents a peer-to-peer file and message transfer session between two or more peers. A session is established when peers share a secret code and successfully complete the PAKE authentication and WebRTC handshake.
 
@@ -19,27 +35,35 @@ Key characteristics:
 - Multi-peer: supports 2-10 peers in a single session
 - Interactive: provides a REPL for sending files and messages
 
-### Slot
+## Slot
 
 A **slot** is the server-side representation of a session waiting for peers to join. It lives in the signaling server's storage (Redis/Valkey or in-memory map) and tracks the state of peers attempting to establish a session.
 
-Slot lifecycle:
-1. **WAITING**: Created by first peer (`gmmff create`), waiting for peers`), waiting for additional peers
-2. **READY**: All expected peers have connected, ready to exchange signaling
-3. **CLOSED**: Session ended (peer disconnected or TTL expired)
+Slot lifecycle (as defined in `internal/slot/slot.go`):
+1. **WAITING** (`StateWaiting`): Created by first peer (`gmmff create`), waiting for peers to join
+2. **ACTIVE** (`StateActive`): At least one peer has joined, still accepting new peers if not full
+3. **FULL** (`StateFull`): Maximum peers reached, no longer accepting new joins
+4. **CLOSED** (`StateClosed`): Session ended (peer disconnected, initiator left, or TTL expired)
 
 Slot structure:
-- UUID: Unique identifier for the slot
-- State: Current state (WAITING, READY, CLOSED)
+- ID: Unique identifier for the slot
+- Code: Human-readable 3-word passphrase for authentication
+- State: Current state (WAITING, ACTIVE, FULL, CLOSED)
+- SessionType: Type of session ("files" or "chat")
 - CreatedAt: Timestamp when slot was created
 - ExpiresAt: Timestamp when slot expires (10 minutes after creation)
-- PeerA/PeerB: WebSocket connection IDs of connected peers (optional)
+- InitiatorID: Connection ID of the peer that created the slot
+- PeerIDs: WebSocket connection IDs of connected peers (excluding initiator)
+- MaxPeers: Total number of participants allowed (initiator counts as 1)
+- EverFull: Boolean set when slot first reaches MaxPeers; prevents reopening after peers leave
 
-### PAKE (Password Authenticated Key Exchange)
+State transitions are validated before any storage write, ensuring the signaling server never persists invalid state.
+
+## PAKE (Password Authenticated Key Exchange)
 
 **PAKE** is the cryptographic protocol that allows two peers to establish a shared secret over an insecure channel (the signaling server) without revealing the secret to the server.
 
-gmmff uses the **CPace** protocol:
+gmmff uses the **CPace** protocol over the ristretto255 group (`filippo.io/cpace`):
 - Input: low-entropy secret (the 3-word code)
 - Output: strong shared secret key
 - Properties:
@@ -49,173 +73,63 @@ gmmff uses the **CPace** protocol:
   - Resistant to offline dictionary attacks
 
 The PAKE secret is used to:
-1. Derive keys for HMAC-signing SDP messages (prevents MITM)
-2. Seed the key derivation for WebRTC/DTLS encryption
+1. Derive two subkeys via HKDF-SHA256:
+   - `offerKey` = HKDF(sharedKey, salt="gmmff-v1", info="sdp-offer-mac")
+   - `answerKey` = HKDF(sharedKey, salt="gmmff-v1", info="sdp-answer-mac")
+2. The initiator signs the SDP offer with `offerKey` and verifies the answer with `answerKey`
+3. The responder does the reverse
+4. This cryptographically binds the WebRTC SDP exchange to the shared secret, preventing a compromised signaling server from substituting its own SDP fingerprints
 
-### WebRTC Data Channel
+## WebRTC Data Channel
 
 Once peers have established a shared secret via PAKE, they establish a direct **WebRTC data channel** for transferring files and messages.
 
 Key properties:
 - **Peer-to-peer**: data flows directly between peers after initial signaling
-- **Encrypted**: DTLS 1.2+ provides encryption and authentication
+- **Encrypted**: DTLS 1.3 provides encryption and authentication (Pion's implementation)
 - **Ordered/Unordered**: can configure reliability per channel
 - **Congestion controlled**: uses UDP-based congestion control (similar to TCP)
 - **Message-oriented**: preserves message boundaries (unlike byte streams)
 
 gmmff uses:
-- **DTLS-SRTP** for encryption (standard WebRTC security)
+- **DTLS 1.3** for encryption (standard WebRTC security)
 - **SCTP over DTLS** for data transport
-- **Partial reliability** for file transfers (retransmits lost packets)
-- **Unreliable** for chat messages (low latency, occasional loss acceptable)
+- Separate data channels:
+  - Persistent **control channel** (carries TagMessage, TagTransferAnnounce, etc.)
+  - Ephemeral **transfer channels** (one opened per file, named `transfer-<ulid>`)
 
-### Slot State Machine
+## Wire Protocol and Data Channel Frames
 
-The slot lifecycle is managed by a strict state machine to prevent invalid states:
+All signaling messages are JSON `{ "type": "...", "payload": { ... } }` as defined in `docs/PROTOCOL.md`.
 
-```mermaid
-stateDiagram-v2
-    [*] --> WAITING
-    WAITING --> READY: slot.join (peer connects)
-    READY --> CLOSED: bye (peer disconnects) OR expire (TTL)
-    CLOSED --> [*]
-    
-    state WAITING {
-        [*] --> WaitingForPeer
-        WaitingForPeer --> [*]: TTL expiry
-    }
-    
-    state READY {
-        [*] --> ExchangingSignaling
-        ExchangingSignaling --> [*]: Signaling complete
-    }
-    
-    state CLOSED {
-        [*] --> Cleanup
-        Cleanup --> [*]: Resources released
-    }
-```
+Once a WebRTC data channel opens, all frames are binary with a one-byte tag prefix. The wire protocol is **frozen** - changing tag values breaks every deployed client against every deployed server.
 
-State transitions are validated in `internal/slot/slot.go` before any storage write, ensuring the signaling server never persists invalid state.
+Data channel binary tags:
+| Tag | Direction | Channel | Meaning |
+|-----|-----------|---------|---------|
+| `0x01` | sender → receiver | transfer | File header (JSON: name, size, SHA-256, chunk count, optional message) |
+| `0x02` | sender → receiver | transfer | Chunk (8-byte seq + payload) |
+| `0x03` | receiver → sender | transfer | Chunk ack (8-byte seq) |
+| `0x04` | sender → receiver | transfer | Transfer done |
+| `0x05` | receiver → sender | transfer | Transfer OK (hash verified) |
+| `0x06` | either direction | transfer | Transfer error |
+| `0x07` | receiver → sender | transfer | Resume from chunk N (8-byte seq) |
+| `0x08` | either direction | either | Cancelled |
+| `0x09` | either direction | control | Chat / session message (UTF-8 text) |
+| `0x0A` | initiator → all | control | Chat close — ends chat session for everyone |
+| `0x0B` | any participant | control | Participant leave — quiet exit; session continues |
+| `0x0C` | either direction | control | Session ready |
+| `0x0D` | sender → receiver | control | Transfer announce (channel label) |
+| `0x0E` | receiver → sender | control | Transfer accepted (channel label) |
+| `0x0F` | initiator → all | control | Session close — ends file session for everyone |
+| `0x10` | reserved for future use | | |
+| `0x11` | reserved for future use | | |
 
-### Cryptographic Flow
+## Filename Sanitization
 
-1. **PAKE Exchange** (via signaling server)
-   - Peer A: `pake1` → Server → Peer B
-   - Peer B: `pake2` → Server → Peer A
-   - Result: Both derive shared secret `S`
+Any filename arriving from a peer must pass through `sanitiseName` before it touches the filesystem. It strips:
+- Path separators (`/`, `\`)
+- Null bytes
+- `..` traversal sequences
 
-2. **SDP Exchange** (HMAC-signed with `S`)
-   - Peer A: `sdp1 = offer || HMAC_S(offer)` → Server → Peer B
-   - Peer B: `sdp2 = answer || HMAC_S(answer)` → Server → Peer A
-   - Verification: Each peer verifies HMAC using `S`
-
-3. **ICE Exchange** (not HMAC-signed, but integrity protected by DTLS)
-   - Peer A: `ice1` → Server → Peer B
-   - Peer B: `ice2` → Server → Peer A
-
-4. **DTLS Handshake** (uses keys derived from `S`)
-   - Establishes encrypted SRTP/SCTP associations
-
-5. **SCTP Data Channel** (application data)
-   - File transfer and messaging over encrypted channel
-
-## Key Source Files by Concept
-
-### Session Management
-- `cmd/gmmff/create.go` - `gmmff create` command
-- `cmd/gmmff/join.go` - `gmmff join` command
-- `cmd/gmmff/chat.go` - `gmmff chat` command
-- `internal/session/session.go` - Core session logic
-- `internal/session/session_test.go` - Session tests
-
-### Slot Management
-- `internal/slot/slot.go` - Slot struct and state transitions
-- `internal/slot/slot_test.go` - Slot tests
-- `internal/store/` - Storage abstractions (Redis, memory)
-
-### PAKE/Cryptography
-- `internal/pake/` - CPace implementation
-- `internal/crypto/` - HKDF, HMAC, and key derivation
-- `internal/protocol/` - Protocol message definitions and HMAC signing
-
-### WebRTC/P2P
-- `internal/peer/` - Peer connection management
-- `internal/transfer/` - File transfer over data channels
-- `internal/chat/` - Chat messaging over data channels
-
-### Storage
-- `internal/store/memory.go` - In-memory store (dev)
-- `internal/store/redis.go` - Redis/Valkey store
-- `internal/store/store.go` - Storage interface
-
-## Related Concepts
-
-### Configuration
-- Environment variables (see `docs/ENV.md`)
-- Command-line flags (see `docs/CMDS.md`)
-- Configuration validation (`internal/conf/`)
-
-### Error Handling
-- Error types (`internal/err/` context wrapping)
-- Context-aware logging (`internal/log/`)
-
-### Metrics
-- Prometheus metrics (`internal/metrics/`)
-- Health checks (`/healthz`, `/readyz` endpoints)
-
-## Domain Boundaries
-
-### Bounded Contexts
-
-1. **Signaling Context** (`internal/broker/`, `internal/signaling/`, `internal/slot/`, `internal/store/`)
-   - Responsible for brokering initial peer connections
-   - Manages slot lifecycle and state
-   - Never sees file contents or decryption keys
-
-2. **Peer Connection Context** (`internal/peer/`, `internal/transfer/`, `internal/chat/`)
-   - Handles WebRTC connection establishment
-   - Manages data channels for file/messages transfer
-   - Handles encryption via keys derived from PAKE
-
-3. **Cryptographic Context** (`internal/pake/`, `internal/crypto/`)
-   - Implements PAKE (CPace) for key establishment
-   - Provides cryptographic primitives (HKDF, HMAC)
-   - Handles SDP message signing
-
-4. **Application Context** (`cmd/gmmff/`, `internal/session/`)
-   - CLI command implementations
-   - Session REPL and user interaction
-   - File system interaction (reading/writing files)
-
-## Data Flow Summary
-
-1. **Session Initiation**
-   - User runs `gmmff create` → creates slot in storage → gets 3-word code
-   - User shares code out-of-band
-
-2. **Peer Joining**
-   - Peer runs `gmmff join <code>` → resolves code to slot UUID
-   - Both peers now connected to signaling server
-
-3. **Key Establishment**
-   - PAKE exchange via signaling server → shared secret established
-   - SDP exchange (HMAC-signed with secret) → WebRTC parameters agreed
-   - ICE exchange → network path established
-
-4. **Direct Connection**
-   - Signaling server's job is complete
-   - Peers establish encrypted WebRTC data channel directly
-   - All subsequent file/message transfer is peer-to-peer
-
-5. **Session Interaction**
-   - Users send files/messages via session REPL
-   - Data transferred directly over encrypted channel
-   - Session ends when peers disconnect or TTL expires
-
-## See Also
-
-- [Architecture Overview](/openwiki/architecture/overview.md) - System components and deployment
-- [Key Workflows](/openwiki/workflows/key-workflows.md) - Step-by-step walkthroughs of common operations
-- [Source Map](/openwiki/source-map.md) - Direct mapping of concepts to source files
-- [Operations & Runbook](/openwiki/operations/runbook.md) - Deployment, configuration, and maintenance
+Both the Wasm receiver (`ReceiveStateMem`) and the CLI receiver (`ReceiveState`) call it before `filepath.Join`. This prevents path traversal attacks and is a critical security boundary.

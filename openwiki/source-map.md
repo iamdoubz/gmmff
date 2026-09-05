@@ -2,6 +2,13 @@
 type: Documentation
 title: Source Map
 description: Mapping of wiki topics to source code locations for easy navigation.
+verified:
+  - by: openwiki/0.5.0
+    at: 2026-09-05T11:33:48.919Z
+sources:
+  - id: openwiki-source-17506c01deef3bc65f2fb2fc
+    resource: repo://internal/archive/archive.go
+generated: { by: "openwiki/0.5.0", at: "2026-09-05T11:33:48.919Z" }
 ---
 # Source Map
 
@@ -20,11 +27,15 @@ This file maps wiki topics to their primary source code locations in the gmmff r
   - `/internal/pake/` - CPace PAKE implementation
   - `/internal/crypto/` - Cryptographic primitives (HKDF, HMAC)
   - `/internal/session/` - Session REPL and user interaction
+  - `/internal/archive/` - On-the-fly zip archiving for multi-file transfers
+  - `/internal/display/` - Output formatting and display utilities
+  - `/internal/peerconfig/` - Peer configuration management
+  - `/internal/turn/` - TURN server integration for peer-to-peer connectivity
 
 ## Key Workflows
 
 - [Key Workflows](/openwiki/workflows/key-workflows.md)
-  - File transfer: `/cmd/gmmff/create.go`, `/cmd/gmmff/join.go`, `/internal/transfer/`
+  - File transfer: `/cmd/gmmff/create.go`, `/cmd/gmmff/join.go`, `/internal/transfer/`, `/internal/archive/`
   - Chat: `/cmd/gmmff/chat.go`, `/internal/chat/`
   - Local mode: `/cmd/gmmff/local.go`, `/internal/localmode/`
   - Schedule: `/cmd/gmmff/schedule.go`, `/internal/schedule/`
@@ -37,12 +48,16 @@ This file maps wiki topics to their primary source code locations in the gmmff r
   - PAKE: `/internal/pake/`
   - WebRTC Data Channel: `/internal/peer/`, `/internal/transfer/`
   - Slot State Machine: `/internal/slot/slot.go`
+  - Archive: `/internal/archive/archive.go`
+  - Display: `/internal/display/format.go`
+  - Peerconfig: `/internal/peerconfig/peerconfig.go`
+  - Turn: `/internal/turn/turn.go`
 
 ## Operations & Runbook
 
 - [Operations & Runbook](/openwiki/operations/runbook.md)
   - Deployment: `docker-compose.yml`, `Dockerfile`, `docs/SYSTEMD.md`, `docs/NGINX.md`
-  - Configuration: `docs/ENV.md`, `docs/CMDS.md`, `internal/conf/`
+  - Configuration: `docs/ENV.md`, `docs/CMDS.md`
   - Monitoring: `/healthz`, `/readyz`, `/metrics` endpoints (see `internal/broker/` and `internal/metrics/`)
   - Logging: `internal/log/`
 
@@ -63,6 +78,7 @@ This file maps wiki topics to their primary source code locations in the gmmff r
   - mDNS (local mode): `internal/localmode/`
   - PAKE: Uses `github.com/decred/dcrd/dcrec/secp256k1/v4` and `golang.org/x/crypto` (see `go.mod`)
   - Logging: Uses `github.com/charmbracelet/log` (see `internal/log/`)
+  - Archive: Uses standard library `archive/zip` (no external dependency)
 
 ## Key Source Files by Component
 
@@ -88,6 +104,7 @@ This file maps wiki topics to their primary source code locations in the gmmff r
 - `cmd/gmmff/send.go` - `gmmff send`
 - `cmd/gmmff/local.go` - `gmmff local`
 - `cmd/gmmff/schedule.go` - `gmmff schedule`
+- `cmd/gmmff/cleanup.go` - `gmmff cleanup`
 
 ### Peer-to-Peer Transfer
 - `internal/peer/peer.go` - Peer connection management
@@ -98,29 +115,20 @@ This file maps wiki topics to their primary source code locations in the gmmff r
 
 ### Cryptography
 - `internal/pake/pace.go` - CPace PAKE implementation
-- `internal/pake/pake.go` - PAKE protocol wrapper
-- `internal/crypto/crypto.go` - HKDF, HMAC, and key derivation
-- `internal/protocol/` - Protocol message definitions and signing
+- `internal/crypto/hkdf.go` - HKDF implementation
+- `internal/crypto/hmac.go` - HMAC implementation
 
-### Utilities
-- `internal/log/` - Privacy-preserving logger
-- `internal/conf/` - Configuration validation
-- `internal/metrics/` - Prometheus metrics
-- `internal/err/` - Error types and wrapping
+### Archive
+- `internal/archive/archive.go` - On-the-fly zip archiving for multi-file transfers
+- `internal/archive/archive_test.go` - Tests for archive package
 
-## Finding Related Code
+### Display
+- `internal/display/format.go` - Formatting utilities for CLI output
+- `internal/display/format_test.go` - Tests for display package
 
-To find where a specific concept is implemented:
+### Peerconfig
+- `internal/peerconfig/peerconfig.go` - Peer configuration management
 
-1. **Session lifecycle**: Look in `internal/slot/slot.go` for state transitions and `internal/broker/hub.go` for slot operations.
-2. **File transfer**: Trace from `cmd/gmmff/create.go` → `internal/session/session.go` → `internal/transfer/sender.go`/`receiver.go`.
-3. **Chat**: See `internal/chat/chat.go` and how it's used in `internal/session/session.go`.
-4. **Local mode**: See `internal/localmode/` for embedded server and mDNS discovery.
-5. **Schedule**: See `internal/schedule/` for server-side scheduled transfers.
-
-## See Also
-
-- [Architecture Overview](/openwiki/architecture/overview.md) - High-level system design
-- [Key Workflows](/openwiki/workflows/key-workflows.md) - Step-by-step operational guides
-- [Domain Concepts](/openwiki/domain-concepts/overview.md) - Core abstractions and models
-- [README](/README.md) - Project overview and quick start
+### Turn
+- `internal/turn/turn.go` - TURN client implementation
+- `internal/turn/turn_test.go` - Tests for TURN client

@@ -2,6 +2,15 @@
 type: Documentation
 title: gmmff Wiki Quickstart
 description: Entry point for the gmmff peer-to-peer file transfer system wiki. Provides high-level overview and navigation to key sections.
+verified:
+  - by: openwiki/0.5.0
+    at: 2026-09-05T11:33:48.919Z
+sources:
+  - id: openwiki-source-e8e61d605125cac4d909755e
+    resource: repo://docs/ARCHITECTURE.md
+  - id: openwiki-source-23775c3de52f3ab95a13cb8b
+    resource: repo://README.md
+generated: { by: "openwiki/0.5.0", at: "2026-09-05T11:33:48.919Z" }
 ---
 # gmmff Wiki
 
@@ -27,10 +36,13 @@ The server never sees file contents—once peers connect, data flows directly be
 
 ## Getting Started
 
-See the [official README](/README.md) for installation and quick start guides.
+<!-- openwiki: broken internal link [docs/INSTALL.md] file "docs/INSTALL.md" does not exist. Fix the href or restore the target, then delete this comment. -->
+<!-- openwiki: broken internal link [docs/BUILD.md] file "docs/BUILD.md" does not exist. Fix the href or restore the target, then delete this comment. -->
+See the [installation guide](docs/INSTALL.md) for installing `gmmff` and the [build guide](docs/BUILD.md) for building from source.
+
+For quick starts, see the [README](/README.md) which includes Docker Compose and local setup instructions.
 
 ## Contributing
 
-See [CONTRIBUTING](docs/CONTRIBUTING.md) for development setup, testing, and contribution guidelines.
-
-*Last updated: 2026-07-20*
+<!-- openwiki: broken internal link [docs/BUILD.md] file "docs/BUILD.md" does not exist. Fix the href or restore the target, then delete this comment. -->
+See the [Testing Guidance](/openwiki/testing/guidance.md) for how to run tests and the [Build Guide](docs/BUILD.md) for development setup.

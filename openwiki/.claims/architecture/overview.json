@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:7ecfa52d2233a004314be4dfd23388fae602273d5d0f1f916dd278c67b4a4f2c",
+  "claims": [
+    {
+      "id": "claim_c47f964f272d45259a08fd0030b2c14c",
+      "statement": "The gmmff system uses a star-topology WebRTC architecture where a signaling server brokers connections between peers for direct peer-to-peer data transfer.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L64-L69",
+          "version": "repo-lines-v1:sha256:4e5483db7a37489493c60703dcb9d4035f79fcca358374950d59fd7a810e60b7:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjhjMjY4NGE2MDNhNmI4NjJiODVlYWUyNzkwNzA4NmNmNmI5YTMxNDNjYWFiYzJlM2MzNTBmNWIwOGI0MjQxYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDVhZWNmYTkxZjQ4ZTE4YTczZmNmNDdmZmUxNWU0YjZkODIzZmM1MDVjNzAzOTkwYjM0MDVjZWJkNWM4NmQwMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzc0NWFkZjRkZWIwMjNlNDZiM2JlN2NiMWMxNmU2NjQ1YTlhN2FkODI0ZDc1MzA0NmJlMGY5NGU2MzBmOTJiOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZGZhNWY0OWMyM2VhODEwNmQ1MDkzMGJlMTRjZDhmMDJiYjFhOGYzZjAyNTc3OTU4NjU2MDg0ZDgwNmI3OTJmZCJ9"
+        },
+        {
+          "resource": "repo://docs/ARCHITECTURE.md#L9-L15",
+          "version": "repo-lines-v1:sha256:e9793e20ccb49852e08a44015f1686e99836d162c645d736f028ebf8e6d12d84:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzJlZmUyOTYwODEzMDUxZjQ5OWRjYzhmZTEyZGZmYTc5ZmFjZjczZmMyODEwMGI4MmMxYTlmZDYwNTRkMmExMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDFhZjBmODg5MDVlNGMzZDcwZDE3ZTk5MTllYjEyMjIxNzc0OGFiNjRlMmRhMzY2OTdjZmY3NWMwMDczOGNhNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTVlZDE4MDBmNzQ2MTY5OTU2ODdjZDRlYzhhYjJiMGZkNmNkZTI3MTViYzM4ZTEwNGM4N2M5ZjVkOTc5OGE3YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_ebe726f8984548f69f68124f901801dc",
+      "statement": "The signaling server is a stateless (with respect to peer data) WebSocket broker that uses a hub goroutine for coordination without shared memory.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L64-L66",
+          "version": "repo-lines-v1:sha256:6b777eb219ea5e8ab589752add0f927b21464e3066ed08c159d35c7f1fb57077:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjhjMjY4NGE2MDNhNmI4NjJiODVlYWUyNzkwNzA4NmNmNmI5YTMxNDNjYWFiYzJlM2MzNTBmNWIwOGI0MjQxYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzY0ODg3ODcyZWVhNDUzNGQzZjVlN2Y3Y2UwNjU5Y2NjM2YxNTQ1ZDY1MDIzYTVhYzliNWE2NjUzMTA3ODk1NCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzc0NWFkZjRkZWIwMjNlNDZiM2JlN2NiMWMxNmU2NjQ1YTlhN2FkODI0ZDc1MzA0NmJlMGY5NGU2MzBmOTJiOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYmFjN2E2MmMxN2M3ZTdiNWM0NjI3ZDEyMDc4N2I4Y2U2N2IzOTNiYjE5ZDJjNjA1MTc4MzAxZmFmZDZlYTgwMSJ9"
+        },
+        {
+          "resource": "repo://docs/ARCHITECTURE.md#L19-L43",
+          "version": "repo-lines-v1:sha256:1756ea82d3d3f7cfeacab01e20f0c0d11e344abc35961f8775b122b0fb14c3bc:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0MTM2OWQ1YzhiNzgyMDRkYmMyZDM5ZWMyYTE0ZGRjYjE3YjY3ZTZiZTkwNWZkYmY4ZTNjNTE4ODgwYTMzYmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY1MmQ3MTExMDNkNTBhNDM3ODMwYzZmYmNkMDRmYjRiYWI0OWEwZjgyZjZkMjZkMWM3OTFjNmU4NDg4ZGQwOTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU2YzE5M2Y2MzU2ZTdlYTU5OTQ1YTU5ODgxZjI2MWQwMDgxMjU1MjVkOWNiMjAzMDc0MDA2Njg0Y2MzMTg5Y2YifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5b2f8f1396b340989657f008f453123e",
+      "statement": "The signaling server persists slot state in Redis or Valkey with a 10-minute TTL for horizontal scaling, with an in-memory fallback for development.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L65-L66",
+          "version": "repo-lines-v1:sha256:43136bd2edbeac88109904e77b2a84356cc19744b93e914caaed7c8b212bfc20:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZGI4NTc3MjY5NjFiYjc3OThkMTJmZmE2NWVmYTdkMTUwZTczZDJjMWZlNjdjMTJmMjUxODI0OGMxY2JiYTVhMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzY0ODg3ODcyZWVhNDUzNGQzZjVlN2Y3Y2UwNjU5Y2NjM2YxNTQ1ZDY1MDIzYTVhYzliNWE2NjUzMTA3ODk1NCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNhNDRiM2NmYzZlYWUyNWQwNjc3ZTgzMjM2Y2RiYTZiM2FlNjU3M2YwMTg4ODdlYjAwOGYwNzE0OTFmYTYyMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYmFjN2E2MmMxN2M3ZTdiNWM0NjI3ZDEyMDc4N2I4Y2U2N2IzOTNiYjE5ZDJjNjA1MTc4MzAxZmFmZDZlYTgwMSJ9"
+        },
+        {
+          "resource": "repo://docs/ARCHITECTURE.md#L45-L65",
+          "version": "repo-lines-v1:sha256:9dbc43c9e7f4318c71c37d908773a5764599e08a6f39be2608da64ea060e92aa:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiOGQwMzg0MzYxYzQ5MGU2Mjg3ZTNjODVjYTY2MGY3N2M1YWU4ZWNhZTIxOWRhOWUzYmVkNmFmOTE5MjdlZjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM4ZWNkZWQ5YzBlMjU3MGMyZDJmNDRlNWViOWY4NDA3Y2QwMmFmNjI4YjZiMTdjMTc5NTg1MTJkZjQ4YWMxY2UifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5958f69780814f16943a4a427493ee00",
+      "statement": "The clients (CLI and browser) implement CPace PAKE for mutual authentication without revealing the secret to the server.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L76-L81",
+          "version": "repo-lines-v1:sha256:1f81578e5bd3d3c8f2f03c4026dff59245d817db8e7484079f615c2bf8898730:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDg4ZmI3MmRlMjUzY2Y5NmQ0NDk3YTgyNDA2NzlhZjE3M2EwYzA3ZWE5YzE0ZTRjYjM4MzM5ODU4NDE2ODhmOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTc3NTEzNGI2ZGRkMWU2ODFmZDRlMGY0NTJkZmIzYTM0MzkxZjc5MTBkMzEyZjRlNTMxNjZhMjU0NGJhMWU2OSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZGRhOTcxZGYxN2Q1YTBiZDY0MzViMDNmY2UzZjZhMjJiMDcxNjZiOGE2ZGU3NjBhYzE1ZjQ3MmZlMjA0NGVmNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        },
+        {
+          "resource": "repo://cmd/gmmff/main.go#L55-L63",
+          "version": "repo-lines-v1:sha256:b5693d2bf6faf70ca9a43e985349d1108754797dc3030066e6e54da9ab19fe7b:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzYxMTI0NDAxMTNiNzMzNjZjMzM3NmFmZjEwNDEwMjdhYzE3NWNkZmI2YmM3YmVlNDJkODNkMmM1YTU3ZTY0NyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzlmM2Y1MDQxOTdmYmI4Y2E3NzBjNmI2Zjk4MThiZDBkMjFhN2ZkN2M2ZmE4YzNjMjYxMTk1ZGI0MTFhMDM4YiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjExZWY5NGNkZDY4N2I0Y2JkOTgwZTZkODcwNzA3MjFkMmM2NWQ4MWZhNTZiOGVkYjhiYzM3ZmI1NTcyYTlkYyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_6c40e102ab7646ed92083ea3a1b679a6",
+      "statement": "The clients use WebRTC with DTLS 1.3 for encrypting data channels.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L67-L69",
+          "version": "repo-lines-v1:sha256:bac7a62c17c7e7b5c4627d120787b8ce67b393bb19d2c605178301fafd6ea801:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmExY2FiZTIyNTMxZDVmNTdiZWU0NGFiYjhiNzJlZmI3ZTdiMmE1Njg3ZDllYzA3YTg4MDRlOTk5YTQxMjA5YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDVhZWNmYTkxZjQ4ZTE4YTczZmNmNDdmZmUxNWU0YjZkODIzZmM1MDVjNzAzOTkwYjM0MDVjZWJkNWM4NmQwMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNmI3NzdlYjIxOWVhNWU4YWI1ODk3NTJhZGQwZjkyN2IyMTQ2NGUzMDY2ZWQwOGMxNTlkMzVjN2YxZmI1NzA3NyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZGZhNWY0OWMyM2VhODEwNmQ1MDkzMGJlMTRjZDhmMDJiYjFhOGYzZjAyNTc3OTU4NjU2MDg0ZDgwNmI3OTJmZCJ9"
+        },
+        {
+          "resource": "repo://docs/ARCHITECTURE.md#L52-L52",
+          "version": "repo-lines-v1:sha256:47c06c561d5c327343685268a46b3391f3998eee890d2be51f0d21cc4a53ae6d:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDdjMDZjNTYxZDVjMzI3MzQzNjg1MjY4YTQ2YjMzOTFmMzk5OGVlZTg5MGQyYmU1MWYwZDIxY2M0YTUzYWU2ZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDdjMDZjNTYxZDVjMzI3MzQzNjg1MjY4YTQ2YjMzOTFmMzk5OGVlZTg5MGQyYmU1MWYwZDIxY2M0YTUzYWU2ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDE2ZWU5YWU4OWQxYjZmOTgxZTIzMGM1MGFlN2ZjNTNhMDIyMjEzNGU4YmIyODM2NDRlMzA5ZmZiZThkM2UwMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGE4NDIyYzdiODQ5MjY0NzMyMTVlMTQxZDgwZDIxMTJiZWIxMzBkZjhiMDlhYTU3M2Y4YWY3MmZmZmNmYjhjOSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_dadf735f03db4a8dbaf2cd34f6832997",
+      "statement": "The data flow for establishing a peer-to-peer session involves: code generation, PAKE authentication, HMAC-signed SDP exchange, ICE candidate exchange, and WebRTC data channel setup.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L76-L81",
+          "version": "repo-lines-v1:sha256:1f81578e5bd3d3c8f2f03c4026dff59245d817db8e7484079f615c2bf8898730:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDg4ZmI3MmRlMjUzY2Y5NmQ0NDk3YTgyNDA2NzlhZjE3M2EwYzA3ZWE5YzE0ZTRjYjM4MzM5ODU4NDE2ODhmOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTc3NTEzNGI2ZGRkMWU2ODFmZDRlMGY0NTJkZmIzYTM0MzkxZjc5MTBkMzEyZjRlNTMxNjZhMjU0NGJhMWU2OSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZGRhOTcxZGYxN2Q1YTBiZDY0MzViMDNmY2UzZjZhMjJiMDcxNjZiOGE2ZGU3NjBhYzE1ZjQ3MmZlMjA0NGVmNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        },
+        {
+          "resource": "repo://docs/ARCHITECTURE.md#L58-L66",
+          "version": "repo-lines-v1:sha256:3432cd4d5ddf20bd69410bb8097d7c95779e1f6c70336e6c23147addbace1ff5:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjUyZDcxMTEwM2Q1MGE0Mzc4MzBjNmZiY2QwNGZiNGJhYjQ5YTBmODJmNmQyNmQxYzc5MWM2ZTg0ODhkZDA5MCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZWY1MjI3OGU2NDg2ZDdkNTAzZjFjNWZkYzMxYTlhODdiNmFkMWI1YzIzYjZmNWJiY2NkZTk0NzdlZjBkMjZhYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjhjOGNkNTBmOTllNGY3YTA5ODg2Y2JjMDlmZWFhMmZiNzRiM2RhMDQ1N2UxZGZkN2E4ZGFjNDM3M2FhMmQzYiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_03d66104461941c888e5b668a06bd233",
+      "statement": "The slot lifecycle in the signaling server transitions from WAITING to READY when a peer joins, and to CLOSED when the session ends or TTL expires.",
+      "evidence": [
+        {
+          "resource": "repo://docs/ARCHITECTURE.md#L68-L85",
+          "version": "repo-lines-v1:sha256:1f102bd4afabc780b48078f8601c5c0da27d01962265f1ae5d2ccd54227e1a6c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY4NjE0Y2YzYWM1MWM3ZjFjMTFjY2Y5ODRmNmMzZDU0NTdiYzNkM2I1MWM0ZWQ2ZmVlZDkwNDY5NjYyOTFmOGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYwMDEyOTMwYTQ3Mzg4MDAyMzMyOTViZjhjYTQ5NGI2Y2U4YjJhMzMxZTU0ODQ2NzIyNWI0ODk1YzA4YTY0ZTAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_21f2f38cb13a4773b6b2430858bebc35",
+      "statement": "The signaling server does not have access to file contents or transfer data once the WebRTC connection is established.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L58-L63",
+          "version": "repo-lines-v1:sha256:dc36cc1022928776971c98c93869d845677e93a239fcf75c83127cba9b890572:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDExNDk1MWUyNDQ5MmE0MjcwZjRkOWYxY2FjMWZjZmE1YTA2ZmRjZGRhNjg1YmE1YmEwYzljZWNkNzBmNTRmNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiY2Y1OGM4NDQwN2YxMjRlOTM4ODAzM2VlNWViMTQ1MGIxODA2NDFlY2Q1MzBiZjkyOWUxY2ZmMjNmY2U3M2Y5MCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNmI3NzdlYjIxOWVhNWU4YWI1ODk3NTJhZGQwZjkyN2IyMTQ2NGUzMDY2ZWQwOGMxNTlkMzVjN2YxZmI1NzA3NyJ9"
+        },
+        {
+          "resource": "repo://docs/ARCHITECTURE.md#L14-L15",
+          "version": "repo-lines-v1:sha256:ef31674fce0b565cd4a8aa9e7d8e925c4d2da44ecf073bf8ddc3d62cdbeca84f:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzFhNWVkYmNmMDUyNzJkNWE4ZDQ1YTM0OGUwOWIzMDI4ZDIxMTNhYzFjOTBiMWYwNmIwOGFiZTQyNTJhMDM4OSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDFhZjBmODg5MDVlNGMzZDcwZDE3ZTk5MTllYjEyMjIxNzc0OGFiNjRlMmRhMzY2OTdjZmY3NWMwMDczOGNhNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODEwOTBmYjcxYjllNzJmZDZhMWZjZDBhYTc0M2U4OGNlNGE3ZDVlNzU4MDc1ZjRkNTcyYjRkMGVjZjk1Y2Y4MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_0d6348f2b44f48048855711e029a6087",
+      "statement": "The system employs privacy-preserving logging that excludes IPs, user agents, file names, and transfer contents.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L95-L95",
+          "version": "repo-lines-v1:sha256:fc86ce46f26640cc5567ec2d808ccf18ea1ffdee145e71681aae1b253c930963:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmM4NmNlNDZmMjY2NDBjYzU1NjdlYzJkODA4Y2NmMThlYTFmZmRlZTE0NWU3MTY4MWFhZTFiMjUzYzkzMDk2MyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmM4NmNlNDZmMjY2NDBjYzU1NjdlYzJkODA4Y2NmMThlYTFmZmRlZTE0NWU3MTY4MWFhZTFiMjUzYzkzMDk2MyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTZiNmY0NTJhYzA2NzljN2JkY2IzYjFlMjYzZjE2NTcyOTFlMWQzOTZmOTA0MzJiMmUwNDUyNmY3MjdiZmI1OSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjAxMGNjMDIyZjBhNzAwOTU2Y2MzYzUyNzJhNDI1ZGI3NzRkZjg0ZTNkMDAwOGZjY2Y5NGIxZjljMjE1OTk2ZiJ9"
+        },
+        {
+          "resource": "repo://cmd/gmmff/main.go#L64-L65",
+          "version": "repo-lines-v1:sha256:dae14e90df9f889c690aadef2833cfd17dc777cd9631600b43831cf88e8405c2:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNGI4MDVhMWE1MTUyNjMwZjk3ZjkwYWE3OGFhMjA2YTBlMzg3MmFkMmM1NDAxOGZmZmU0ZGFiM2IwZjM4MjZkMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTA5MTI4NTYzMzg1MjdhZmMxNDFjOTljNWFjMjZjODk2ZTUzY2IzZTlkNjMyZDYzZmIxZjY3YmNhOGFiMTg2YiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzdjZDNiY2FhOGRhOTQwYjE1NmY2YTcyNzZmZWY5NjMzYmQ5OTQzYTVkZDU3MGYxYzVhYjM3ODg3ZjhiZmZlNSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.0",
+    "at": "2026-09-05T11:33:48.919Z"
+  }
+}

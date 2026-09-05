@@ -1,0 +1,190 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:41857a065fe17c78a9a081dde4da3b6ff23e107be3e1f566898c2628db55ca1c",
+  "claims": [
+    {
+      "id": "claim_31b99003d7a5480da4bf27774fe43257",
+      "statement": "gmmff uses a Redis-backed storage implementation in internal/store/store.go for distributed slot state with TTL-based expiration and atomic operations for slot creation (slot UUID + code mapping).",
+      "evidence": [
+        {
+          "resource": "repo://internal/store/store.go",
+          "version": "repo-file-v1:sha256:26ff50c7b177fe3126c9cfb712731c316ab722b404e6c7b1c6b58cdc90e43c37"
+        }
+      ]
+    },
+    {
+      "id": "claim_b604c4eba25c4e9f9095cf46d5691a6a",
+      "statement": "WebRTC peer connections are established using the Pion WebSocket library (github.com/pion/webrtc/v4) for data channel creation, with DTLS-SRTP encryption handled automatically by the library.",
+      "evidence": [
+        {
+          "resource": "repo://go.mod#L14-L14",
+          "version": "repo-lines-v1:sha256:f2c797c5bc5ac341d8e6779f9be4f411f185fc73f65cdaee6b48944941d608c9:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZjJjNzk3YzViYzVhYzM0MWQ4ZTY3NzlmOWJlNGY0MTFmMTg1ZmM3M2Y2NWNkYWVlNmI0ODk0NDk0MWQ2MDhjOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjJjNzk3YzViYzVhYzM0MWQ4ZTY3NzlmOWJlNGY0MTFmMTg1ZmM3M2Y2NWNkYWVlNmI0ODk0NDk0MWQ2MDhjOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjkyY2NiMGY3YzUxMGEyYmNhOGM1ZmNjNjhkMjA2NTRiNzgzNWJkNGNjYmQ3NGM5NTlmNmZiZmI3NjgyMjcxYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzM3MzNhNGViZDdhNGMxZmZhMDIzYjE1NTMzYTljYjYwZTJlM2E3Y2U5N2VmNmJkYTlmN2VhN2ZhNzM0MjlhOSJ9"
+        },
+        {
+          "resource": "repo://internal/peer/peer.go",
+          "version": "repo-file-v1:sha256:49acad35388764863c32afea0f9c5ce55abf8be9932b61397a9d0fe3994493ae"
+        }
+      ]
+    },
+    {
+      "id": "claim_8640f13350a74d05b142eb21d8173df2",
+      "statement": "STUN/TURN server configuration for WebRTC NAT traversal uses environment variables GMMFF_STUN and GMMFF_TURN with support for long-term credentials, ephemeral credentials, and server-side ICE push via GMMFF_PUSH_STUN/GMMFF_PUSH_TURN to override client-configured ICE servers.",
+      "evidence": [
+        {
+          "resource": "repo://docs/TURN.md",
+          "version": "repo-file-v1:sha256:c3a353c793256785ce730fb4950842a1cce74391086fb78d3c21484740de5a96"
+        },
+        {
+          "resource": "repo://internal/turn/turn.go",
+          "version": "repo-file-v1:sha256:ab1b251ad6d25e903f693af63d8cc60bc55c2bc20cb247a079116d12117e2400"
+        }
+      ]
+    },
+    {
+      "id": "claim_b747a533bb4e49cba1043480496ef3ef",
+      "statement": "mDNS (Multicast DNS) enables local network peer discovery in local mode via the internal/localmode/ package implementing DNS-based Service Discovery over Multicast DNS (RFC 6763) for the _gmmff._tcp.local. service type.",
+      "evidence": [
+        {
+          "resource": "repo://internal/localmode/mdns.go",
+          "version": "repo-file-v1:sha256:fc3536f27cf83b97a76d932d217753aa27cd3383edaf74cd018a9f13b809aa70"
+        }
+      ]
+    },
+    {
+      "id": "claim_cbf3dd405f3b46dc8a0c1ced9c0fe5d9",
+      "statement": "Cryptographic libraries including golang.org/x/crypto (for HKDF, HMAC, scrypt) and github.com/decred/dcrd/dcrec/secp256k1/v4 (for elliptic curve operations) underpin PAKE, key derivation for symmetric keys, HMAC-SHA256 for SDP signing, and scrypt for schedule mode password protection.",
+      "evidence": [
+        {
+          "resource": "repo://go.mod",
+          "version": "repo-file-v1:sha256:d0e44a9aa6bbbfa262300c389f36efbea4e1adabee2fd22a25cf5381ffb526e1"
+        }
+      ]
+    },
+    {
+      "id": "claim_9e6e85d6f86c414ab418e62c5e3a8be5",
+      "statement": "WebSocket client libraries for browser (WASM) and native clients are implemented in internal/signaging/client_js.go (WebSocket wrapper for WASM) and internal/signaling/client_native.go (using github.com/gorilla/websocket) to connect to the signaling server via WebSocket.",
+      "evidence": [
+        {
+          "resource": "repo://internal/signaling/client_js.go",
+          "version": "repo-file-v1:sha256:42aadaf93c04e6510ae539f813c7d7841dca0440fee6298e77e5a942cc82979d"
+        },
+        {
+          "resource": "repo://internal/signaling/client_native.go",
+          "version": "repo-file-v1:sha256:e168c8b53e1ba2db9678961fc50d4e8661d9f58bc4f0422b845e8d9f18266041"
+        }
+      ]
+    },
+    {
+      "id": "claim_66bbbb939cd448729f2223c596264059",
+      "statement": "The command-line interface uses the Cobra library (github.com/spf13/cobra) to provide hierarchical commands (create, join, chat, send, local, schedule, serve) with automatic help generation, flag parsing with environment variable binding, and command validation.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go",
+          "version": "repo-file-v1:sha256:52c7a23881eb71a14be739a0730a8d0f4f82025a8992d326a21e4024e9794e71"
+        },
+        {
+          "resource": "repo://go.mod",
+          "version": "repo-file-v1:sha256:d0e44a9aa6bbbfa262300c389f36efbea4e1adabee2fd22a25cf5381ffb526e1"
+        }
+      ]
+    },
+    {
+      "id": "claim_d83d8bc2aaf74c618a75a27c58d897e1",
+      "statement": "WebAssembly/WASM integration provides a browser-based file transfer client built from internal/signaling/client_js.go and served via the HTTP endpoint (/) when the server runs with webclient enabled.",
+      "evidence": [
+        {
+          "resource": "repo://internal/signaling/client_js.go",
+          "version": "repo-file-v1:sha256:42aadaf93c04e6510ae539f813c7d7841dca0440fee6298e77e5a942cc82979d"
+        },
+        {
+          "resource": "repo://web/server.go",
+          "version": "repo-file-v1:sha256:8f4b60b4c3129b61b10c8d65ad1d08beaf9d92ba601d82dcd1af3c48e2c9ed1d"
+        }
+      ]
+    },
+    {
+      "id": "claim_01c3adb3c6724ebc804ea6859079b146",
+      "statement": "The HTTP/web server in internal/broker/server.go serves landing pages, health checks (/healthz, /readyz), Prometheus metrics (/metrics), configuration (/config.json), and WebSocket upgrades (/ws) with security middleware (CSP, X-Frame-Options, COOP, COEP).",
+      "evidence": [
+        {
+          "resource": "repo://internal/broker/server.go",
+          "version": "repo-file-v1:sha256:ff6919f0da10e41f9a4b9504170461013305355d442b8e6d773f912350ed553c"
+        }
+      ]
+    },
+    {
+      "id": "claim_09bb7603c81a4d9c9d3c2c7616a54254",
+      "statement": "Configuration is managed via environment variables with the GMMFF_ prefix, parsed and validated by functions in internal/broker/uiconfig.go and cmd/gmmff/main.go, supporting byte size, duration, and CIDR list parsing with validation via ValidateEnv() on startup.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go",
+          "version": "repo-file-v1:sha256:52c7a23881eb71a14be739a0730a8d0f4f82025a8992d326a21e4024e9794e71"
+        },
+        {
+          "resource": "repo://internal/broker/uiconfig.go",
+          "version": "repo-file-v1:sha256:383ebb2232f308ff57601576af4c450ae1e9022ea497c9b1eb13a4081ac87b12"
+        }
+      ]
+    },
+    {
+      "id": "claim_6c0bd3d4feb94959b0a6c3e322f710f0",
+      "statement": "Nginx reverse proxy configuration (docs/NGINX.md) provides TLS termination with Let's Encrypt support, WebSocket proxying (proxy_pass with proxy_http_version 1.1), security headers (HSTS, CSP, etc.), rate limiting, and logging/access control for gmmff deployments.",
+      "evidence": [
+        {
+          "resource": "repo://docs/NGINX.md",
+          "version": "repo-file-v1:sha256:041023a3133cd3c22fc4fff666a77960a23c8118c3c55af06ed435414077a0f9"
+        }
+      ]
+    },
+    {
+      "id": "claim_0b3fec183bd84b69a256cad7dc91c408",
+      "statement": "Schedule mode provides encrypted server-side transfers via HTTP API endpoints under /api/schedule/ with AES-256-GCM encryption for data at rest, scrypt-based password protection, and TTL-based expiration, enabled by GMMFF_SHOW_SCHEDULE=true and GMMFF_SCHEDULE_DIR environment variables.",
+      "evidence": [
+        {
+          "resource": "repo://docs/SCHEDULE.md",
+          "version": "repo-file-v1:sha256:8dd8ed3bf3522a987797222e51bda7210cb88fd4dcd1152a58996b8f2ad5df21"
+        },
+        {
+          "resource": "repo://internal/schedule/handler.go",
+          "version": "repo-file-v1:sha256:30643aaa4c915ba42e81e5b5e76ed4fa0fb8adbf03e05914cf7a642fe8cbc210"
+        }
+      ]
+    },
+    {
+      "id": "claim_fc7f6e0e948e45a89947c05a7c50d65f",
+      "statement": "Docker containerization is supported via Dockerfile and docker-compose.yml, exposing port 8080 (WebSocket/HTTP), using .env files for configuration, persisting Redis data via volumes, and providing a healthcheck at /healthz.",
+      "evidence": [
+        {
+          "resource": "repo://Dockerfile",
+          "version": "repo-file-v1:sha256:4449845082571cb52d5daeb1c2eeee2adda0779ee4005c35985a6b8bf83925ad"
+        },
+        {
+          "resource": "repo://docker-compose.yml",
+          "version": "repo-file-v1:sha256:c26c8407a5b0ae3612f5d6d789e85bb9098def58d723295d5f10e3c482e20a2a"
+        }
+      ]
+    },
+    {
+      "id": "claim_bdc14ef2970f4e498bb887260de92861",
+      "statement": "Internal abstractions include a storage interface (internal/store/store.go) with Redis and in-memory implementations, privacy-preserving structured logging (internal/log/log.go), and metrics collection via internal/broker/server.go (exposing /metrics endpoint).",
+      "evidence": [
+        {
+          "resource": "repo://internal/broker/server.go",
+          "version": "repo-file-v1:sha256:ff6919f0da10e41f9a4b9504170461013305355d442b8e6d773f912350ed553c"
+        },
+        {
+          "resource": "repo://internal/log/log.go",
+          "version": "repo-file-v1:sha256:4dc005bc9777b9b1bd4f74116f18054a0a756110501ecfa363c57135a7cdc2a5"
+        },
+        {
+          "resource": "repo://internal/store/store.go",
+          "version": "repo-file-v1:sha256:26ff50c7b177fe3126c9cfb712731c316ab722b404e6c7b1c6b58cdc90e43c37"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.0",
+    "at": "2026-09-05T11:33:48.919Z"
+  }
+}
