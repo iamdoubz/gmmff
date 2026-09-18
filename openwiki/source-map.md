@@ -2,6 +2,13 @@
 type: Documentation
 title: Source Map
 description: Mapping of wiki topics to source code locations for easy navigation.
+verified:
+  - by: openwiki/0.5.2
+    at: 2026-09-18T12:39:02.785Z
+sources:
+  - id: openwiki-source-ce826a3573a98651b26c85cd
+    resource: repo://internal/slot/slot.go
+generated: { by: "openwiki/0.5.2", at: "2026-09-18T12:39:02.785Z" }
 ---
 # Source Map
 
@@ -42,7 +49,7 @@ This file maps wiki topics to their primary source code locations in the gmmff r
 
 - [Operations & Runbook](/openwiki/operations/runbook.md)
   - Deployment: `docker-compose.yml`, `Dockerfile`, `docs/SYSTEMD.md`, `docs/NGINX.md`
-  - Configuration: `docs/ENV.md`, `docs/CMDS.md`, `internal/conf/`
+  - Configuration: `docs/ENV.md`, `docs/CMDS.md`, `internal/broker/uiconfig.go`, `internal/schedule/config.go`, `internal/peerconfig/peerconfig.go`
   - Monitoring: `/healthz`, `/readyz`, `/metrics` endpoints (see `internal/broker/` and `internal/metrics/`)
   - Logging: `internal/log/`
 
@@ -73,6 +80,8 @@ This file maps wiki topics to their primary source code locations in the gmmff r
 - `internal/broker/hub.go` - WebSocket hub (connection management)
 - `internal/broker/http.go` - HTTP routes (healthz, readyz, metrics, etc.)
 - `internal/broker/broker.go` - Main broker logic
+- `internal/broker/server.go` - HTTP/WebSocket server setup
+- `internal/broker/uiconfig.go` - UI configuration endpoints
 
 ### Slot & Storage
 - `internal/slot/slot.go` - Slot struct and state transitions
@@ -95,18 +104,27 @@ This file maps wiki topics to their primary source code locations in the gmmff r
 - `internal/transfer/receiver.go` - File receiving logic
 - `internal/transfer/datachannel.go` - Data channel wrapper
 - `internal/chat/chat.go` - Chat messaging over data channel
+- `internal/archive/archive.go` - On-the-fly zip archiving for multi-file transfers
+- `internal/peerconfig/peerconfig.go` - Peer configuration marshaling
 
 ### Cryptography
 - `internal/pake/pace.go` - CPace PAKE implementation
 - `internal/pake/pake.go` - PAKE protocol wrapper
 - `internal/crypto/crypto.go` - HKDF, HMAC, and key derivation
-- `internal/protocol/` - Protocol message definitions and signing
+- `pkg/protocol/` - Protocol message definitions and signing
 
 ### Utilities
 - `internal/log/` - Privacy-preserving logger
-- `internal/conf/` - Configuration validation
 - `internal/metrics/` - Prometheus metrics
-- `internal/err/` - Error types and wrapping
+- `internal/display/` - Formatting utilities for CLI output
+
+### Schedule
+- `internal/schedule/config.go` - Configuration for scheduled transfers
+- `internal/schedule/scheduler.go` - Scheduler implementation
+
+### Session
+- `internal/session/session.go` - Session state and REPL
+- `internal/session/repl.go` - Read-eval-print loop for chat/commands
 
 ## Finding Related Code
 
@@ -117,6 +135,7 @@ To find where a specific concept is implemented:
 3. **Chat**: See `internal/chat/chat.go` and how it's used in `internal/session/session.go`.
 4. **Local mode**: See `internal/localmode/` for embedded server and mDNS discovery.
 5. **Schedule**: See `internal/schedule/` for server-side scheduled transfers.
+6. **Archive**: See `internal/archive/archive.go` for on-the-fly zip creation.
 
 ## See Also
 

@@ -1,15 +1,29 @@
 ---
 type: Documentation
-title: Domain Concepts Overview
-description: Core domain concepts in gmmff including sessions, slots, PAKE, WebRTC data channels, and slot lifecycle.
+title: Domain Concepts
+description: Core domain concepts in gmmff including sessions, slots, PAKE, WebRTC data channels, slot lifecycle, local mode, and TURN.
+tags: [domain-concepts, slots, pake, webrtc, slot-lifecycle]
+verified:
+  - by: openwiki/0.5.2
+    at: 2026-09-18T12:39:02.785Z
+sources:
+  - id: openwiki-source-d32161ee45da410429870c3e
+    resource: repo://internal/pake/session.go
+  - id: openwiki-source-4b847332166285c0b52606b7
+    resource: repo://internal/peer/peer.go
+  - id: openwiki-source-ce826a3573a98651b26c85cd
+    resource: repo://internal/slot/slot.go
+  - id: openwiki-source-4a81fcd95533ed8ba5a77739
+    resource: repo://internal/store/store.go
+  - id: openwiki-source-2588ae43c486537fdca4a70b
+    resource: repo://internal/turn/turn.go
+generated: { by: "openwiki/0.5.2", at: "2026-09-18T12:39:02.785Z" }
 ---
-# Domain Concepts Overview
+# Domain Concepts
 
-## Core Concepts
+gmmff revolves around several core domain concepts that enable secure peer-to-peer communication.
 
-gmmff revolves around several core domain concepts that enable secure peer-to-peer communication:
-
-### Session
+## Session
 
 A **session** represents a peer-to-peer file and message transfer session between two or more peers. A session is established when peers share a secret code and successfully complete the PAKE authentication and WebRTC handshake.
 
@@ -19,23 +33,47 @@ Key characteristics:
 - Multi-peer: supports 2-10 peers in a single session
 - Interactive: provides a REPL for sending files and messages
 
-### Slot
+## Slot
 
 A **slot** is the server-side representation of a session waiting for peers to join. It lives in the signaling server's storage (Redis/Valkey or in-memory map) and tracks the state of peers attempting to establish a session.
 
 Slot lifecycle:
-1. **WAITING**: Created by first peer (`gmmff create`), waiting for peers`), waiting for additional peers
-2. **READY**: All expected peers have connected, ready to exchange signaling
-3. **CLOSED**: Session ended (peer disconnected or TTL expired)
+1. **Waiting**: Created by first peer (`gmmff create`), waiting for peers to join
+2. **Active**: At least one peer has joined, slot still accepting new peers (if not full)
+3. **Full**: Maximum peers reached, no longer accepting new joins
+4. **Closed**: Session ended (peer disconnected, initiator left, or TTL expired)
 
 Slot structure:
-- UUID: Unique identifier for the slot
-- State: Current state (WAITING, READY, CLOSED)
+- ID: Unique identifier for the slot
+- Code: Short human-readable code used for joining
+- State: Current state (Waiting, Active, Full, Closed)
+- InitiatorID: WebSocket connection ID of the peer that created the slot
+- PeerIDs: Slice of WebSocket connection IDs of joined peers (excluding initiator)
 - CreatedAt: Timestamp when slot was created
 - ExpiresAt: Timestamp when slot expires (10 minutes after creation)
-- PeerA/PeerB: WebSocket connection IDs of connected peers (optional)
+- MaxPeers: Total number of participants allowed (initiator counts as 1)
+- EverFull: Boolean flag set true once slot reaches MaxPeers; prevents reopening after peers leave
 
-### PAKE (Password Authenticated Key Exchange)
+The slot state machine enforces valid transitions:
+- Waiting → Active: when a peer joins via `Join`
+- Active → Full: when `ConnectedCount()` reaches `MaxPeers` (sets `EverFull = true`)
+- Active/Full → Closed: on explicit close, initiator departure, or TTL expiry
+- Active → Waiting: if `EverFull` is false and the last non-initiator peer leaves
+
+```mermaid
+stateDiagram-v2
+    [*] --> Waiting
+    Waiting --> Active: Join(peerID)
+    Active --> Full: Join(peerID) when at max peers
+    Full --> Closed: Close() or TTL expiry or initiator left
+    Active --> Closed: Close() or TTL expiry or initiator left
+    Active --> Waiting: RemovePeer(last peer) when !EverFull
+    Closed --> [*]
+```
+
+State transitions are validated in `internal/slot/slot.go` before any storage write, ensuring the signaling server never persists invalid state.
+
+## PAKE (Password Authenticated Key Exchange)
 
 **PAKE** is the cryptographic protocol that allows two peers to establish a shared secret over an insecure channel (the signaling server) without revealing the secret to the server.
 
@@ -49,10 +87,38 @@ gmmff uses the **CPace** protocol:
   - Resistant to offline dictionary attacks
 
 The PAKE secret is used to:
-1. Derive keys for HMAC-signing SDP messages (prevents MITM)
+1. Derive subkeys for HMAC-signing SDP messages (prevents MITM)
 2. Seed the key derivation for WebRTC/DTLS encryption
 
-### WebRTC Data Channel
+After the CPace exchange, two subkeys are derived via HKDF:
+- `offerKey`: signs/verifies the SDP offer
+- `answerKey`: signs/verifies the SDP answer
+
+The initiator signs the offer with `offerKey` and verifies the answer with `answerKey`. The responder does the reverse.
+
+```mermaid
+sequenceDiagram
+    participant A as Peer A (Initiator)
+    participant S as Signaling Server
+    participant B as Peer B (Responder)
+    
+    A->>S: pake.a (CPace first message)
+    S->>B: pake.a
+    B->>S: pake.b (CPace second message)
+    S->>A: pake.b
+    A->>A: Derive shared secret S
+    B->>B: Derive shared secret S
+    A->>A: Derive offerKey, answerKey from S
+    B->>B: Derive offerKey, answerKey from S
+    A->>S: SDP offer || HMAC_offerKey(offer)
+    S->>B: SDP offer || HMAC_offerKey(offer)
+    B->>B: Verify HMAC using offerKey
+    B->>S: SDP answer || HMAC_answerKey(answer)
+    S->>A: SDP answer || HMAC_answerKey(answer)
+    A->>A: Verify HMAC using answerKey
+```
+
+## WebRTC Data Channel
 
 Once peers have established a shared secret via PAKE, they establish a direct **WebRTC data channel** for transferring files and messages.
 
@@ -69,100 +135,70 @@ gmmff uses:
 - **Partial reliability** for file transfers (retransmits lost packets)
 - **Unreliable** for chat messages (low latency, occasional loss acceptable)
 
-### Slot State Machine
-
-The slot lifecycle is managed by a strict state machine to prevent invalid states:
+The WebRTC connection setup follows the standard offer/answer exchange with ICE trickling, authenticated via PAKE-derived HMACs on SDP messages.
 
 ```mermaid
-stateDiagram-v2
-    [*] --> WAITING
-    WAITING --> READY: slot.join (peer connects)
-    READY --> CLOSED: bye (peer disconnects) OR expire (TTL)
-    CLOSED --> [*]
+sequenceDiagram
+    participant A as Peer A
+    participant B as Peer B
     
-    state WAITING {
-        [*] --> WaitingForPeer
-        WaitingForPeer --> [*]: TTL expiry
-    }
-    
-    state READY {
-        [*] --> ExchangingSignaling
-        ExchangingSignaling --> [*]: Signaling complete
-    }
-    
-    state CLOSED {
-        [*] --> Cleanup
-        Cleanup --> [*]: Resources released
-    }
+    A->>A: Create RTCPeerConnection
+    A->>A: Create DataChannel (ordered for files, unordered for chat)
+    A->>A: SetLocalDescription (offer)
+    A->>B: Offer (via signaling, HMAC signed)
+    B->>B: SetRemoteDescription (offer)
+    B->>B: Create answer
+    B->>B: SetLocalDescription (answer)
+    B->>A: Answer (via signaling, HMAC signed)
+    A->>A: SetRemoteDescription (answer)
+    A<->B: ICE candidate exchange (via signaling)
+    A->>B: DTLS handshake (uses keys from PAKE secret)
+    A<->B: SRTP/SCTP associations established
+    A<->B: DataChannel open -> application data transfer
 ```
 
-State transitions are validated in `internal/slot/slot.go` before any storage write, ensuring the signaling server never persists invalid state.
+## Local Mode
 
-### Cryptographic Flow
+When `LocalMode` is enabled, gmmff operates without requiring internet connectivity:
+- ICE server list is empty (only host candidates are gathered)
+- No STUN/TURN server contact
+- Peers connect directly via local network (e.g., same Wi-Fi)
+- Useful for air-gapped environments or development
 
-1. **PAKE Exchange** (via signaling server)
-   - Peer A: `pake1` → Server → Peer B
-   - Peer B: `pake2` → Server → Peer A
-   - Result: Both derive shared secret `S`
+Local mode is configured via the `-local` flag or `GMMFF_LOCAL_MODE=true` environment variable.
 
-2. **SDP Exchange** (HMAC-signed with `S`)
-   - Peer A: `sdp1 = offer || HMAC_S(offer)` → Server → Peer B
-   - Peer B: `sdp2 = answer || HMAC_S(answer)` → Server → Peer A
-   - Verification: Each peer verifies HMAC using `S`
+## TURN (Traversal Using Relays around NAT)
 
-3. **ICE Exchange** (not HMAC-signed, but integrity protected by DTLS)
-   - Peer A: `ice1` → Server → Peer B
-   - Peer B: `ice2` → Server → Peer A
+When direct peer-to-peer connection fails (due to symmetric NAT or restrictive firewalls), gmmff can use TURN servers to relay traffic.
 
-4. **DTLS Handshake** (uses keys derived from `S`)
-   - Establishes encrypted SRTP/SCTP associations
+TURN configuration:
+- Specified via `-turn` flag or `GMMFF_TURN_SERVERS` environment variable
+- Supports both long-term credentials (`user`/`pass`) and ephemeral credentials (via `secret`)
+- Multiple TURN servers can be provided (up to 3)
+- TURN URLs follow the format: `turn:host:port[?transport=udp&user=foo&pass=bar]` or `turns:host:port?secret=abc`
 
-5. **SCTP Data Channel** (application data)
-   - File transfer and messaging over encrypted channel
+The TURN integration is handled in `internal/turn/` and used by the WebRTC ICE agent to obtain relay candidates when needed.
 
-## Key Source Files by Concept
+## Storage
 
-### Session Management
-- `cmd/gmmff/create.go` - `gmmff create` command
-- `cmd/gmmff/join.go` - `gmmff join` command
-- `cmd/gmmff/chat.go` - `gmmff chat` command
-- `internal/session/session.go` - Core session logic
-- `internal/session/session_test.go` - Session tests
+Slots are persisted in a signaling server storage backend:
+- **Redis/Valkey**: Production storage with automatic TTL-based expiry
+- **In-memory map**: Development storage (no persistence across restarts)
 
-### Slot Management
-- `internal/slot/slot.go` - Slot struct and state transitions
-- `internal/slot/slot_test.go` - Slot tests
-- `internal/store/` - Storage abstractions (Redis, memory)
+Both implementations share the same interface (`internal/store/store.go`). Storage keys:
+- `slot:<slot_id>`: Hash containing slot JSON fields
+- `code:<code>`: String mapping slot code to slot_id
+Both keys share the same TTL (10 minutes) so expiry is atomic.
 
-### PAKE/Cryptography
-- `internal/pake/` - CPace implementation
-- `internal/crypto/` - HKDF, HMAC, and key derivation
-- `internal/protocol/` - Protocol message definitions and HMAC signing
+## Scheduling and Cleanup
 
-### WebRTC/P2P
-- `internal/peer/` - Peer connection management
-- `internal/transfer/` - File transfer over data channels
-- `internal/chat/` - Chat messaging over data channels
+Expired slots are cleaned up by a background scheduler:
+- The scheduler runs periodically (default interval 1 minute)
+- Scans all slots and removes those where `IsExpired()` returns true
+- Also removes slots in `Closed` state that have been inactive for a grace period
+- Implemented in `internal/schedule/` (cleanup.go, handler.go, store.go)
 
-### Storage
-- `internal/store/memory.go` - In-memory store (dev)
-- `internal/store/redis.go` - Redis/Valkey store
-- `internal/store/store.go` - Storage interface
-
-## Related Concepts
-
-### Configuration
-- Environment variables (see `docs/ENV.md`)
-- Command-line flags (see `docs/CMDS.md`)
-- Configuration validation (`internal/conf/`)
-
-### Error Handling
-- Error types (`internal/err/` context wrapping)
-- Context-aware logging (`internal/log/`)
-
-### Metrics
-- Prometheus metrics (`internal/metrics/`)
-- Health checks (`/healthz`, `/readyz` endpoints)
+This ensures storage does not accumulate stale slots over time.
 
 ## Domain Boundaries
 
@@ -201,11 +237,11 @@ State transitions are validated in `internal/slot/slot.go` before any storage wr
 3. **Key Establishment**
    - PAKE exchange via signaling server → shared secret established
    - SDP exchange (HMAC-signed with secret) → WebRTC parameters agreed
-   - ICE exchange → network path established
+   - ICE exchange → network path established (direct or TURN relayed)
 
 4. **Direct Connection**
    - Signaling server's job is complete
-   - Peers establish encrypted WebRTC data channel directly
+   - Peers establish encrypted WebRTC data channel directly (or via TURN)
    - All subsequent file/message transfer is peer-to-peer
 
 5. **Session Interaction**

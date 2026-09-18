@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:ee6d6d83b7bd25515f8f849e4057010322eeecad73625ff59c69e70c979f10ca",
+  "claims": [
+    {
+      "id": "claim_4100c635a75347b3a04d0db107745ff1",
+      "statement": "gmmff is a brutally simple, cryptographically sound peer-to-peer file and message transfer system.",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L14-L15",
+          "version": "repo-lines-v1:sha256:f8f7150f883cf46dea6a3b96cc9bcd7617dbe17f982c6c546248f23705c04dae:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjlkNDNjMTY2MjgyOGMxN2NmNjdhMzA1NGFkOTFiNDYyNGM5YmUzZTZjMGEzMmJhMTg0NGQzNDBiODc1ZWNhZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmRhZWQwMzVhODYxOWU2YTM0MTU4MzU5YWYyZjNkMTk4Y2Q2MWRhMGVlMzI5ZGE5NzA3NDBiZDBiZDk0ZjU5NiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDhmZDhlYmRlMzFkOWJkYzU1NWViOTEwNjA5NmM5NTAwMTE0ZGU0NzcxOWM1ZmI4MWUxYjQ0YTcxNmNiMmNiZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjA2NjFjNzMxOGY0NzBkZGQ5YTg5MmI4MTFmZDUzYzY5ZjRhYjk1OGQxYzcwYWE2NjVhMTFhNTI2OGI4N2Q3YiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_6d7e265fecaf4339a351c078c3c8612d",
+      "statement": "gmmff consists of a signaling server that brokers initial connections via WebSocket and a CLI client that handles the actual transfer; the server never sees file contents — once two (or more) peers are connected, all data flows directly between them over an encrypted WebRTC data channel.",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L17-L20",
+          "version": "repo-lines-v1:sha256:f32aa3aea54ddca45efc391b9d1826827708800e56a5a96b6f229ae1a177c473:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOThhYzMxZGU4YzIzY2Q3OGI5YzMwODFkYjIzYjFhMDcyOWM3OWM5NjE3NjQ5ZDZjNDhjMmI0NjJiMDFjMTc4MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDEwYzViZWZlOWVjM2M1N2YyNThhOWU1OWU4Y2RkZTBiOWRkNTA0Njc1NzNhZGYxOTYwNGExY2FkOGE5NDIwMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMWU2OTEyZjkyMDg1NzY1MjY2OTcxNjhlN2I2ZmZmODRlZGI3OTEzOTgwYzU4ZjYxY2FjYjc4MWMxNjVmYzkxYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.2",
+    "at": "2026-09-18T12:39:02.785Z"
+  }
+}

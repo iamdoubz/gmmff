@@ -2,6 +2,13 @@
 type: Documentation
 title: gmmff Wiki Quickstart
 description: Entry point for the gmmff peer-to-peer file transfer system wiki. Provides high-level overview and navigation to key sections.
+verified:
+  - by: openwiki/0.5.2
+    at: 2026-09-18T12:39:02.785Z
+sources:
+  - id: openwiki-source-23775c3de52f3ab95a13cb8b
+    resource: repo://README.md
+generated: { by: "openwiki/0.5.2", at: "2026-09-18T12:39:02.785Z" }
 ---
 # gmmff Wiki
 
@@ -31,6 +38,7 @@ See the [official README](/README.md) for installation and quick start guides.
 
 ## Contributing
 
+<!-- openwiki: broken internal link [docs/CONTRIBUTING.md] file "docs/CONTRIBUTING.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 See [CONTRIBUTING](docs/CONTRIBUTING.md) for development setup, testing, and contribution guidelines.
 
 *Last updated: 2026-07-20*

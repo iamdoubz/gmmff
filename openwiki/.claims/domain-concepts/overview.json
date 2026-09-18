@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:797f02fda6d07f19792d1da6e1ed6ba1438a8635326239aa09bdb50b43233bdc",
+  "claims": [
+    {
+      "id": "claim_ad1d1658946347a6802bf85b99b42169",
+      "statement": "A slot in gmmff progresses through the lifecycle states: Waiting (created, awaiting peers), Active (at least one peer joined, still accepting), Full (maximum peers reached), and Closed (session ended via disconnect, initiator departure, or TTL expiry).",
+      "evidence": [
+        {
+          "resource": "repo://internal/slot/slot.go#L24-L146",
+          "version": "repo-lines-v1:sha256:231b006b60a92c3cdf8483ca93e5b14ac3ea0c4410d8240354086c2521844225:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIzLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIyNWJiNzIyM2M1NGZjMGU1YzY0NjU3NjJhMjE2NGMwOTIzZmE0YTkyYzYzMTBhNzlhZjdhNGQ3NzNiMjI2MzY0IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIzZWMzYjdlNDQxZGE5MTZkMzdmZmM2ZDJlMGQ2NDMyMTM2YWExYzM2OTgzZTA2NjBlYWRiMDMwZjZhM2JkNDEyIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiJmYjI3NjAwNzQ5ZWQ3OWI3N2Q1MTI2NjFkZjkwZGRiYzk0ZmM1NmUxZDk2NTM2NmM5NDVmNDdiOTllNjIwYWM5In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_115a68020b164ceb892a70cc27ce0961",
+      "statement": "The slot state machine prevents invalid transitions: Waiting → Active on peer join, Active → Full when max peers reached (setting EverFull=true), Active/Full → Closed on close/TTL/initiator departure, and Active → Waiting when last peer leaves and EverFull is false.",
+      "evidence": [
+        {
+          "resource": "repo://internal/slot/slot.go#L97-L146",
+          "version": "repo-lines-v1:sha256:16fd20abbe6c8ed4bb72faf3f9453dd329e8a074faa18567b9fd3f44d2c98568:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFhOTgwMjRiNjk0MzEyYjIyYzIxYmEwMjBlNDVlZDZjZjhlMGI1Mzc3OWJiOWJmZDAyMTJjNDhiY2Q3MWExMjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVlMTQzN2NmYzhkOGUzNjliYWE5MWZiM2RiY2MwZDljYTg1MmRlZGQ4YjFiOTk2ZjRkMTljNWY1MjUyZDk0MDciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZiMjc2MDA3NDllZDc5Yjc3ZDUxMjY2MWRmOTBkZGJjOTRmYzU2ZTFkOTY1MzY2Yzk0NWY0N2I5OWU2MjBhYzkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8a82f359a20b4f5490dc6241a17cda21",
+      "statement": "gmmff uses the CPace PAKE protocol to establish a shared secret from a low-entropy 3-word code, providing mutual authentication, key derivation, server obliviousness, and resistance to offline dictionary attacks.",
+      "evidence": [
+        {
+          "resource": "repo://internal/pake/session.go#L1-L16",
+          "version": "repo-lines-v1:sha256:cfac49cd87fb71ddfe72d25d1e7af9add243f9bcb657a6b414b631c718f2a3fc:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyNTU1ZjEwMDA0OWU3M2JhZjQxYTBiNjc4ZDI1ZmQ2OGI0ZjAzZDg2ZmE3YjdjODgzZGQ2ODJjYTZjYjI1OWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIxNTUxNGVjMWM3ZDdhNDMyN2EyOTBhMzE2MWFlOWY1ZmUzNDM1ZjI5NjUxYmMwZTM0ZjBjYjZmNTI3MmQ1MWMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA4NTFhZmFlN2YxZDQwNmFmZDViNTVlMTI2NzBhYTVjYTQ2YTMxY2Q4YjQxNjlkY2ViMDI5N2FjOTAyNjM2YjUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2700475ba21f468ead96c8172ab54875",
+      "statement": "After CPace completes, gmmff derives two HKDF-SHA256 subkeys from the shared secret: offerKey for signing/verifying SDP offers and answerKey for signing/verifying SDP answers, preventing SDP tampering by attackers who lack the shared secret.",
+      "evidence": [
+        {
+          "resource": "repo://internal/pake/session.go#L16-L26",
+          "version": "repo-lines-v1:sha256:c0ff34c124e8272c30939381a2338cd4505372abe710b3df8ab4297bef7b2d3b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIxNTUxNGVjMWM3ZDdhNDMyN2EyOTBhMzE2MWFlOWY1ZmUzNDM1ZjI5NjUxYmMwZTM0ZjBjYjZmNTI3MmQ1MWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkNjM4OWRiYzAwNGY0N2E4MDM4NDYwN2Q3NzNiMDk4MjVhYzhlOGU2OWE0OWQxODMyNGZkZTEyZjE5ZmRmOTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYzNDA5ZTQxNzdjODMyNjEyMGFhNTcxZjE1N2VkYWUyOTRlYmYyMjUxNDBjN2NjZjg4ZDI4ZTA2OGM1YmM4ZjYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdlNWIzNmRjNDljYjgzMDc4NzA3ODhhYjFiZTQyZmFlMTFhMzFmYjE3OWRhZjUwNDhjMGVhOGIwZWRlMmNlOWYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9027f629d1e34d71ae0479306d929a84",
+      "statement": "gmmff establishes a direct WebRTC data channel for application data transfer, using DTLS-SRTP for encryption, SCTP over DTLS for transport, partial reliability for file transfers, and unreliable mode for chat messages.",
+      "evidence": [
+        {
+          "resource": "repo://internal/peer/peer.go#L1-L16",
+          "version": "repo-lines-v1:sha256:5253d560336b975c4c30be608f43c92861c76133d1f5ec73fef051a6235dc120:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEyYWE1YzA4NGRhMzU0NjJiMzliYmVmNDg4Nzg1MzhlMTMwZWQxODUxYjY0OGNmNjA0YTA3MDZiODliMWVlMDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1MTc2ZWNmYjFjYzc4MWI1YzQzODgzZGU2Yzc0ZmE2NDVmNzA0YzljZmJlNDczNmUwNjY3ODY5ZTc5MWEzM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMyYzk0ZDZlYzk0NjYxYzY2NjU2OWZiZjMyYzExN2JkMWVlMDY1NTE0YmY1MjdiZjRjNzlmZTljNjdiNjhkZjYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e48326ab3313400d8f75c66920b6c0a2",
+      "statement": "When LocalMode is enabled, gmmff configures an empty ICE server list to gather only host candidates, enabling direct LAN communication without STUN/TURN server contact or internet traffic.",
+      "evidence": [
+        {
+          "resource": "repo://internal/peer/peer.go#L52-L63",
+          "version": "repo-lines-v1:sha256:9dc68391130a4ce0451279be4b0a57ca4529c08439e5956923b737aecbd256f4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYxMjUxMGExYjAzODA3NGJhNGMzMDFjM2ZkYzdiZDdhYjVkM2I1Mzg3MGFhOWMwNWI1ZDBjMTZhZTljYTVkNTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUwOTIxMTRjZjNmNTBjZTliNjYzZDA1ZTM5OWI1NTUyODc5YzQ2NmEzMjY5NTc4YzMzMmQ5MDU2Yjk0ZThlYmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYzOGFjYzU5OWI2MDU2MzkxYTZiMTRjMDI5ZDQ1MjdlYWYxMDZjZjUzNGExZThkNmYyZjVhZjkxZTI2MDUyNzAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2389828f53f64f91b01096e7284ba53c",
+      "statement": "TURN servers are used as relay candidates when direct peer-to-peer connection fails, with gmmff supporting both long-term credentials (user/pass) and ephemeral credentials (via secret) in the format turn:host:port[?transport=udp&user=foo&pass=bar].",
+      "evidence": [
+        {
+          "resource": "repo://internal/turn/turn.go#L1-L17",
+          "version": "repo-lines-v1:sha256:170d16bedb73224653f62ca173f4ba4fc7f2f11ad1fce2a2503c975d7aec4e1e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA0Mzk0N2FkMWE1ZTQ1Y2ZmNTk4MGIyZWM4ZmJlNjBlYzJhYTY1NDRlYTkyZmJjM2M2MzFlNjdmNGEyMmZlMDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEwMWVhZDkzNmEyMjgxZDUzZGNjMDY0YjdlMmEyYWIwZDUzYjkyZWYzZWY3YjM0YjY2ODY3MzAwNzg5NWM4NjAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjczNWY0MWQ0ODViMDY5MjAxNzdlZTIwMGRhNGUwM2RjYzUxN2UzOWU4ZjY5ZmM5NzFhZjc1NGNjOTBiMzM4ZDUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0eaea31f63d54109b729e3f325cbc6fb",
+      "statement": "Slots are persisted in storage with slot:<slot_id> as a hash of slot JSON fields and code:<code> as a string mapping to slot_id, both sharing the same TTL (default 10 minutes) for atomic expiry.",
+      "evidence": [
+        {
+          "resource": "repo://internal/store/store.go#L1-L28",
+          "version": "repo-lines-v1:sha256:14c38e151045f2bcf1e01e01e3eee703cdb9eb3361edc2bd65d13ea83779ea70:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFjN2NmNDY0YzYxNmQxNGIwOTVjMjU3OWEzNzVjNmJmMGNjZjA4MmNlOGIzMjQ1ZjZkOTEzNWIwMjgwMmNmN2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhZmJhMDUyN2MzOTUzYzRiNmUwZTViNTczOWJhODM2MTJmODA1M2JjZGM5NDY2NzMwMTkzY2QxZDU5MGI0MDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM2ZjdlZDZhNTkxMTRmOTIzZGUzYjk4NzhjZDk4MGQ3YTgzZGViNDFkOWI5YjM5NWE1OTdkOWVmYTVmNzUwNDcifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.2",
+    "at": "2026-09-18T12:39:02.785Z"
+  }
+}

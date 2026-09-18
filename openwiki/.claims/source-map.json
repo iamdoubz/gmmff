@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:73434be076199e25ff0ad96d2bee149071978f853b3e3c610e91bb82d5a9bd9c",
+  "claims": [
+    {
+      "id": "claim_82bc5eb82bdb4199919ae4c5b5a4da9c",
+      "statement": "The Slot lifecycle states (Waiting, Active, Full, Closed) are defined in internal/slot/slot.go lines 20-28.",
+      "evidence": [
+        {
+          "resource": "repo://internal/slot/slot.go#L20-L28",
+          "version": "repo-lines-v1:sha256:3385c86b1af97bec6573673fb2dcff32d05bb8b8db1bbbfd57ca3b2126a2e285:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTZkODk3NzUxMGIwNTMxY2VmMWQ2NGNjNGQzMzVhNDA2YjljYzk0MDEzZGVhNjU0YmVjYzBhNDM3ZTZlMTE0NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmFmYmEwNTI3YzM5NTNjNGI2ZTBlNWI1NzM5YmE4MzYxMmY4MDUzYmNkYzk0NjY3MzAxOTNjZDFkNTkwYjQwOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzllZGQ3MmJhNmI0MDA4M2NlOTUyNjlmYTU2ZmNmM2FjMWJkOTgyMjFhYTY2MjFhNjgzZjdkNTYzMmJiMjFkNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzU3ZjUxY2RhM2UwOTFlOGViNzNiMzAxZWVkY2VlNzgxN2MwNGQ2NzllOTQ4M2U3MGUxYzJiYzZhODYwMTYwNiJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.2",
+    "at": "2026-09-18T12:39:02.785Z"
+  }
+}

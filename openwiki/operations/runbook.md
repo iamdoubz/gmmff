@@ -2,6 +2,13 @@
 type: Operations
 title: Operations & Runbook
 description: Deployment, configuration, monitoring, and maintenance procedures for gmmff.
+verified:
+  - by: openwiki/0.5.2
+    at: 2026-09-18T12:39:02.785Z
+sources:
+  - id: openwiki-source-3b59060d90820d6a392f85ff
+    resource: repo://internal/broker/server.go
+generated: { by: "openwiki/0.5.2", at: "2026-09-18T12:39:02.785Z" }
 ---
 # Operations & Runbook
 
@@ -36,31 +43,54 @@ go run ./cmd/gmmff serve --memory --log-pretty --log-level debug
 go run ./cmd/gmmff serve --log-pretty --log-level debug
 ```
 
+> **Note:** The `--memory` flag is for development only and does not persist data. For production, use Redis/Valkey.
+
 ### Production Deployment
 
 #### Systemd Service
+<!-- openwiki: broken internal link [docs/SYSTEMD.md] file "docs/SYSTEMD.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 See [docs/SYSTEMD.md](docs/SYSTEMD.md) for detailed instructions.
 
 #### NGINX Reverse Proxy
+<!-- openwiki: broken internal link [docs/NGINX.md] file "docs/NGINX.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 See [docs/NGINX.md](docs/NGINX.md) for TLS termination and WebSocket proxy configuration.
+If terminating TLS directly at gmmff (not recommended), use the `--tls-cert` and `--tls-key` flags or `GMMFF_TLS_CERT` and `GMMFF_TLS_KEY` environment variables.
 
 #### Portainer
+<!-- openwiki: broken internal link [docs/PORTAINER.md] file "docs/PORTAINER.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 See [docs/PORTAINER.md](docs/PORTAINER.md) for container management.
 
 ## Configuration
 
+Most configuration is done via environment variables with the `GMMFF_` prefix. 
+Some settings are available only as command-line flags (see `gmmff serve --help`).
+
+<!-- openwiki: broken internal link [docs/ENV.md] file "docs/ENV.md" does not exist. Fix the href or restore the target, then delete this comment. -->
+See [docs/ENV.md](docs/ENV.md) for the full reference.
+
 ### Environment Variables
-All configuration is done via environment variables with the `GMMFF_` prefix. See [docs/ENV.md](docs/ENV.md) for the full reference.
 
 Key variables:
-- `GMMFF_SERVER`: Signaling server WebSocket URL (default: `ws://localhost:8080/ws`)
+- `GMMFF_ADDR`: TCP address to listen on (default: `:8080`)
 - `GMMFF_REDIS_URL`: Redis/Valkey connection string (optional, enables persistence and horizontal scaling)
-- `GMMFF_LOG_LEVEL`: Log level (`debug`, `info`, `warn`, `error`)
-- `GMMFF_LOG_PRETTY`: Enable pretty-logging (`true`/`false`)
-- `GMMFF_STUN`: STUN server URL (repeatable)
-- `GMMFF_TURN`: TURN server URL (repeatable)
+- `GMMFF_LOG_LEVEL`: Log level (`trace`, `debug`, `info`, `warn`, `error`)
+- `GMMFF_TLS_CERT`: Path to TLS certificate (optional)
+- `GMMFF_TLS_KEY`: Path to TLS private key (optional)
+- `GMMFF_WEB_DIR`: Path to web/static directory to serve the browser UI (optional)
+- `GMMFF_SHOW_FILES`: Show/hide the Files tab in the UI (`true`/`false`)
+- `GMMFF_SHOW_CHAT`: Show/hide the Chat tab in the UI (`true`/`false`)
+- `GMMFF_SHOW_ICE_SETTINGS`: Show the ICE settings panel (STUN/TURN configuration) in the UI (`true`/`false`)
+- `GMMFF_STUN`: STUN server URL (repeatable, used for ICE server pushing)
+- `GMMFF_TURN`: TURN server URL (repeatable, used for ICE server pushing)
+
+Note: The following settings are flag-only and do not have corresponding environment variables:
+- `--memory`: Use in-memory store (development only)
+- `--log-pretty`: Enable pretty-logging (human-readable output)
+- `--slot-ttl`: Slot time-to-live (default: 10 minutes)
+- `--csp-report-only`: Use Content-Security-Policy-Report-Only (not for production)
 
 ### Configuration Validation
+
 The application validates configuration on startup. Invalid configuration will cause the server to exit with an error message.
 
 See `internal/conf/` for validation logic.
@@ -68,15 +98,17 @@ See `internal/conf/` for validation logic.
 ## Monitoring
 
 ### Health Endpoints
+
 The server exposes several HTTP endpoints for monitoring:
 
 - `GET /healthz` - Liveness probe (returns `ok` if server is running)
 - `GET /readyz` - Readiness probe (returns `ok` if server and Redis are ready)
 - `GET /metrics` - Prometheus metrics endpoint
-- `GET /config.json` - Non-sensitive configuration snapshot
+- `GET /config.json` - Non-sensitive configuration snapshot, including UI feature flags
 - `GET /` - Landing page (HTML)
 
 ### Prometheus Metrics
+
 Key metrics include:
 - `gmmff_connections_total` - Total WebSocket connections
 - `gmmff_slots_total` - Total slots by state (waiting, ready, closed)
@@ -89,6 +121,7 @@ Key metrics include:
 See `internal/metrics/` for implementation details.
 
 ### Logging
+
 Logs are structured and privacy-preserving. By default, they contain:
 - Timestamp
 - Component name (`broker`, `store`, `main`)
@@ -103,7 +136,7 @@ Logs do **not** contain:
 - Slot codes (the 3-word codes)
 - Transfer contents
 
-Log format can be toggled between JSON and pretty-printed text via `GMMFF_LOG_PRETTY`.
+Log format can be toggled between JSON and pretty-printed text via the `--log-pretty` flag (not via environment variable).
 
 ## Maintenance
 
@@ -136,17 +169,17 @@ If using persistent storage for other components (e.g., schedule mode), back up 
 
 | Symptom | Likely Cause | Solution |
 |---------|--------------|----------|
-| `connection refused` | Server not running or wrong port | Check server status, verify `GMMFF_SERVER` |
+| `connection refused` | Server not running or wrong port | Check server status, verify `GMMFF_ADDR` |
 | `context deadline exceeded` | Network connectivity or firewall blocking | Check network, STUN/TURN settings |
 | `slot not found` or `invalid code` | Code expired (10 min TTL) or mistyped | Create new session, verify code |
 | `failed to set up WebRTC connection` | STUN/TURN issues or symmetric NAT | Try different STUN/TURN servers |
 | `server logs show ERR_REDIS_UNAVAILABLE` | Redis not reachable | Check Redis connection, `GMMFF_REDIS_URL` |
 
 #### Debugging
-Enable debug logging:
+Enable debug logging and pretty logs:
 ```bash
 export GMMFF_LOG_LEVEL=debug
-export GMMFF_LOG_PRETTY=true
+go run ./cmd/gmmff serve --log-pretty
 ```
 
 #### Diagnostics
@@ -157,7 +190,7 @@ export GMMFF_LOG_PRETTY=true
 ## Security Considerations
 
 ### Firewall Rules
-- Server TCP port: 8080 (WebSocket) or custom via `--port`
+- Server TCP port: 8080 (WebSocket) or custom via `--addr`
 - STUN: UDP 3478 (default Google STUN) or custom
 - TURN: UDP/TCP 3478 (default) or custom
 - For local mode: mDNS uses UDP 5353
@@ -174,7 +207,11 @@ export GMMFF_LOG_PRETTY=true
 
 ## Related Documentation
 - [Architecture Overview](/openwiki/architecture/overview.md)
+<!-- openwiki: broken internal link [docs/ENV.md] file "docs/ENV.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Configuration Reference](docs/ENV.md)
+<!-- openwiki: broken internal link [docs/CMDS.md] file "docs/CMDS.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Commands Reference](docs/CMDS.md)
+<!-- openwiki: broken internal link [docs/SECURITY.md] file "docs/SECURITY.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Security Documentation](docs/SECURITY.md)
+<!-- openwiki: broken internal link [docs/MONITORING.md] file "docs/MONITORING.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Monitoring & Metrics](docs/MONITORING.md) *(if exists)*

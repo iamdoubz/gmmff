@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:e772903ba157615485cc6a0ecade5c9f4bac0e222e5efa181d0df23a0e64e993",
+  "claims": [
+    {
+      "id": "claim_ded21e22959e4b6d83f188decc1b309f",
+      "statement": "The server exposes HTTP health endpoints at /healthz (liveness probe) and /readyz (readiness probe).",
+      "evidence": [
+        {
+          "resource": "repo://internal/broker/server.go#L7-L9",
+          "version": "repo-lines-v1:sha256:6a13ccd21c117b5a70c4dc80294f5db5a6ba9e89236eb812a2548f7b14f30acd:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZjNkMmNjZTY2MzkzYWNlOWIxZGUxMWZmYjAyMjY5NDgxMzNkMGY4MDg4MzMyN2Y0YmQ1OGQwMzUzMWU3YThiZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDkyZGQ1NzFiYWI4MmE0ODA0NTdjOTBjYWM5NDBlOWZjYzA0OTRlZTE1NDQxOGQxOWU1MzQyOTMzN2IzZmQ5MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTAzMjkxOGI4NDYwMWY0OTE0M2NkYmQxNGMwNjU0NWZhZTZkM2Q4NDI5ZGEyODJhNzBmMDAwZDQ3ODgyZTNjNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTNjNTFkODk5ODgyOTJmOTI5ODJkZmQ4MjNjNDg3MzQwZDFkMTJiZmI5MzdlYmFlMDU1OTJjOWJhNzczYTJmMiJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.2",
+    "at": "2026-09-18T12:39:02.785Z"
+  }
+}

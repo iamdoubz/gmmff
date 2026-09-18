@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:6cd7913108ad8af13c68516f8504656a6830edc1f883ff46444751a7e8898703",
+  "claims": [
+    {
+      "id": "claim_b8e66860fac54c85b35598612507f8b8",
+      "statement": "gmmff uses Redis for distributed slot storage with TTL-based expiration, falling back to an in-memory store when Redis is not configured.",
+      "evidence": [
+        {
+          "resource": "repo://internal/store/store.go",
+          "version": "repo-file-v1:sha256:26ff50c7b177fe3126c9cfb712731c316ab722b404e6c7b1c6b58cdc90e43c37"
+        }
+      ]
+    },
+    {
+      "id": "claim_9980fad638d946bdbf84ed41dbfe8b19",
+      "statement": "gmmff's STUN/TURN integration parses TURN URLs supporting both long-term credentials (username/password) and ephemeral credentials derived from a static secret per RFC 8489, converting them to pion/webrtc.ICEServer instances.",
+      "evidence": [
+        {
+          "resource": "repo://internal/turn/turn.go",
+          "version": "repo-file-v1:sha256:ab1b251ad6d25e903f693af63d8cc60bc55c2bc20cb247a079116d12117e2400"
+        }
+      ]
+    },
+    {
+      "id": "claim_af11bb2fd1a84e2c8b73af08e4d6eeed",
+      "statement": "In local mode, gmmff uses the zeroconf library to publish and browse _gmmff._tcp services via mDNS for peer discovery on the same network, excluding self from results.",
+      "evidence": [
+        {
+          "resource": "repo://internal/localmode/mdns.go",
+          "version": "repo-file-v1:sha256:fc3536f27cf83b97a76d932d217753aa27cd3383edaf74cd018a9f13b809aa70"
+        }
+      ]
+    },
+    {
+      "id": "claim_ec65bba3986d4adbb0e19ca8a5318b6e",
+      "statement": "The schedule feature provides encrypted server-side transfers that store data on the file system (not Redis) using AES-256-GCM encryption and scrypt-based password protection.",
+      "evidence": [
+        {
+          "resource": "repo://internal/schedule/store.go",
+          "version": "repo-file-v1:sha256:eea2e2ab858f95b1584ab0b7d573ccc13342a2a62cd28d5adecea74f72bf8d0d"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.2",
+    "at": "2026-09-18T12:39:02.785Z"
+  }
+}

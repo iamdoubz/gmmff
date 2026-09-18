@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:a02980b2a6171b01293a69fc04751c907c0f7a4a5d80da97f7ca2ba7ef31f7da",
+  "claims": [
+    {
+      "id": "claim_fd0c723458ba411ca50c79d2f963df7e",
+      "statement": "The project follows a tiered testing approach with Tiers 1-8d completed and Tier 8e pending, covering core packages and targeting Redis and WebRTC integration.",
+      "evidence": [
+        {
+          "resource": "repo://docs/TEST-PLAN.md",
+          "version": "repo-file-v1:sha256:28b437d9841391a7eaae9d4a7edcec6a18a2ba6e6c3f582cdfff47b00c1d6529"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.2",
+    "at": "2026-09-18T12:39:02.785Z"
+  }
+}

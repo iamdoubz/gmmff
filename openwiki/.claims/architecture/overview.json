@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:32262dc56cf9576e6d20676e69a8b18bdeec343d03df9a67d88444bc6fdca675",
+  "claims": [
+    {
+      "id": "claim_f87fa653efd742c0ad57a904e05a7e31",
+      "statement": "The signaling broker never decodes PAKE, SDP, or ICE payloads, forwarding them opaquely to prevent the server from intercepting the session.",
+      "evidence": [
+        {
+          "resource": "repo://internal/broker/broker.go#L7-L8",
+          "version": "repo-lines-v1:sha256:c1de713408d6d0ebc051f5c2283f149d0df72ac6dc10870bffd7f029f4e153bf:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzIyNjhiYzg0NWJhNTliMzc4NmI3NmY3MGFmYmJlNzQxODgyZjg5YWY5YjBmYjUwNzE0N2Y2ZTkwNmZmMmIwNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWM2NzRlMTVmNTA3ZWRjOWY0YzAyZDc0MDhhMjM4OWU5ZWYwM2YwYzA0ZmQ5ZGE5OTJlNzM4YmRkZTcxYmM1OSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTM4MGNmNGJmYTRlNTQyZjU5YjQyMjcwZTIxYzcxZjFiOWQ4NDBmZTc1ZWI5ZGExODA4ZjBhZjE2YWJkNTdiMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjQ2MDNkMWVkYzdiMTYzNjg5NTZiNTk3MjFkYzlmOTFlYzQ4MzlhMjM1ZTlhNDliNTA4OWNhNzQ0ZTFiN2M2OSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_b90a1e3e429843f3a573a3ecbb8eb28a",
+      "statement": "The slot lifecycle includes states Waiting, Active, Full, and Closed, with transitions governed by peer joins, departures, and TTL expiration.",
+      "evidence": [
+        {
+          "resource": "repo://internal/slot/slot.go#L20-L28",
+          "version": "repo-lines-v1:sha256:3385c86b1af97bec6573673fb2dcff32d05bb8b8db1bbbfd57ca3b2126a2e285:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTZkODk3NzUxMGIwNTMxY2VmMWQ2NGNjNGQzMzVhNDA2YjljYzk0MDEzZGVhNjU0YmVjYzBhNDM3ZTZlMTE0NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmFmYmEwNTI3YzM5NTNjNGI2ZTBlNWI1NzM5YmE4MzYxMmY4MDUzYmNkYzk0NjY3MzAxOTNjZDFkNTkwYjQwOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzllZGQ3MmJhNmI0MDA4M2NlOTUyNjlmYTU2ZmNmM2FjMWJkOTgyMjFhYTY2MjFhNjgzZjdkNTYzMmJiMjFkNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzU3ZjUxY2RhM2UwOTFlOGViNzNiMzAxZWVkY2VlNzgxN2MwNGQ2NzllOTQ4M2U3MGUxYzJiYzZhODYwMTYwNiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_9c1b5eff7f3941579901e0e540542705",
+      "statement": "A slot can join a new peer only if its state is Waiting or Active and it has not ever been full, based on the CanJoin method.",
+      "evidence": [
+        {
+          "resource": "repo://internal/slot/slot.go#L97-L105",
+          "version": "repo-lines-v1:sha256:8f47dc6b3d97133d4124601bf18e7b995922e41b12091947a0420389ac1ca6cd:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYWE5ODAyNGI2OTQzMTJiMjJjMjFiYTAyMGU0NWVkNmNmOGUwYjUzNzc5YmI5YmZkMDIxMmM0OGJjZDcxYTEyMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDM0OWY1MDk2ZDExZjNhYzI0MjhhNGI3YjgwZGFlODU1OWE5MjEyYWVkZmQ4MmFhYWZkZjk4ODg1MDI2Y2VlYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNWUxNDM3Y2ZjOGQ4ZTM2OWJhYTkxZmIzZGJjYzBkOWNhODUyZGVkZDhiMWI5OTZmNGQxOWM1ZjUyNTJkOTQwNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNGM3YzNjMjM0YmM5Njc5MDU3YjQyZDY4ODBkY2Q2MWUxZmU1N2JlNGI1ZjVhZDE3ZTYzMjIwOTQ4M2I2NGUzNSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_d21aa36cef1c4652999c66c41ce8246a",
+      "statement": "The signaling server persists slot state in Redis (or in-memory) with a TTL of 10 minutes, using slot:<slot_id> and code:<code> keys.",
+      "evidence": [
+        {
+          "resource": "repo://internal/store/store.go#L5-L11",
+          "version": "repo-lines-v1:sha256:442cafadfd8af5215214c335058e2e4c47b63365c5291f61b16d10e17b394d44:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWNhZmQ5MDg0NTg5MDNlNDEwMjQ3YWRmNTYwNzJlMzVmODhmOTg2NWM3MWI5ZDIzNmRkMjZlNmI3OTliOWY2ZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjkzOThmNDBlYzMxYjExNzY2MDljOTcyYjQ4MzM0MGFiZjQ2MjU5MDQ1MWQyODBlMjEyMjE3NmFjMWJhNjVlMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYzE1OWJhMjM1M2NkYzQ1NmE2Y2EwNWVlNzkyODExYzY0MWNmMDlmZmMwYmQ0OTIzMjg0YjMzNjI2NjVmOGRkYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzJjOTRkNmVjOTQ2NjFjNjY2NTY5ZmJmMzJjMTE3YmQxZWUwNjU1MTRiZjUyN2JmNGM3OWZlOWM2N2I2OGRmNiJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.2",
+    "at": "2026-09-18T12:39:02.785Z"
+  }
+}

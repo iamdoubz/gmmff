@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:c1545e77d19b4ca572940f804933debb652fa9da0a12d734bb22b149f930c0e4",
+  "claims": [
+    {
+      "id": "claim_59b3d6ee65fb489c98f106c239ab5ba3",
+      "statement": "The `gmmff create` command initiates a peer-to-peer session for file transfer and chat by creating a signaling slot, waiting for a peer to join, and then entering an interactive REPL.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/create.go#L61-L200",
+          "version": "repo-lines-v1:sha256:4783132b6153ea97ea594ba8c1d6dccb25d0843f6015215282e4bc7ad306831b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQwLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIwM2U3Nzc0ZjBmNzA0NDZhMzU0ZTNhZTRlZTQ2YWIwNzFjMzllNDJkYjQ3MjcyMTgwM2UzY2MxMjdhYWYyMWVkIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiJlZjVjNTE5ZDAzY2Y1NzRhYzUxMDIyYzY5MmJkNjU5MzAzOTE4MjRhYmM2MzQ4ZjE5ODcyOGEzNDI5ZGMxZjZlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MywiZm9sbG93aW5nQ29udGV4dEhhc2giOiI4ZjM3NDJhMjNlODk1NDQ3NzY1MWQxYjgyNTNkZWNjYmIwZGQzNmZhNWE0OTdkNjkyNTIxNTBjMjZhYTI1YjI0In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_5f79bcb9634d4c4a896ac45a236eb7ec",
+      "statement": "The `gmmff send` command automates a one-off file transfer by creating a session, waiting for exactly one peer, streaming the file(s) over a WebRTC data channel, verifying the transfer via hash, and then exiting.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/send.go#L126-L241",
+          "version": "repo-lines-v1:sha256:0cdcd7ebcc406980ca7df531ea0a7117f0d35e3b9d7b0464495552b4304635ba:eyJzZWxlY3RlZExpbmVDb3VudCI6MTE2LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJlNDdiNjdmYzA2YjIwMzk5NmVjZTQwOGJhYTUxNTU3NjhkNzMyM2JhNTVhZWZlMDQ4NGY0YjAzM2FmZTVhMDk5IiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiI0MTJjYTM0NWNjZjc1YmY5YzA4MDZiY2U2OTViZThkZTgwOGI3OTk4NDI1MWE3YTU0ZDIwMmNmNjEwMWRkNDUxIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI5YTNkMzU3MzcwYmM2NmQ3MmU5OTVkYTc5ZDRlZmI1YWViOGE2NDk0Yjk2YWI5NDVlMTk1YTc0ZDZmMTQzOGVmIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_611da834f6d444588bd244cc7d08d62d",
+      "statement": "The `gmmff chat` command initiates a pure text chat session by creating a signaling slot of type \"chat\", waiting for a peer, and then exchanging encrypted messages over a WebRTC data channel.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/chat.go#L52-L103",
+          "version": "repo-lines-v1:sha256:f7e0b75b2ffb7af79634f10bca2e024e1984dbc117fc78d42910e848e9911a00:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM2YjNiMTZkNjk5NDg2YzZkNWY4ZTNlODNkMWUwZTk2MTBlMGFhODYyN2U4NTEzNjc4YjI2Y2ExOGEyZWEyNGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVhNDIzNTU0MWEwNTdmZTM2YzJmMzFjOTg0NjY4MTdkNGY2NDc2MmI0NGYzZDc4OTBhZDhkMmE2NzJlMGQ0NDAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEyZjk4NzFkNWEyNDg5OTE4ZmJmMGQyZDBiMmM0NWQwMzgwOWUwMGY4OWVhNTg1NDA1ZmVjYTE3NGVlNTg1ZTkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a4c8f964df664c0884d2c76cffbdbab0",
+      "statement": "The `gmmff local` command starts a self-contained local-network mode that embeds a signaling server, registers an mDNS service, and serves a browser UI for peer-to-peer communication without internet access.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/local.go#L54-L71",
+          "version": "repo-lines-v1:sha256:0882629e85871f3d1244822b992e2b0b1cbca45095a486c1afab2b40c0458bc3:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAzNGE3N2JjNjliOGZlYWJmYjA4MTY4NDcwMWYzNWE4ZWRlYWY3NDE3Y2NlYWM3Y2Q0MzQ0NTBmMThhOGY3ZmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc3YTliNWU5MDE5YzhkYjg3ODNlYzljM2ZlYmIwYTJjOTg2MmY2MWEwNWMzMDhmZTg5NWU0YTliZWQwM2VkYjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFlMTZkMmIwNDc5YzNjZWU2NDJmMTMwNzAwNDYwNWM0MDA5YzBmNWFiZGQ5NDg3MmZjZGQxZmFiZjYxNTljM2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c5010e8f6c954b38a48ee679e2da3d73",
+      "statement": "The `gmmff schedule upload` command encrypts a file with AES-256-GCM, uploads the ciphertext to the signaling server via HTTP, and returns a share URL containing the file ID, while the decryption key is kept in the URL fragment for client-side decryption.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/schedule.go#L91-L182",
+          "version": "repo-lines-v1:sha256:068bcfd64c746bd52523331e1480f8dd2f5a01678223711c4234384ef165057f:eyJzZWxlY3RlZExpbmVDb3VudCI6OTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlY2Y0NmIyMjg2ZmM3YmJhOWUxZTlmOGFiZDliYzZiN2EwZGZkNjEyNWMxM2I1NWRlZmQzYmUxYTQ3MWZkNjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNhNjY3MmI2NGFhMDMwYmRkNzVmZjAwNjQyNzQxZmQ5Y2ZkMjAzNzRjNjE1NWQ3NDU4YWIzMGJhNjZmMGU5NzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk2ZjFmN2E1NmY2NzQzNWMyMTMxODViMTcxOTFhNjAzOWY5ZTg5NGU3YTBkMjgxYmZkMjQwN2EwMjA4NTUxZGMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_549607d488194642bb9cd87a556e4207",
+      "statement": "The signaling broker (internal/broker/broker.go) enforces the slot lifecycle (create → waiting → ready → closed) and relays protocol messages between peers without decoding the payloads, ensuring end-to-end encryption.",
+      "evidence": [
+        {
+          "resource": "repo://internal/broker/broker.go#L1-L15",
+          "version": "repo-lines-v1:sha256:2ce46ca774f76b031da03548dc0d40f65e82707f78410035b108d7b8aff0952e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM1MWJjYTE1YzliZDI5NzE5MGUzNzk4M2NjZDQxMWZhMjk1NGNiMWEyYmFiYTQ5ZjY2NjJhMmZiODRkMWFjZjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRlOTRlOGE4ZjVlYTg5YzAzMjE0NDdhNmNjMjU0ZWNlMmE2NDI5MDFiZTRiOGQ5ZDQ1MzdjMjE3N2Y2MzNlNzciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMyYzk0ZDZlYzk0NjYxYzY2NjU2OWZiZjMyYzExN2JkMWVlMDY1NTE0YmY1MjdiZjRjNzlmZTljNjdiNjhkZjYifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.5.2",
+    "at": "2026-09-18T12:39:02.785Z"
+  }
+}

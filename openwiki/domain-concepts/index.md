@@ -1,3 +1,3 @@
 # Files
 
-- [Domain Concepts Overview](overview.md) - Core domain concepts in gmmff including sessions, slots, PAKE, WebRTC data channels, and slot lifecycle.
+- [Domain Concepts](overview.md) - Core domain concepts in gmmff including sessions, slots, PAKE, WebRTC data channels, slot lifecycle, local mode, and TURN.
