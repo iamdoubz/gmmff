@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:5c92e90952feb3e591ebc5e3d7af0fba8a823bb99f5fbac60c31ea9f2598be86",
+  "claims": [
+    {
+      "id": "claim_c778af5cfa5c425b834b44f1fa0e7b64",
+      "statement": "The /cmd directory contains the gmmff application entrypoints and command implementations.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go",
+          "version": "repo-file-v1:sha256:52c7a23881eb71a14be739a0730a8d0f4f82025a8992d326a21e4024e9794e71"
+        }
+      ]
+    },
+    {
+      "id": "claim_f527440510e043e685a1d07d09284f1e",
+      "statement": "The /configs directory provides configuration examples and templates for deployment.",
+      "evidence": [
+        {
+          "resource": "repo://configs/gmmff.conf",
+          "version": "repo-file-v1:sha256:ca5458b3aab2c7e22f16da2150cca3d54cdd5bb81bf0c9119ad9afd26a732dbd"
+        }
+      ]
+    },
+    {
+      "id": "claim_935762285b884f40a7c502018b1c8ff6",
+      "statement": "The /docs directory contains user-facing documentation such as ENV.md, CMDS.md, SYSTEMD.md, NGINX.md, and TEST-PLAN.md.",
+      "evidence": [
+        {
+          "resource": "repo://docs/ENV.md",
+          "version": "repo-file-v1:sha256:f345cce0e39e0df8a4ed0c0a1594a08847b45a2bcb495609584e7e224c818d65"
+        }
+      ]
+    },
+    {
+      "id": "claim_8f5761935b37499489ed92595d0c4146",
+      "statement": "The /internal/broker package implements the WebSocket signaling broker, responsible for accepting WebSocket connections, routing protocol messages between peers, enforcing slot lifecycle, and forwarding payloads opaquely without decoding.",
+      "evidence": [
+        {
+          "resource": "repo://internal/broker/broker.go",
+          "version": "repo-file-v1:sha256:85f09c996defb56c19b8b3627a2c1ead175e0bca02c115cf1b4315a2ce4cdd24"
+        }
+      ]
+    },
+    {
+      "id": "claim_fbbff52955bc4dafb0db185bf54552b9",
+      "statement": "The /internal/chat package enables peer-to-peer text chat via WebRTC data channels.",
+      "evidence": [
+        {
+          "resource": "repo://internal/chat/session.go",
+          "version": "repo-file-v1:sha256:5e9230595d1072d9370b9a803a6b1a0b63974a9fa37d8519cc0e6cdce4abc7f2"
+        }
+      ]
+    },
+    {
+      "id": "claim_84f8bb14455f431e99486fff260d7671",
+      "statement": "The /internal/crypto package provides cryptographic primitives (HKDF, HMAC, key derivation) used for PAKE and session encryption.",
+      "evidence": [
+        {
+          "resource": "repo://internal/crypto/codegen.go",
+          "version": "repo-file-v1:sha256:83987f719bc3adc290def90ea0cf550627984da837c5391109d37d1d75771af3"
+        }
+      ]
+    },
+    {
+      "id": "claim_7cc4bc959d5b433bb854021e142c1076",
+      "statement": "The /internal/display package handles display utilities such as QR code generation and terminal output formatting.",
+      "evidence": [
+        {
+          "resource": "repo://internal/display/format.go",
+          "version": "repo-file-v1:sha256:20119d023b991af66cf7c8f216284bd047d285807c79be1740148b8785470902"
+        }
+      ]
+    },
+    {
+      "id": "claim_8b3cff74dd8e47698fa75031ab4d97f1",
+      "statement": "The /internal/localmode package enables peer discovery on local networks via mDNS and runs an embedded signaling server for offline use.",
+      "evidence": [
+        {
+          "resource": "repo://internal/localmode/local.go",
+          "version": "repo-file-v1:sha256:a1aa057774165931376f11053d42c1eb3bccb5b64856d7e8c02257329499390d"
+        }
+      ]
+    },
+    {
+      "id": "claim_7c7cc57eda784ecc8b9e043aaa3cd661",
+      "statement": "The /internal/log package provides a privacy-preserving structured logger that avoids leaking sensitive information.",
+      "evidence": [
+        {
+          "resource": "repo://internal/log/log.go",
+          "version": "repo-file-v1:sha256:4dc005bc9777b9b1bd4f74116f18054a0a756110501ecfa363c57135a7cdc2a5"
+        }
+      ]
+    },
+    {
+      "id": "claim_4cd9cfd626294650b254ae5447241ecd",
+      "statement": "The /internal/pake package implements the CPace Password-Authenticated Key Exchange (PAKE) protocol for establishing shared secrets between peers.",
+      "evidence": [
+        {
+          "resource": "repo://internal/pake/session.go",
+          "version": "repo-file-v1:sha256:846371e1ff61469b2acc00b6ff2c55155e57abe7a358517a29d8f1285c7e5a41"
+        }
+      ]
+    },
+    {
+      "id": "claim_66497624aa164b4c9ac2045e37d2e0ef",
+      "statement": "The /internal/peer package manages WebRTC peer connections, including ICE/DTLS negotiation and data channel configuration.",
+      "evidence": [
+        {
+          "resource": "repo://internal/peer/peer.go",
+          "version": "repo-file-v1:sha256:49acad35388764863c32afea0f9c5ce55abf8be9932b61397a9d0fe3994493ae"
+        }
+      ]
+    },
+    {
+      "id": "claim_633fe884909d4484ba1202eb61a1855e",
+      "statement": "The /internal/peerconfig package manages WebRTC configuration (ICE servers, constraints) for peer connections.",
+      "evidence": [
+        {
+          "resource": "repo://internal/peerconfig/peerconfig.go",
+          "version": "repo-file-v1:sha256:ba29dd3880019ecf11aeda407d5ccd3ec106a519c476f5b0c3609a190ee174f1"
+        }
+      ]
+    },
+    {
+      "id": "claim_c92870a828ac4db3a4ddc392ce859949",
+      "statement": "The /internal/schedule package handles server-side scheduled transfer management, storing and triggering scheduled transfers.",
+      "evidence": [
+        {
+          "resource": "repo://internal/schedule/handler.go",
+          "version": "repo-file-v1:sha256:30643aaa4c915ba42e81e5b5e76ed4fa0fb8adbf03e05914cf7a642fe8cbc210"
+        }
+      ]
+    },
+    {
+      "id": "claim_8a9574cae0cc4a87bd81624ad85b72ca",
+      "statement": "The /internal/session package manages the session REPL and user interaction, processing commands and coordinating with slot and transfer layers.",
+      "evidence": [
+        {
+          "resource": "repo://internal/session/session.go",
+          "version": "repo-file-v1:sha256:b182dd57b769d13177bf627ef724220ee849af8d0cebd2e11897d723dc487843"
+        }
+      ]
+    },
+    {
+      "id": "claim_de87d0b69628495a9dfc5c32d8b46b45",
+      "statement": "The /internal/signaling package provides WebSocket signaling helpers and client implementations for both JavaScript/WASM and native environments.",
+      "evidence": [
+        {
+          "resource": "repo://internal/signaling/b64.go",
+          "version": "repo-file-v1:sha256:17a63eb9ca6d2191704dd50a51298cd1bd8e10a260135649367cbb114a8e1068"
+        }
+      ]
+    },
+    {
+      "id": "claim_70afb0f0248040bc8d9cf4470db8d2b8",
+      "statement": "The /internal/slot package manages the slot state machine (created → waiting → ready → closed) and stores slot metadata.",
+      "evidence": [
+        {
+          "resource": "repo://internal/slot/slot.go",
+          "version": "repo-file-v1:sha256:bc38f7058ea18adfdbdef6e76a75db9d7950905d6d2acc1045a87612358034b7"
+        }
+      ]
+    },
+    {
+      "id": "claim_c9e8a94f463c4c3e8bca44872369755b",
+      "statement": "The /internal/store package provides a storage abstraction layer with in-memory and Redis/Valkey implementations for persisting slot and session data.",
+      "evidence": [
+        {
+          "resource": "repo://internal/store/store.go",
+          "version": "repo-file-v1:sha256:26ff50c7b177fe3126c9cfb712731c316ab722b404e6c7b1c6b58cdc90e43c37"
+        }
+      ]
+    },
+    {
+      "id": "claim_68289fd68d8d4a9187613d3ae99c7345",
+      "statement": "The /internal/archive package handles archive (zip) creation and extraction for file transfers.",
+      "evidence": [
+        {
+          "resource": "repo://internal/archive/archive.go",
+          "version": "repo-file-v1:sha256:a43cac634b90276bc4a23a2466325855e06e7b75e6351a08429606a995b85fb3"
+        }
+      ]
+    },
+    {
+      "id": "claim_fa563ecc6fbb4351b2157c22b8e44369",
+      "statement": "The /internal/transfer package implements file transfer logic over WebRTC data channels, including chunking, encryption, transmission, and reassembly.",
+      "evidence": [
+        {
+          "resource": "repo://internal/transfer/transfer.go",
+          "version": "repo-file-v1:sha256:62c14b3e6fd056eadc26eec5cec92f3f66c0e41019e97147e40a53013ce3a1f8"
+        }
+      ]
+    },
+    {
+      "id": "claim_7fe46e9ffc6841d9988f729861b65794",
+      "statement": "The /internal/turn package manages TURN relay traversal for establishing relay connections when direct peer-to-peer fails.",
+      "evidence": [
+        {
+          "resource": "repo://internal/turn/turn.go",
+          "version": "repo-file-v1:sha256:ab1b251ad6d25e903f693af63d8cc60bc55c2bc20cb247a079116d12117e2400"
+        }
+      ]
+    },
+    {
+      "id": "claim_c776a5e2dbf3466ca7a1a589a0265f6b",
+      "statement": "The /web directory contains the web client and server components, serving static assets and providing an HTTP API for browser-based file transfer.",
+      "evidence": [
+        {
+          "resource": "repo://web/server.go",
+          "version": "repo-file-v1:sha256:8f4b60b4c3129b61b10c8d65ad1d08beaf9d92ba601d82dcd1af3c48e2c9ed1d"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.0",
+    "at": "2026-09-25T13:12:29.362Z"
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:1f820811e762a3285336b1d8a8dcc4a423e99d31f883a195909c5bd1df8bfc6d",
+  "claims": [
+    {
+      "id": "claim_235bf210bb7b4a6e8d192395f44d22d5",
+      "statement": "The project follows a tiered testing approach documented in TEST-PLAN.md with Tiers 1-8d completed (unit and integration tests using mocks) and Tier 8e pending (integration tests with real Redis and session/WebRTC integration).",
+      "evidence": [
+        {
+          "resource": "repo://docs/TEST-PLAN.md#L33-L48",
+          "version": "repo-lines-v1:sha256:c22fa7c5b13f2bc55e72046213363f6516beec35eed31564eb0081dde7f6ff82:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1NGJjYWY4MTc2MWU2NzUyYmMyM2JmYjgwOGUyOWNjNWY2ZmM1YmQ1ZmE3YWQyN2Y2NmZjOTNiNDA5MGM0NGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMjdlYmZlZGE1MzMwNjA4NjU4NWU2NGRhMjkzOTVkZTE2YWE2N2ZmZDU4ODg5NjAwYjAxYjc3NzA0YjdlNzgifQ"
+        },
+        {
+          "resource": "repo://docs/TEST-PLAN.md#L51-L70",
+          "version": "repo-lines-v1:sha256:90c98a51e619b28ea3918347b2dae95d1e08da2e824b5368fedc77281f80a60d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjExNDVjNWJlZmI0ZjQzYThiNGE2M2MxYmU0ZTdlZWJlYmRlODFiYmM0ZWEzZmQ1ZGFlZjU3YWNkOGU4ODE5MTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNhOGQ1MTAzMDA2ZjlkZmViNWRiMGQ1ZjVhY2YyMWIzY2IzYzYyMWU0NDc5YmE5NTFjNjkxYzdhN2UyZmJhNDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6a412e97536c4d20a5e7403322711dab",
+      "statement": "Unit tests are run with 'make test' (CGO-disabled, works on Windows) and execute the completed tiers (1-8d) of the test strategy.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L91-L91",
+          "version": "repo-lines-v1:sha256:b62af1bc028e456067712ccce56d22249839182bf71ae580d80524c0f45ad2c3:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjYyYWYxYmMwMjhlNDU2MDY3NzEyY2NjZTU2ZDIyMjQ5ODM5MTgyYmY3MWFlNTgwZDgwNTI0YzBmNDVhZDJjMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjYyYWYxYmMwMjhlNDU2MDY3NzEyY2NjZTU2ZDIyMjQ5ODM5MTgyYmY3MWFlNTgwZDgwNTI0YzBmNDVhZDJjMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiN2JhMDM5NjE4NDFmZmE2OTA2ZjM3NjBhMmQ3NDBiZmUyY2RiZDBhYmM5MTBkNWZjNmExZTM4NzY1MzI0MGVjNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTZiNmY0NTJhYzA2NzljN2JkY2IzYjFlMjYzZjE2NTcyOTFlMWQzOTZmOTA0MzJiMmUwNDUyNmY3MjdiZmI1OSJ9"
+        },
+        {
+          "resource": "repo://docs/TEST-PLAN.md#L28-L29",
+          "version": "repo-lines-v1:sha256:e2b882b4e0fd1f640afd7c92b0ce5ab9bb0c013fb965a226194c03f1e951effd:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmRiYzVjNmZhMzViMzBjZWNmYTQyNzcwMGVhMTM3Njg3MTE5MzUwNTE1OWQ5N2E0ZGQ3ZWY3NzE2Y2ZiMGFhYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiN2JjOGYxODQ4OGI0N2YxOTk1MzYxNDNhOGEyNWJmZmRkMjliNTY2MTQwZWI3Yzk5MDM1ZDE0MjM1N2E1MmYzYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMWQyOTI2M2EzYzc1NzNkMWQyYmRkMjRkZjA0YWRmZWJmOWMyZjYxMjVhMzA5YjQyOGRhMmI1ZWMzNzFkYzM0NiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_a3f268b6771c4006a5e94b424dab7104",
+      "statement": "Race detection tests are run with 'make test-race' and require clang and a non-Windows host (does not work on Windows due to MSVC '-mthreads' error).",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L100-L100",
+          "version": "repo-lines-v1:sha256:f52d711103d50a437830c6fbcd04fb4bab49a0f82f6d26d1c791c6e8488dd090:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZjUyZDcxMTEwM2Q1MGE0Mzc4MzBjNmZiY2QwNGZiNGJhYjQ5YTBmODJmNmQyNmQxYzc5MWM2ZTg0ODhkZDA5MCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjUyZDcxMTEwM2Q1MGE0Mzc4MzBjNmZiY2QwNGZiNGJhYjQ5YTBmODJmNmQyNmQxYzc5MWM2ZTg0ODhkZDA5MCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODVlZDY0ZTlmMjAwODgyNmVmMGE0NjdiODViZWY5N2MwYTEyNThiMWNjOWEyZTYxZDUwYmZmOTczODdmMGY1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGM2MjliMDMyMTNkNmM1NjRjMGE2Yjk5YTUzNWU1ZTkyM2EzYzJhYzc1YWU5ODNjNjk3ZTBmMmEwOWY1YTk4NCJ9"
+        },
+        {
+          "resource": "repo://CLAUDE.md#L92-L92",
+          "version": "repo-lines-v1:sha256:86e4dc5d228fe84cca55b1b27b405c2219053dc0d2858ebb76f0a98d6ae37912:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODZlNGRjNWQyMjhmZTg0Y2NhNTViMWIyN2I0MDVjMjIxOTA1M2RjMGQyODU4ZWJiNzZmMGE5OGQ2YWUzNzkxMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODZlNGRjNWQyMjhmZTg0Y2NhNTViMWIyN2I0MDVjMjIxOTA1M2RjMGQyODU4ZWJiNzZmMGE5OGQ2YWUzNzkxMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTc0MjhjYjI3MGNmZDA4NjQxMzk1ZjJhZjljNWE3MjcxOTQ4NWNlN2VkNDYzZDFmMDM4NzE1NzcwNWI1OWE5MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNjI3ZjFjZGM2MzI0MzRmZGEyZTAzOTg1M2FhOWRiNDMxMGU1Y2UzNjA5YzNkMTM0ZmZlZGE0ZWQ0OWZiYzU3YyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_1f0a84a5393f4ba39b1268419cc9fb65",
+      "statement": "Test coverage is generated with 'make test-cover' or 'make cover' which creates a coverage profile and opens an HTML report in the browser.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L93-L93",
+          "version": "repo-lines-v1:sha256:5fd847a9559e62f51fb4cc3f5e387279db423e90d12716633c07cc9159a258d6:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNWZkODQ3YTk1NTllNjJmNTFmYjRjYzNmNWUzODcyNzlkYjQyM2U5MGQxMjcxNjYzM2MwN2NjOTE1OWEyNThkNiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWZkODQ3YTk1NTllNjJmNTFmYjRjYzNmNWUzODcyNzlkYjQyM2U5MGQxMjcxNjYzM2MwN2NjOTE1OWEyNThkNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzljZGUxNWI4ODk0NjQxZDdiMWY4NjVhMWVhODY4ZjllZTUwYzcxM2IyZmJhZTYxMjVjYzhiZjI3Y2ZjZTVkMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjk0ZGVhN2ZkNzJiMGI1ZWE3ZmQyNzVlZWE5Y2ExNTA0N2NjZTkxNDQ4YTdhOGU5MDUwZDJiNDM5ODFlY2MzYiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_c7c03fb15a5c4663b4384c572db96b0f",
+      "statement": "Chat functionality unit tests exist for frame dispatch and callbacks in internal/chat/session_test.go (part of Tier 8a), while full chat integration requiring live WebRTC data channels is pending in Tier 8e.",
+      "evidence": [
+        {
+          "resource": "repo://docs/TEST-PLAN.md#L44-L44",
+          "version": "repo-lines-v1:sha256:6271ea880e4efa5b6143358b9ebbe9e7a287e64eddfd952b211bf63fb843fb4b:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjI3MWVhODgwZTRlZmE1YjYxNDMzNThiOWViYmU5ZTdhMjg3ZTY0ZWRkZmQ5NTJiMjExYmY2M2ZiODQzZmI0YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjI3MWVhODgwZTRlZmE1YjYxNDMzNThiOWViYmU5ZTdhMjg3ZTY0ZWRkZmQ5NTJiMjExYmY2M2ZiODQzZmI0YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiY2NhOGEzMGRjMDUxZWZjMDE5NzkxM2Y1YjA5MjQzMWIwMDYyNTQyODA2MmJlM2Y3YWY1NzIxYzU3MjY2MzhlMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTMxNmM3OGYxYzUwN2Y1MjVmMjA0Y2ZiODk4ODVmYmI2NTY2N2Q0YzJkNjIyNGM3NThlODU2MWJmNTcwYmUwYiJ9"
+        },
+        {
+          "resource": "repo://docs/TEST-PLAN.md#L63-L69",
+          "version": "repo-lines-v1:sha256:f47b996384eab8b829401b8b7aea53bc7fb82d9a3cba06cf5fe48b36a7f2e408:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTZhNTgyODYxZTBhOWZiMDQ2YWIxMTA4NDRhZWRlMDY2ODdjNDVlZjA2NmVmMThlYmFlNTViM2ZmNDlkMWIxYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTNlOGVhMGM3YWMyNTczYmE3ZjFjYjI3NWM1OWM2NzkzODdlMWNmZWI4NmE4OWYyYmI5ZmM1MmZhMGRhZDBiZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmQxOTUwNjA3MmQzMzM3ZDljZjI3MzcyODI3YzRiZjg3ZmYyZWNhZTcxNDVhM2RiZjdjYTU5YmQ0NmY1NGVjYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        },
+        {
+          "resource": "repo://internal/chat/session_test.go",
+          "version": "repo-file-v1:sha256:a7502b944d83844eb0f414e3fcc86207401aa3467e6ebee8adac22122b4341d4"
+        }
+      ]
+    },
+    {
+      "id": "claim_1a940c769b9b4eacbdfd591def6d4e71",
+      "statement": "Scheduling feature is tested through unit tests in internal/schedule/*_test.go, integration tests via httptest in internal/schedule/client_roundtrip_test.go (Tier 8d), with full Redis integration pending in Tier 8e.",
+      "evidence": [
+        {
+          "resource": "repo://docs/TEST-PLAN.md#L37-L37",
+          "version": "repo-lines-v1:sha256:fe8ee215e28845c5c60e9a71dee9ad2fcdfc879556666980c80c6b35f20e74c3:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmU4ZWUyMTVlMjg4NDVjNWM2MGU5YTcxZGVlOWFkMmZjZGZjODc5NTU2NjY2OTgwYzgwYzZiMzVmMjBlNzRjMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmU4ZWUyMTVlMjg4NDVjNWM2MGU5YTcxZGVlOWFkMmZjZGZjODc5NTU2NjY2OTgwYzgwYzZiMzVmMjBlNzRjMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjM1MDkzZTZhYTY1YzM3MThiM2QzOTUyZDkxMmI2MmRkMmNlZTZkNDU5MzIxZDI3YzAyMmJmNzk5YzkyOTM3MyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDY4YjIzZmRhNTI1MDFkNDk5OWQ1YTk5ZTc3ODBjZGUzM2JjY2VmNWUyOGMzMmNjZmY4ZGM5MzJlYTEwOTM1MSJ9"
+        },
+        {
+          "resource": "repo://docs/TEST-PLAN.md#L47-L47",
+          "version": "repo-lines-v1:sha256:d81a23f43ad0812b8c55beb9789c163638bac377876e108b8d93a962970387ba:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDgxYTIzZjQzYWQwODEyYjhjNTViZWI5Nzg5YzE2MzYzOGJhYzM3Nzg3NmUxMDhiOGQ5M2E5NjI5NzAzODdiYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDgxYTIzZjQzYWQwODEyYjhjNTViZWI5Nzg5YzE2MzYzOGJhYzM3Nzg3NmUxMDhiOGQ5M2E5NjI5NzAzODdiYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNmZiNTc5YzUzZWUxZjAwZTM2MGIzOTkxODUyZmFhZmU0OGVjNDM3MmU1MDVlM2Q2MjJmNDMzNWU0NmYzNjA4NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        },
+        {
+          "resource": "repo://docs/TEST-PLAN.md#L58-L60",
+          "version": "repo-lines-v1:sha256:3436eb1f81471db8d53188de202eef58d11b2e30499cd171c4850d78f6b76738:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmJjMjU2NjAxNWFiZWFmZTNlZjRmZTFhNzM1ODA4M2JmMmE4MzFiZjY5MTA0NTY5YTJkY2QzYzI5MmQwOTBmOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOGQ4ZDg0ZjQyYjY2ZTZhZWFmZjBkZjBkNjA2ZjJjZmI4NDBmYWM3NGEyYzI1ZTEzYjg4N2M4MWI3M2U2ZTMwYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiM2ZkYmY4ZGM2Zjc3YWRmMzJiYjNhYzcxNThiYTkwMzgwMjg4NmRjYjdhODIzMTgyMmMwNjM4NjM0Mzc5NWRkNCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDc2NmU4YzQ0MmRlY2VjZjUyYWZkYjBmM2QzZjk4ZWNmZmFiZGI2NmFiMjVmODljNjJjZDNmN2FmNWZmMTFhMCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_7ba902a7f68b4d518a41b64797e75567",
+      "statement": "In-memory store (MemStore) is used for all unit tests (Tiers 1-8d) and provides a full contract suite reusable for Redis integration, while Redis store integration is pending in Tier 8e and will test against real Redis to verify TTL expiry, concurrent updates, and code→id index consistency.",
+      "evidence": [
+        {
+          "resource": "repo://docs/TEST-PLAN.md#L42-L42",
+          "version": "repo-lines-v1:sha256:a35300d7942f990beb28c0b0fb6c79ec7d49abd81114bc44021c24f17256f851:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTM1MzAwZDc5NDJmOTkwYmViMjhjMGIwZmI2Yzc5ZWM3ZDQ5YWJkODExMTRiYzQ0MDIxYzI0ZjE3MjU2Zjg1MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTM1MzAwZDc5NDJmOTkwYmViMjhjMGIwZmI2Yzc5ZWM3ZDQ5YWJkODExMTRiYzQ0MDIxYzI0ZjE3MjU2Zjg1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODc2MjQ4Nzc1ZjBiYmNiM2M1ZWNiNDRmZGVmYzBmODAwODE1NjhlNmZlNzgxNDA5ZTY5YTY1NjAzNWRiMDVhNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTg4YjQ3MmY4OTc2ZTg3NmEzYjM1MTJlZTJiZTg5NzViY2M4ZTljYjAzNzU1YjkwMjA4OTY5Mzc0ZGU3MTMxZiJ9"
+        },
+        {
+          "resource": "repo://docs/TEST-PLAN.md#L58-L60",
+          "version": "repo-lines-v1:sha256:3436eb1f81471db8d53188de202eef58d11b2e30499cd171c4850d78f6b76738:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmJjMjU2NjAxNWFiZWFmZTNlZjRmZTFhNzM1ODA4M2JmMmE4MzFiZjY5MTA0NTY5YTJkY2QzYzI5MmQwOTBmOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOGQ4ZDg0ZjQyYjY2ZTZhZWFmZjBkZjBkNjA2ZjJjZmI4NDBmYWM3NGEyYzI1ZTEzYjg4N2M4MWI3M2U2ZTMwYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiM2ZkYmY4ZGM2Zjc3YWRmMzJiYjNhYzcxNThiYTkwMzgwMjg4NmRjYjdhODIzMTgyMmMwNjM4NjM0Mzc5NWRkNCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDc2NmU4YzQ0MmRlY2VjZjUyYWZkYjBmM2QzZjk4ZWNmZmFiZGI2NmFiMjVmODljNjJjZDNmN2FmNWZmMTFhMCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_19696219c939409f81c5dd64354b9086",
+      "statement": "The race detector should be used to check for race conditions when troubleshooting flaky tests, and 'make test-race' is the command to run tests with race detection enabled.",
+      "evidence": [
+        {
+          "resource": "repo://CLAUDE.md#L92-L92",
+          "version": "repo-lines-v1:sha256:86e4dc5d228fe84cca55b1b27b405c2219053dc0d2858ebb76f0a98d6ae37912:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODZlNGRjNWQyMjhmZTg0Y2NhNTViMWIyN2I0MDVjMjIxOTA1M2RjMGQyODU4ZWJiNzZmMGE5OGQ2YWUzNzkxMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODZlNGRjNWQyMjhmZTg0Y2NhNTViMWIyN2I0MDVjMjIxOTA1M2RjMGQyODU4ZWJiNzZmMGE5OGQ2YWUzNzkxMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTc0MjhjYjI3MGNmZDA4NjQxMzk1ZjJhZjljNWE3MjcxOTQ4NWNlN2VkNDYzZDFmMDM4NzE1NzcwNWI1OWE5MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNjI3ZjFjZGM2MzI0MzRmZGEyZTAzOTg1M2FhOWRiNDMxMGU1Y2UzNjA5YzNkMTM0ZmZlZGE0ZWQ0OWZiYzU3YyJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.0",
+    "at": "2026-09-25T13:12:29.362Z"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:63ccc6fa2a41e640a72083121a2f20d80ac497180691e74ec3fa99ff389e6b43",
+  "claims": [
+    {
+      "id": "claim_911845e9c48a40b6944b23203e3e94d5",
+      "statement": "gmmff provides two client interfaces: a native command-line interface and a browser-based WebAssembly interface, both connecting to the same signaling server and establishing peer-to-peer WebRTC data channels for file transfer and chat.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go",
+          "version": "repo-file-v1:sha256:52c7a23881eb71a14be739a0730a8d0f4f82025a8992d326a21e4024e9794e71"
+        },
+        {
+          "resource": "repo://internal/broker/broker.go",
+          "version": "repo-file-v1:sha256:85f09c996defb56c19b8b3627a2c1ead175e0bca02c115cf1b4315a2ce4cdd24"
+        },
+        {
+          "resource": "repo://web/server.go",
+          "version": "repo-file-v1:sha256:8f4b60b4c3129b61b10c8d65ad1d08beaf9d92ba601d82dcd1af3c48e2c9ed1d"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.0",
+    "at": "2026-09-25T13:12:29.362Z"
+  }
+}

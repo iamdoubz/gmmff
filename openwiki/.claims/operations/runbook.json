@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:e18299ee53d5d6e1eb7a924839059cc24c07a14c2e12bb104611c4c40cb646a2",
+  "claims": [
+    {
+      "id": "claim_07afc68fbadd408ca3cd3982e3181b05",
+      "statement": "The server exposes HTTP endpoints for monitoring: /healthz (liveness probe), /readyz (readiness probe), /metrics (Prometheus metrics), /config.json (non-sensitive configuration), and / (landing page).",
+      "evidence": [
+        {
+          "resource": "repo://internal/broker/server.go",
+          "version": "repo-file-v1:sha256:ff6919f0da10e41f9a4b9504170461013305355d442b8e6d773f912350ed553c"
+        }
+      ]
+    },
+    {
+      "id": "claim_77ffe287f5e94250a3fa95723d41e9a7",
+      "statement": "Logs are structured and privacy-preserving by design, containing only timestamp, component name, slot UUID, error code (if applicable), and HTTP method/path/status code, while explicitly excluding IP addresses, user agents, file names/sizes, slot codes, and transfer contents.",
+      "evidence": [
+        {
+          "resource": "repo://internal/log/log.go",
+          "version": "repo-file-v1:sha256:4dc005bc9777b9b1bd4f74116f18054a0a756110501ecfa363c57135a7cdc2a5"
+        }
+      ]
+    },
+    {
+      "id": "claim_cf467bf3bf434d09ac5270e2d626d154",
+      "statement": "When using Redis/Valkey for storage, keys automatically expire after the slot TTL period (default: 10 minutes), requiring no manual cleanup under normal operation.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go",
+          "version": "repo-file-v1:sha256:52c7a23881eb71a14be739a0730a8d0f4f82025a8992d326a21e4024e9794e71"
+        }
+      ]
+    },
+    {
+      "id": "claim_93051c5d52b04651ac17e3fac1fad294",
+      "statement": "No backup of Redis is required for the signaling server function as it only stores ephemeral slot state that is short-lived and recoverable by clients retrying with a new code.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go",
+          "version": "repo-file-v1:sha256:52c7a23881eb71a14be739a0730a8d0f4f82025a8992d326a21e4024e9794e71"
+        }
+      ]
+    },
+    {
+      "id": "claim_f66697eebdea4a4bb2c3f5a7a485a245",
+      "statement": "When schedule mode is enabled via GMMFF_SCHEDULE_ENABLED=true, a background goroutine periodically cleans up expired schedule files according to the GMMFF_SCHEDULE_CLEANUP_INTERVAL cron expression.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go",
+          "version": "repo-file-v1:sha256:52c7a23881eb71a14be739a0730a8d0f4f82025a8992d326a21e4024e9794e71"
+        }
+      ]
+    },
+    {
+      "id": "claim_7dc3fef0962843f08e3cf56e240eeab3",
+      "statement": "For production deployments, a reverse proxy (such as NGINX, Caddy, or Traefik) should handle TLS termination, rate limiting, and request routing, with the gmmff server listening only on localhost or within a trusted network.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go",
+          "version": "repo-file-v1:sha256:52c7a23881eb71a14be739a0730a8d0f4f82025a8992d326a21e4024e9794e71"
+        }
+      ]
+    },
+    {
+      "id": "claim_e77279c322df4a92bd98a7fb0cad0f3d",
+      "statement": "All configuration is done via environment variables with the GMMFF_ prefix, including GMMFF_ADDR (TCP address), GMMFF_SERVER (WebSocket URL), GMMFF_REDIS_URL (Redis connection), and logging/configuration options.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go",
+          "version": "repo-file-v1:sha256:52c7a23881eb71a14be739a0730a8d0f4f82025a8992d326a21e4024e9794e71"
+        }
+      ]
+    },
+    {
+      "id": "claim_e5556c2fc11249ae91376bdc8af1f5d6",
+      "statement": "The application validates configuration on startup and will exit with an error message if the configuration is invalid.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go",
+          "version": "repo-file-v1:sha256:52c7a23881eb71a14be739a0730a8d0f4f82025a8992d326a21e4024e9794e71"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.0",
+    "at": "2026-09-25T13:12:29.362Z"
+  }
+}

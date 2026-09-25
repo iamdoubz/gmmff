@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:79878dc7eb9582a9430c9e52b64360d0073f87bf092ed2d6c6270c13cd8c5bf5",
+  "claims": [
+    {
+      "id": "claim_d591620b407640aa97b48138074bfaa9",
+      "statement": "The `make build` target compiles the gmmff binary after building the WASM client and embedding static assets.",
+      "evidence": [
+        {
+          "resource": "repo://Makefile#L24-L28",
+          "version": "repo-lines-v1:sha256:8e66f6427f65940d0a3ff4f7d5060c585e5ad7bdde6b769572731303a93b01f4:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTE3ZDNjZTQyMWQ0ODgwZWU0MTIxYTM2NjBkYTVhNTc5MGRjOWM3NmU3NmMxZWY0MjU2MWFjY2Q4NmU4NTcwNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOWIwNmEzNDhkYjhiMjg0NGMwYWM4YmI0MTEwZDk0YTg2ODRiNjg2OGUyZDAzYTI0OTkwOTVkNWVlNWRhMTA3YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDNjOTkyMTMxOGQxYzMxMzUwN2RlZmQ2MjA5YjkwODYwZDI5YzRhODE4YWUwYzVlOWU3Y2UzYTUyZWFlOWUyZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTA2ZTVhMDI3MjY5ZDU5OTI4NWNiMzM2MTc5MWU1ZGFjZTYyM2EwYzYwY2NjZmU2ZWNhMmVlZmE3MDE0ZDJjMyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_164af004d19349a482a5be67bf00e23e",
+      "statement": "The `make wasm` target builds the WASM binary and copies the wasm_exec.js file.",
+      "evidence": [
+        {
+          "resource": "repo://Makefile#L125-L131",
+          "version": "repo-lines-v1:sha256:fc036a560a668214a762f5cd9c13300ad9e75152935f60fda8ca53b7f143a67b:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDFmYzExMjhmZjdlMzAxNWJmZTQ2ZWZjYjU1YjIxMTI2YmU1NDRlMjY1N2MyMjBkNGY3MmUxMTE3ZjcyNDAzZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiM2ExNzE1NjNmZDMwZjcxNzBiNDdiNmU3NThlNzc1Yjc0MDczYjUzMDVjZDFmNjBjZmE5YTNiZTZjMzFkYjhhYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOGEzNDNjZjVkMjE2ZTlhNWIyMmNlMzAwNTc1NzAzMGZmZTBmMjBkNzJmNWI3MTY5YzY0ZTUxMzI4ZWM5OWYwYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTI5MzhlZDlmOWYxMGNmMWQ5M2YxOTcwY2FmOGIwNjg0NzJjNjFiODY2OGZlMTdjYmYxNzk3NjUwYmQ0NTNkZSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_dc088126d2db49b5bb09f1a39705ba40",
+      "statement": "The `make run-server` target runs the signaling server with in-memory store and debug logging.",
+      "evidence": [
+        {
+          "resource": "repo://Makefile#L38-L40",
+          "version": "repo-lines-v1:sha256:b1c47fd3a145301fd8762aeaf46db62176582471e7cfafed88a8ae747acb611a:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNmI4MzMzNzMwYjE2MjJjMjE0OWRlM2YyYWVhNTQ4ZTFkMmJjZTk2MmU4MjZmMjFlNTQ0ZmM2MjEwOGNlYmYwNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTM2OWViMWZjM2E1ZmRiZDViN2M1NWZlYmM1YTZlYzE4YzE2NGI1MmJiYmI0NmE5MmE1ZmVkYmY5MmI0Y2ZkNiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTQ3ZDRiNzJjZmQ2Y2Y4NTQzMjNmN2ZlMzM5NzQ2MTY3Yzg1ZGE2ZDk5NGNmYWEyYWJiYzYxNDU3YjhjMGFjYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMmI2ZjBlYjYwZGU5ODkyOTY4ZGI3NTViN2Y1MTUxYjc5NmZlN2VkNDZhNDBiM2IzNmM4ZDY1YmU1NGM5NjI3ZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_50ada0a4bdee4fe8923e602d8f7fc1bc",
+      "statement": "The `make create` target runs the CLI to create a new file+message session.",
+      "evidence": [
+        {
+          "resource": "repo://Makefile#L42-L44",
+          "version": "repo-lines-v1:sha256:a5737a83ebc40533a9093af42ae01a2a19a7c1856ef86b407b4203b2ef44f205:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMmFhMDBmMTNmZWRiMDFiNzMxOGRhYTg1ZjAwZWU5ZDdiYWRjZGY0NGNlYzU0ZWU2YWE5NjViNzk0NGVlMDZlOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzUyYTRiZDg1ZDg5MmY3MmUyZTg4NzQ3NTZmZWNkYWM2MzA1YWU3MTkyNzhmNjIyMjhmYjBjMWIyZTQzOTI1ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZGIwZmNjMjVmOWNjMmZmOGQ3Zjk1ODBhMjdkMjhkZWE1NGEyMDI0Yjg1N2RiY2NmMGUzZDIyMDg1MGFjNGQwOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNWUzZDhlNGNlMWE3MjRhMzAzN2FhOWNhYmI0N2JhZDZkNDAxOTU4YjFhZDg0MGZiNDY1MjU1ZTc3ZDY4NzJiYSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_2efcaeeaf7e748f49e51709338d438e4",
+      "statement": "The `make join` target runs the CLI to join a session using a provided code.",
+      "evidence": [
+        {
+          "resource": "repo://Makefile#L46-L48",
+          "version": "repo-lines-v1:sha256:26fe1a1952c0951af20e04f0bce64fc09cdc03f9ab532f73eee9a54d3f4d2ea7:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDYyZDRiN2UwMWMyODI4NmVkNjI1OGVkNmVjZWNjZWM4ZmZhMzk1ZmYzMzQyMDBhNTU5Mjc2ZTY2ZGY0ZTI4ZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzI0ZmQ2YzdkNDViZWM2MDJlNjI3OTVmZGU2YzMzZDQxZTFhMzkyOGQ0MWM3NjA3YWM2YzQ1NDkyM2JkMmYxMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzdiZjE4YTNjYjM1MTRkOWYwYTNlNmJhODViNDUyMTIzMDhiM2Q5MTA1YjljMWJlZWVjYjk2NWU2YzhhNzBlOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTA1ZmQ1ZGYwMjcwZjkxM2Q0MTE2NTgyMGE4ZTk5N2M2MjFiOTNkMDZjOGU5M2UxMDE1MGZjNmZmNjdlMmU0MSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_e9998e44cfd5426b9c1b809f8dd5aa73",
+      "statement": "The `make chat` target runs the CLI to start a pure chat session.",
+      "evidence": [
+        {
+          "resource": "repo://Makefile#L50-L52",
+          "version": "repo-lines-v1:sha256:f03ea5a6eec2cd8414da4bd7846099e2a36ae97aaa250dcc75ba32640a144362:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmZjYzdmMWQ5Y2Y5Y2QyNjViYzRjOGE2YWY3NTU0NDgzMzBhZjYyNmJkODcxZWQ1ZDVkMGFmZGZlN2MyMjkxYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzEyNzdmY2YwNmYzMmJlNzIwYzAwNjE5YjljNDcyZTBhMjUxYmJiZmFjYzQ0ZGMzZWE3MWJlOWNjMGI3OWRkYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmQ0M2VmMzE4YzRjMzY2MzkwM2U3Y2E5YmVjYWIwMzVjYmJiMmRlZTU5MDgzYmZjOWExYTY5MDM2MjViMDBhMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDQwMDRjOTljYTE4ZjRkYmZiNGJlYjJhOWIxNWRlZjFiMmM4M2ZmMDBhNDY1Y2RlZTFiNzMzOTUzOGFiMDRlYyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_6b02ec78bf5c482bb709db4158efdcc9",
+      "statement": "The `make wasm-serve` target builds the WASM (if needed) and starts a Go web server on :9000.",
+      "evidence": [
+        {
+          "resource": "repo://Makefile#L133-L135",
+          "version": "repo-lines-v1:sha256:e4260a220f9fc89a569734695250e938f16ea65a8a27e40975bb1817cd2b3bad:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDQxZDZlYWE1MGFhN2FkOTc4M2ViOWI1NjQwMjBmM2IwYmZlYTg0Y2M2M2Q3NDdiNDU4ZWM0MjczYzM0MzdkOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTdhYjYyZjRjMDE2Mzc0NGNkNTNhYTI2Y2JiZmU4NjQ0YTRiYzEzZTVmOTRmZTdlZjc1MjRmM2JjZTQ1M2U2YyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTdjOTVhZGE2NGZkM2E1NDc0MWI4ODIyZTZmM2MxODJmNWJiODk1NjY3OTg2ZTBkYWRhOTc3ODcyMzc4NzgxOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMjgzYzIxNTQzZmQxNDc1NjlkNzE4ZmU4NjVjMjRlZDg1YWIxYTQxM2U5NGU2NmMxYmRjNzEwOTkyNjNmM2NlOSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_4ca1cfd26af7498cba54cce9f04d042f",
+      "statement": "The `make test` target runs all tests with `go test -count=1 ./...`.",
+      "evidence": [
+        {
+          "resource": "repo://Makefile#L58-L60",
+          "version": "repo-lines-v1:sha256:4acef642f782ed61a521329294adc4a6f9d226b2c8a6288b2d3f5ae5d881c884:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZGJjMmNmZDFjZDcxNzExNmEyOGQ0ZTZhZTk4YTcwZjFmYjQ3ZWYxYTUzNWMyYWFmMzQxYmEyYjkxMGFjMzkxOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWQ3ZjBhMDYxYjE4OGIwNzliNjdjMmJkZDFkY2RiNDEzODNlYjhjZmU4ZGZlMTFlY2FjYzI1ZDMyYzQ0MGI0MyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjE0YTliYTllOTFjMGRmNWZmN2NmMjFlZmVhMDFhZDkxMzVhMDAyYWJlODI4ZjE3ZDViMzMyZDM5YmRjNDlhOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzdhOGU3NTllNzUwNmMxOGViNDExM2U3OGZkOWQwZWQzNTFmYzY1ZWU0ZDNlZDE3MTIwMTMzMzJhY2I5NGIxZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_1818a4996367483c830adfc7454b3fd6",
+      "statement": "The `make test-race` target runs tests with the race detector (requires CGO and clang, not on Windows MSVC).",
+      "evidence": [
+        {
+          "resource": "repo://Makefile#L62-L65",
+          "version": "repo-lines-v1:sha256:666364caac0c307eb3b07efb45b103603179014bed9a868ebe4f303c2e7b3f73:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDJkY2MxODUzZGRhMTIzNWM0MjkzMDNjOThkYjA3YmZiZTRiZjM4YjMyZGVmNzNlMTMxYTUzN2FkMzQxOGY4YyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiN2ZkMzA4MTcyZDcxZTQ4ZDY2ZmVjMjRjNTk0MDA2ZjFlZmUwMDU5OTkzMThkMDIzODAwOGMyYzAzNzM5YTZjZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTcwMGQ4ZTA4MWFkODUwZTllMjVmZWM0NjNlNTg2ODlkNmM1OGQ3NzE4MWUzNjEzODIxM2I5MjFjZmQ4NGMzMyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_184959b26b784297865e5ece6cde028a",
+      "statement": "The gmmff signaling server can be run with Redis or Valkey by setting the GMMFF_REDIS_URL environment variable.",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L89-L100",
+          "version": "repo-lines-v1:sha256:aaa207c0d351aeb2c2d7abf965e934d48b25a5d1723b31669bee3d0c77f67415:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZjZDYyZjYwMTg5YjY1ZDA2NGE3ODdhMWRlN2Q1ODg2YjRmZTZlY2ViNjViYzM5ZWMwMGYyNDk5ZGU0OGJmODMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIxODEwM2M4MWNiMjRiNWY4NmJjNzE3YjEzNTg0ZTU4YmZiZWZkNDNkYWQzYjQ2Nzk0ZjFjZTlmMWJlNGFkYjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUxYjUxYzU1NzI3OGRhNmI2YWI3NmVlODFhOWJlNThjYzNhMGRjM2IwNjhmMThiYjg0OWJiOWJjOWYxODkyYmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIxOTBiY2NkNDAxYTljOTkyOGViMjg0NjIwYjYwNDBiMDU2N2JlYTY4ODk0NjMzNjFlOGZiNzk3NDhkNDA4ZmQifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.0",
+    "at": "2026-09-25T13:12:29.362Z"
+  }
+}

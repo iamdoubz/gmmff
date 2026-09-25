@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:b60098b571a7f92622757355954ab93144acc47e2e12fdc31da45b16e5f6abbf",
+  "claims": [
+    {
+      "id": "claim_58155d3492a24bb9803a89ab2613b0b2",
+      "statement": "The TURN implementation in internal/turn/turn.go supports up to 3 TURN servers (MaxServers constant).",
+      "evidence": [
+        {
+          "resource": "repo://internal/turn/turn.go#L50-L50",
+          "version": "repo-lines-v1:sha256:89ee26618eafac5cabb6bc700876808b479282f7dd82732279d2e43ef7c30b74:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODllZTI2NjE4ZWFmYWM1Y2FiYjZiYzcwMDg3NjgwOGI0NzkyODJmN2RkODI3MzIyNzlkMmU0M2VmN2MzMGI3NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODllZTI2NjE4ZWFmYWM1Y2FiYjZiYzcwMDg3NjgwOGI0NzkyODJmN2RkODI3MzIyNzlkMmU0M2VmN2MzMGI3NCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZGM5OWY5NDBiOWY2MjU2NWM5N2NiOTZkMjBjYzAzNzU3YjQxODk5MTAwZmEwMGQ2MWQyZWJlNDZjZjk2MjUwMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZWQyZDQ4YzBjYjFjMzc1MGJmNTlhMmQ0ZjlhNDUyOTBkMTFmMTkxMWY4YTI2N2FmZTk2NmIzNzU3MDM4NmE1MyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_4bb209611b1f4d67b8897cd81357fc3f",
+      "statement": "The development web server in web/server.go sets the Cross-Origin-Opener-Policy: same-origin and Cross-Origin-Embedder-Policy: require-corp headers for SharedArrayBuffer support.",
+      "evidence": [
+        {
+          "resource": "repo://web/server.go#L43-L44",
+          "version": "repo-lines-v1:sha256:f1d47ab794504ba13e84afb1a21714574d01834c018a922e8994d8ad7fc26f30:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWRmMGU4MGIzZmNiMzYyMWU3NDQ4MDJkMGU3MDM3ZjZjOTRlNjBmNWRjYzgxOThmYmUwOTdiNTE0NjE4MGE1OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDk1MTBkOGY5N2E5YjExMmY3NzYyNjIzYTQ1OTZiM2Q3OGMyZTg0OWMwODdlZWZiN2Q3M2QyYjlmNTFiMDgwMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjIyM2E0ZTJhYzE5MmFhNjVjYTk0YzQxMDYyNzg4NTQ4MjAwMDYyY2MyZjg3MTNmZmVlMTQzNjZhZWRiNzVlMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGRiOGZmNjYxYmFhNGRiMjYxMDMxZmRmMWVhMWE2YzVlM2Q3Y2U4YmQ5MGJjODc2Mzg4ZmIzZTJiMGY1MzlmNCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_4e19112224f743d1accb64f9144bc0a2",
+      "statement": "The Redis store in internal/store/store.go uses a 10-minute TTL for both slot:<slot_id> and code:<code> keys.",
+      "evidence": [
+        {
+          "resource": "repo://internal/store/store.go#L25-L28",
+          "version": "repo-lines-v1:sha256:43b70e9663d2313da47d6cc8c81606093e84064b9bd52a52db81ae8d75a94ba6:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDBkOTg2YjBkZjdlOWM0N2FhNzgyYjA2NjA5NDY5YmM4ZWVjYTQ3NjEyYjgzOGNmODI5ZGRhNGJjZGRkMzMyOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmFmYmEwNTI3YzM5NTNjNGI2ZTBlNWI1NzM5YmE4MzYxMmY4MDUzYmNkYzk0NjY3MzAxOTNjZDFkNTkwYjQwOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmE2MjkxMThlNDg2MzM2ODk1YTExZDY2NDg5NmY2MzgzMzQ3NzJkNGNhMjNmNzM4YWJhZDE1MjZmOWY2Y2U3MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzZmN2VkNmE1OTExNGY5MjNkZTNiOTg3OGNkOTgwZDdhODNkZWI0MWQ5YjliMzk1YTU5N2Q5ZWZhNWY3NTA0NyJ9"
+        },
+        {
+          "resource": "repo://internal/store/store.go#L5-L6",
+          "version": "repo-lines-v1:sha256:f39bc58190a05a5de94b684879ca573b8a75b859706a48dda14cb80e6448aad6:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWNhZmQ5MDg0NTg5MDNlNDEwMjQ3YWRmNTYwNzJlMzVmODhmOTg2NWM3MWI5ZDIzNmRkMjZlNmI3OTliOWY2ZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzI0MWZjNTU2MGJhZjRlNzk2NGMyMzQ0ZjMyM2M3YWRmZGJjMWEzNTBlMzNkYWE4M2VlM2EwZWRkMWE5ZWFkNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYzE1OWJhMjM1M2NkYzQ1NmE2Y2EwNWVlNzkyODExYzY0MWNmMDlmZmMwYmQ0OTIzMjg0YjMzNjI2NjVmOGRkYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTc4MWJlOTVjMGVkMGI0OTk4MGM2NDM3NTNhMzZiYmZmMGQ4MjNmNmRkNDdhZGFkNjdhOWUwZGJiYzAyNjQ1MiJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.0",
+    "at": "2026-09-25T13:12:29.362Z"
+  }
+}

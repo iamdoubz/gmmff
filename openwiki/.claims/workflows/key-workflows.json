@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:b7991a688395d7f21b92bec9726014617378411b51af5b2e76b2768f122a0e05",
+  "claims": [
+    {
+      "id": "claim_ce57dc61cbe94447ba5142f2471fb729",
+      "statement": "File transfer workflow establishes a peer-to-peer encrypted channel via PAKE, WebRTC signaling, and data channel for file exchange.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/create.go#L61-L99",
+          "version": "repo-lines-v1:sha256:d501f0bd869ef36e74ae95de7dc92db93e213e2785c8552fdd5cbb21dbf7d9e9:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAzZTc3NzRmMGY3MDQ0NmEzNTRlM2FlNGVlNDZhYjA3MWMzOWU0MmRiNDcyNzIxODAzZTNjYzEyN2FhZjIxZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdkOTlhYjdmNGFlMzhhZjJmNDM3NDZmMzc1N2Q3Yjc2MDZjMWJlNDcyZjhlZGNlODc4MTZiMzE3NGRkOTQyMjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVmNWM1MTlkMDNjZjU3NGFjNTEwMjJjNjkyYmQ2NTkzMDM5MTgyNGFiYzYzNDhmMTk4NzI4YTM0MjlkYzFmNmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMzNTc5OGYzNjQ4MTRiZjQ2OTJjYTFhNTE2ZmYyOGRmMjAzZTU3ODU3NGYyMGZmOTI0YTIzN2NhZjg2OWI0N2EifQ"
+        },
+        {
+          "resource": "repo://internal/peer/peer.go#L3-L16",
+          "version": "repo-lines-v1:sha256:a6a84f74f8521ddd55105d38fc8c6549a878c1d421a5ac4e19175347151c324a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4NTA0ZWEzOWRmYWYyZjVkNjA2NzQ3MDI3ZjQ5OGNhMGI0MjRiNzE1YWY5NTk0NjYyNzQxZDk5YTcyOTliNDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1MTc2ZWNmYjFjYzc4MWI1YzQzODgzZGU2Yzc0ZmE2NDVmNzA0YzljZmJlNDczNmUwNjY3ODY5ZTc5MWEzM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjoyLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI2NjY0OTY4NjZlM2VjNzBlNjU0YzA5MGE3ZjEyODE2YjYyOGYyZDVjMzA3MGRjY2E5NTVjNTgxMzBhNjU5ZmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMyYzk0ZDZlYzk0NjYxYzY2NjU2OWZiZjMyYzExN2JkMWVlMDY1NTE0YmY1MjdiZjRjNzlmZTljNjdiNjhkZjYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5510cd857d614e048e8d2ff8a4381f7c",
+      "statement": "Chat messages are transmitted over the same WebRTC data channel used for file transfer after session establishment.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/chat.go#L52-L100",
+          "version": "repo-lines-v1:sha256:108bef8512e025f2aed38fc48b4b3f4c972f6f43bc7fcdfc281c141752629e8f:eyJzZWxlY3RlZExpbmVDb3VudCI6NDksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM2YjNiMTZkNjk5NDg2YzZkNWY4ZTNlODNkMWUwZTk2MTBlMGFhODYyN2U4NTEzNjc4YjI2Y2ExOGEyZWEyNGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1NWJhODE4NWRjZWJmMzg1YjYzNzNkNzJhYTg1YWQwODgzNjc5ODhiZWZiMDU5ZTRjNGRkMzE3N2FmZTU1Y2EiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVhNDIzNTU0MWEwNTdmZTM2YzJmMzFjOTg0NjY4MTdkNGY2NDc2MmI0NGYzZDc4OTBhZDhkMmE2NzJlMGQ0NDAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgyOThjM2JiNWYxZWRlZGJhODQzOTFjYjA5YzExOTQyOTM5ZTcyNjFlMmVjNDY5ZjNkMzQ4NGZkNmNkN2ZjNWUifQ"
+        },
+        {
+          "resource": "repo://internal/peer/peer.go#L856-L900",
+          "version": "repo-lines-v1:sha256:b9c57eeed5bf4d20a092ad3e98feeb156905701135e4c878639113c3abae47f0:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUyMmExN2MyZTIyZWEzZTllZmVjYzU4MmU5YjAzNWFkYzFiYmE5YTZmZjE4NWMyYmZmZjJmNjFkZjE3OGM0N2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIzY2U2MWY2YjFkMDk3ZGViYThhODYyYzhhYzIwMzk5Mzg2MDhkNGI0NTZmNGJjZGE2YTA5MWY4YzU0MTg3ZjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM4ZWI3Y2JiM2IwMzcyNDdmMGFiOGE3OWEyMjgxNTE1NjM5OWJlOGM2MDhmZjUxYmVkOTllMTc1OGI5ZThiYjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc3M2VjYWU1ZTc5NGY3NzVjZWE4MzA3MGI4MzFiOWM2ZjdmYTY0YjM0ZjVmOTc3ZWZkOGUwZWM1MmE3MGQ2MzkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_76355d97c0e3470b80c10f58df7a46c3",
+      "statement": "The cleanup workflow removes expired schedule uploads by deleting files past TTL, with zero remaining downloads, or pending uploads older than 24 hours.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/cleanup.go#L33-L47",
+          "version": "repo-lines-v1:sha256:6d0bb67c1a60933e97e7dc6245d99721331af0475d90ea41d086dc6700d2d631:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJjMjdjNjUxZTQxZjg1ZTJmY2ZhNjhmNTIxMThiM2RkODdhMjBiNjAxNmVhZDQ3OGJiY2RjMzI4ZDM5ZjdjMmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFkYTFkNzkxNDgwOWUzNDk5ZDQ1NzNlOGJmZTU4MjZhZTA4MmVhMmUyYTE0ZGI3Y2MxNDE3MjU3N2M2YTczNWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA2OGIwOWZmNjM5YmQzYTE5ZjRjM2E2MzVjYjAwZDQ1NTlkOGEzZTRlYzFjNjYxMDlkMDc2MDI4YTdmMTZlYTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_fa36aacfd3204d4383f62a96758643e7",
+      "statement": "The schedule upload workflow encrypts files with AES-256-GCM before upload, stores ciphertext on server, and returns a share URL where the decryption key is conveyed in the URL fragment (not sent to server).",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/schedule.go#L193-L205",
+          "version": "repo-lines-v1:sha256:4de9740dbc96bcbc357944cd2672f6367ef8b3831cdc932bd32d593dbe090cfc:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg5ZmRkYjExMGFiNzdmMzBhMTRmZjgyNDA3YTAwNzYzZDgwOTdlNjY5ODNlNDdhNWM4YjJmMjFkNjZkZThhYzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU1NDIyYThlZjg5ZjdlMDUxNzU2MzMyNzY5ODQ5NWFmNmE5YmI3NjE3NDQyZTcyMjAzYzA1NTUwYmZlMzJjMTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk1NzMzYjcwOTQ5ODU4YmRmNTE1YmM2YzEwNmJhYTMyMGQ5NjdhNGE1MzRkZDE5YTQ0Y2Q2OWFlMzZiMWI5ZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImViOWYzMzgyYzYzZWUzNjFhNWJmNmI3NTUzOGY1NDI3NmNmMDhkMzFlNzhjODQyNDNiODExNGE4YThlMmQ2ZjYifQ"
+        },
+        {
+          "resource": "repo://cmd/gmmff/schedule.go#L91-L182",
+          "version": "repo-lines-v1:sha256:068bcfd64c746bd52523331e1480f8dd2f5a01678223711c4234384ef165057f:eyJzZWxlY3RlZExpbmVDb3VudCI6OTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZlY2Y0NmIyMjg2ZmM3YmJhOWUxZTlmOGFiZDliYzZiN2EwZGZkNjEyNWMxM2I1NWRlZmQzYmUxYTQ3MWZkNjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNhNjY3MmI2NGFhMDMwYmRkNzVmZjAwNjQyNzQxZmQ5Y2ZkMjAzNzRjNjE1NWQ3NDU4YWIzMGJhNjZmMGU5NzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk2ZjFmN2E1NmY2NzQzNWMyMTMxODViMTcxOTFhNjAzOWY5ZTg5NGU3YTBkMjgxYmZkMjQwN2EwMjA4NTUxZGMifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.6.0",
+    "at": "2026-09-25T13:12:29.362Z"
+  }
+}

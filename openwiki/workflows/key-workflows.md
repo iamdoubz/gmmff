@@ -1,7 +1,23 @@
 ---
 type: Documentation
 title: Key Workflows
-description: Step-by-step walkthroughs of common gmmff operations including file transfer, chat, and local mode.
+description: Step-by-step walkthroughs of common gmmff operations including file transfer, chat, cleanup, and schedule.
+tags: [workflows, file-transfer, chat, cleanup, schedule]
+verified:
+  - by: openwiki/0.6.0
+    at: 2026-09-25T13:12:29.362Z
+sources:
+  - id: openwiki-source-ff3d82780276939149b4b693
+    resource: repo://cmd/gmmff/chat.go
+  - id: openwiki-source-6b06672f45e9f67a8a7761de
+    resource: repo://cmd/gmmff/cleanup.go
+  - id: openwiki-source-b6800ab98842381129ec0353
+    resource: repo://cmd/gmmff/create.go
+  - id: openwiki-source-2973e123ef2def36be13b873
+    resource: repo://cmd/gmmff/schedule.go
+  - id: openwiki-source-4b847332166285c0b52606b7
+    resource: repo://internal/peer/peer.go
+generated: { by: "openwiki/0.6.0", at: "2026-09-25T13:12:29.362Z" }
 ---
 # Key Workflows
 
@@ -11,53 +27,53 @@ The most common workflow involves two peers establishing a session to transfer f
 
 ### Step-by-Step Flow
 
-1. **Peer A initiates session**
-   ```bash
-   gmmff create
-   # Output: Created session: abc-def-ghi
-   #         Share this code with your peer: apple-banana-cherry
-   ```
+```mermaid
+sequenceDiagram
+    participant Initiator as Peer A (Initiator)
+    participant Responder as Peer B (Responder)
+    participant Server as Signaling Server
 
-2. **Peer A shares code**  
-   Peer A communicates the 3-word code (`apple-banana-cherry`) to Peer B via an out-of-band channel (verbal, QR code, etc.)
+    Initiator->>Server: Connect WebSocket
+    Initiator->>Server: CreateSlot("files", maxPeers=2)
+    Server-->>Initiator: SlotCreated (code, UUID)
+    Initiator->>Responder: Share code (out-of-band)
+    Responder->>Server: Connect WebSocket
+    Responder->>Server: JoinSlot(code)
+    Server-->>Responder: SlotCreated (same UUID)
+    Server-->>Initiator: SlotReady (both peers connected)
+    Server-->>Responder: SlotReady
 
-3. **Peer B joins session**
-   ```bash
-   gmmff join apple-banana-cherry
-   ```
+    loop PAKE Exchange
+        Initiator->>Responder: pake.a (via Server)
+        Responder->>Initiator: pake.b (via Server)
+    end
+    Note over Initiator,Responder: Derive shared key via PAKE
 
-4. **Session establishment**
-   - Both peers connect to the signaling server
-   - Server resolves code → slot UUID
-   - Peers exchange PAKE messages to derive shared key
-   - SDP offer/answer exchanged (HMAC-signed with PAKE secret)
-   - ICE candidates exchanged to establish direct connection
-   - WebRTC data channel opens
-   - Signaling server's role is complete
+    Initiator->>Responder: SDP offer (via Server)
+    Responder->>Initiator: SDP answer (via Server)
+    Initiator->>Responder: ICE candidates (via Server)
+    Responder->>Initiator: ICE candidates (via Server)
 
-5. **Session REPL active**
-   Both peers see:
-   ```
-   gmmff> 
-   ```
-   Available commands:
-   - `send <file|dir>` - Send file(s) or directory
-   - `msg <message>` - Send a chat message
-   - `peers` - List connected peers
-   - `exit` - Leave session
+    Note over Initiator,Responder: WebRTC DataChannel opens
 
-6. **File transfer**
-   - Peer A: `send document.pdf`
-   - File is chunked, encrypted, and sent over WebRTC data channel
-   - Progress bar shows transfer progress
-   - Receiver gets prompt: `Accept document.pdf? [y/N]`
-   - On acceptance, file is verified via hash and saved
+    Initiator->>Responder: File metadata + encrypted chunks (DataChannel)
+    Responder->>Initiator: Accept/reject prompt
+    Responder->>Initiator: Encrypted chunks ack (DataChannel)
+    Responder->>Initiator: File verification hash
 
-7. **Session termination**
-   - Either peer types `exit` or presses Ctrl+C
-   - Peer sends `bye` frame to signaling server
-   - Server deletes slot keys, notifies remaining peer
-   - WebRTC connection closes
+    Initiator->>Server: Bye frame (on exit)
+    Server-->>Responder: Peer left notification
+```
+
+#### Details
+
+1. **Session Creation**: `gmmff create` initiates a session by connecting to the signaling server and creating a slot with a 3-word code.
+2. **Code Exchange**: The initiator shares the code out-of-band; the responder uses `gmmff join <code>` to connect.
+3. **Authentication**: Both peers perform a Password-Authenticated Key Exchange (PAKE) to derive a shared secret without transmitting the password.
+4. **WebRTC Setup**: Using the shared secret to sign SDP messages, peers exchange offers/answers and ICE candidates to establish a direct connection.
+5. **Data Channel**: A WebRTC data channel is opened for encrypted file transfer and messaging.
+6. **File Transfer**: Files are chunked, encrypted, and transferred. The receiver verifies the hash before accepting.
+7. **Session End**: Either peer can exit, triggering cleanup on the signaling server.
 
 ### One-off File Transfer (`gmmff send`)
 
@@ -90,7 +106,7 @@ The `send` command:
 4. Verifies transfer via hash
 5. Automatically exits
 
-### Chat Session
+## Chat Session
 
 For pure text communication:
 
@@ -110,34 +126,30 @@ gmmff chat red-green-blue
 # Peer B: Hi there!
 ```
 
-## Local-Network Mode (`gmmff local`)
+### How Chat Works
 
-For environments without internet access:
+Chat messages are transmitted over the same WebRTC data channel used for file transfer after the session is established. The `chat` command follows the same initial connection flow as `create` but configures the session for text-only interaction. Once the data channel is open, text messages are sent as binary frames and displayed in the peer's REPL.
 
-```bash
-# On Peer A
-gmmff local
-# Output: mDNS service registered: _gmmff._tcp.local.
-#         Local server listening on :12345
-#         Visit http://[::1]:12345 in your browser
-#         or run: gmmff local --no-tls --port 12345
+## Cleanup Workflow
 
-# On Peer B (same network)
-gmmff local
-# Automatically discovers Peer A via mDNS
-# Can connect via browser or another gmmff local instance
-```
+Expired slots and schedules are removed to prevent resource exhaustion.
 
-Features:
-- Embedded signaling server (WebSocket + HTTP)
-- mDNS-based peer discovery
-- Optional self-signed TLS (disable with `--no-tls`)
-- Browser-accessible UI at `http://<local-ip>:<port>`
-- All components in single process
+### Schedule Cleanup
 
-## Schedule Mode (Encrypted Server-Side Transfers)
+The `gmmff cleanup` command (or background cleanup triggered by `GMMFF_SCHEDULE_CLEANUP_INTERVAL`) removes:
+- Completed uploads past their expiry time (TTL)
+- Completed uploads with zero remaining downloads
+- Pending (in-progress) uploads older than 24 hours
 
-For scheduled, server-mediated transfers:
+This is implemented in `internal/schedule/cleanup.go` via `RunCleanup` which calls `Store.CleanExpired()`.
+
+### Signaling Slot Cleanup
+
+Slots (chat/file transfer sessions) expire automatically after their TTL (default 10 minutes) if no peer joins. The signaling server deletes slot keys upon expiry or when both peers disconnect.
+
+## Schedule Workflow
+
+For scheduled, server-mediated transfers (encrypted dead-drop):
 
 ```bash
 # Schedule an upload
@@ -147,47 +159,18 @@ gmmff schedule upload --local-path ./backup.zip --remote-path backups/weekly.zip
 gmmff schedule download --remote-path backups/weekly.zip --local-path ./latest.zip --recur "@daily"
 ```
 
-See [Schedule Documentation](docs/SCHEDULE.md) for details.
+### Upload Flow
 
-## Configuration & Environment
+1. **Encryption**: Files are encrypted with AES-256-GCM using a random key.
+2. **Upload**: Ciphertext is uploaded to the server via HTTPS.
+3. **Key Separation**: The decryption key is returned separately and must be conveyed out-of-band (e.g., via QR code, separate message).
+4. **Share URL**: The server returns a share URL containing only the file ID; the key resides in the URL fragment (`#key=...`) which is never sent to the server.
+5. **Metadata**: Server stores file ID, ciphertext, TTL, and download limits.
 
-All services configure via environment variables (prefixed with `GMMFF_`):
+### Download Flow
 
-```bash
-# Essential for production
-GMMFF_REDIS_URL=redis://localhost:6379
-GMMFF_SERVER=ws://signaling.example.com/ws
+1. **Fetch**: Recipient downloads the ciphertext from the share URL.
+2. **Decryption**: Using the key from the URL fragment (processed locally, not sent to server), the file is decrypted with AES-256-GCM.
+3. **Output**: Decrypted content is written to disk or stdout.
 
-# Optional
-GMMFF_LOG_LEVEL=info
-GMMFF_LOG_PRETTY=true
-GMMFF_STUN=stun:stun.l.google.com:19302
-GMMFF_TURN=turn:turn.example.com:3478?transport=udp
-```
-
-See [Environment Variables](docs/ENV.md) and [Commands Reference](docs/CMDS.md) for full details.
-
-## Error Handling & Troubleshooting
-
-Common issues and solutions:
-
-1. **Connection timeout**
-   - Check network connectivity to signaling server
-   - Verify STUN/TURN settings if behind NAT
-   - Ensure WebSocket port (default 8080) is accessible
-
-2. **Session expired**
-   - Codes expire after 10 minutes
-   - Create a new session if joining takes too long
-
-3. **Authentication failure**
-   - Verify both peers entered identical code
-   - Check for typos in 3-word code
-   - Ensure no extra whitespace
-
-4. **WebRTC connection failed**
-   - Try different STUN/TURN servers
-   - Check firewall rules blocking UDP/TCP ports
-   - Use `--no-tls` in local mode for browser compatibility
-
-See [Operations & Runbook](/openwiki/operations/runbook.md) for detailed troubleshooting.
+The schedule handler (`internal/schedule/handler.go`) manages upload/download endpoints, encryption, and TTL enforcement. Background cleanup removes expired files.

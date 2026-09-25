@@ -1,3 +1,3 @@
 # Files
 
-- [Testing Guidance](guidance.md) - How to run tests, understand test coverage, and contribute tests for gmmff.
+- [Testing Guidance](guidance.md) - Comprehensive guide to testing gmmff, covering tiered test strategy, unit/integration/end-to-end tests, chat and scheduling features, Redis vs in-memory store testing, and race detector usage.

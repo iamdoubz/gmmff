@@ -1,11 +1,11 @@
 ---
-okf_version: "0.1"
+okf_version: "0.2"
 ---
 
 # Files
 
-- [gmmff Wiki Quickstart](quickstart.md) - Entry point for the gmmff peer-to-peer file transfer system wiki. Provides high-level overview and navigation to key sections.
-- [Source Map](source-map.md) - Mapping of wiki topics to source code locations for easy navigation.
+- [Quickstart](quickstart.md) - Step-by-step guide to set up, build, and run gmmff for development.
+- [Source Map](source-map.md) - A map of the gmmff repository structure, highlighting the responsibilities of each directory and package.
 
 # Directories
 
