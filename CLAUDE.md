@@ -73,17 +73,18 @@ system with a scheduled-delivery ("Schedule") feature.
 
 ### Security model in one paragraph
 
-Two peers exchange a human-readable code (e.g. `bear-cozy-cone`) out of band.
-That code drives a CPace PAKE handshake that produces a shared secret, which is
-HKDF-expanded into separate offer/answer subkeys used to MAC the SDP exchange.
-This authenticates the WebRTC handshake against a man-in-the-middle on the
-signaling *relay path*. The data channel is DTLS 1.3.
+Two peers exchange a human-readable code (e.g. `bear-cozy-cone-maple-river`)
+out of band. It is a server-generated 3-word *nameplate* (used only to find
+the slot) plus a 2-word *secret* the initiator's client generates and never
+sends to the server. CPace runs on the full code and produces a shared secret,
+which is HKDF-expanded into separate offer/answer subkeys used to MAC the SDP
+exchange, so neither the relay path nor the signaling server can MITM. The
+data channel is DTLS 1.3.
 
-**Known gap (fix planned for v3):** the server currently *generates* the code
-and stores it in Redis, and joiners send it in `slot.join` — so the code (the
-PAKE password) is known to the server. A malicious or compromised signaling
-server, or anyone who can read Redis, can MITM. Until codes carry a
-client-only secret, the server must be trusted. See ADR-002.
+**Never send the secret to the server.** `signaling.JoinSlot` strips the code
+to its nameplate, `/api/ice` bearer tokens use the nameplate only, and share
+links carry the code in the URL fragment (`#code=`), never `?code=`. Browser
+clients still trust the server for the JS/Wasm it serves. See ADR-014.
 
 ---
 
