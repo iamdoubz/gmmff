@@ -351,8 +351,16 @@ func TestSanitiseName(t *testing.T) {
 		{"document.pdf", "document.pdf"},
 		{"my file.txt", "my file.txt"},
 		{"/etc/passwd", "etcpasswd"},
-		{"../../../etc/shadow", "etcshadow"}, // separators + traversal stripped
-		{"C:\\Users\\file.txt", "C:Usersfile.txt"},
+		{"../../../etc/shadow", "etcshadow"},      // separators + traversal stripped
+		{"C:\\Users\\file.txt", "CUsersfile.txt"}, // ':' stripped (Windows drive / ADS)
+		{"report.txt:hidden", "report.txthidden"},
+		{"CON", "_CON"},
+		{"nul.txt", "_nul.txt"},
+		{"com1.log", "_com1.log"},
+		{"COM10.log", "COM10.log"},
+		{"console.txt", "console.txt"},
+		{"trailing. . ", "trailing"},
+		{"\x1b[31mred", "[31mred"}, // control chars (terminal escapes) stripped
 		{"", "gmmff_received_file"},
 		{"\x00null\x00bytes\x00", "nullbytes"},
 		{"a/b/c", "abc"},
