@@ -473,7 +473,7 @@ function hideLoading() {
     };
   }
 
-  // Check for ?code= in the URL — also wipes the URL via replaceState.
+  // Check for #code= in the URL — also wipes the URL via replaceState.
   checkURLParams();
 
   // If this is a schedule URL, click the Schedule tab after schedInit registers
@@ -688,6 +688,7 @@ document.getElementById('files-join-btn')?.addEventListener('click', () => {
   const errEl  = document.getElementById('files-join-error');
   if (errEl) errEl.textContent = '';
   if (!code)   { if (errEl) errEl.textContent = t('error_no_code');   return; }
+  if (!isFullCode(code)) { if (errEl) errEl.textContent = t('error_code_format'); return; }
   if (!server) { if (errEl) errEl.textContent = t('error_no_server'); return; }
   // Capture display name; disable button immediately to prevent double-join.
   const nameVal = document.getElementById('files-join-name')?.value.trim();
@@ -1012,6 +1013,7 @@ document.getElementById('chat-join-btn')?.addEventListener('click', () => {
   const errEl  = document.getElementById('chat-join-error');
   errEl.textContent = '';
   if (!code)   { errEl.textContent = t('error_no_code');   return; }
+  if (!isFullCode(code)) { errEl.textContent = t('error_code_format'); return; }
   if (!server) { errEl.textContent = t('error_no_server'); return; }
   const chatNameVal = document.getElementById('chat-join-name')?.value.trim();
   if (chatNameVal) myName = chatNameVal;
@@ -1274,6 +1276,13 @@ function saveIceState() {
   } catch(_) {}
 }
 
+// isFullCode mirrors crypto.SplitCode: a 3-word nameplate plus a 2-word
+// client secret. Legacy 3-word codes are rejected (ADR-014).
+function isFullCode(code) {
+  const words = code.split('-');
+  return words.length === 5 && words.every(w => w.length >= 2 && w.length <= 12);
+}
+
 // buildIceConfig returns a promise resolving to the ICE config object.
 // When push_stun or push_turn is enabled, a fresh /api/ice request is made.
 // slotCode must be provided when push is enabled — it is sent as the
@@ -1288,7 +1297,9 @@ async function buildIceConfig(slotCode) {
 
   try {
     const headers = { 'Cache-Control': 'no-store' };
-    if (slotCode) headers['Authorization'] = 'Bearer ' + slotCode;
+    // Only the 3-word nameplate: the rest of the code is the client-only
+    // secret that must never reach the server (ADR-014).
+    if (slotCode) headers['Authorization'] = 'Bearer ' + slotCode.split('-').slice(0, 3).join('-');
 
     const resp = await fetch('/api/ice', { cache: 'no-store', headers });
     if (!resp.ok) throw new Error(`/api/ice returned ${resp.status}`);
@@ -1402,8 +1413,10 @@ document.getElementById('ice-reset-btn')?.addEventListener('click', () => {
 // populateShareLink builds the share URL, fills the URL display, and generates QR.
 function populateShareLink(panel, code) {
   const type  = panel === 'chat' ? 'chat' : 'files';
+  // The code goes in the fragment, which browsers never send to the server:
+  // in ?code= it would land in proxy access logs, secret included (ADR-014).
   const url   = location.origin + location.pathname
-    + '?code=' + encodeURIComponent(code) + '&type=' + type;
+    + '?type=' + type + '#code=' + encodeURIComponent(code);
   const urlEl = document.getElementById(panel + '-share-url');
   const qrEl  = document.getElementById(panel + '-qr-code');
   if (urlEl) {
@@ -1461,11 +1474,11 @@ async function copyToClipboard(text, btn, originalLabel) {
 
 // ── URL parameter detection ───────────────────────────────────────────────────
 
-// checkURLParams reads ?code=, ?type=, ?local=, and ?autoconnect= on load.
+// checkURLParams reads #code=, ?type=, ?local=, and ?autoconnect= on load.
 // Hides the Chat tab in local mode, and auto-fires the join in autoconnect mode.
 function checkURLParams() {
   const params      = new URLSearchParams(location.search);
-  const code        = params.get('code');
+  const code        = new URLSearchParams(location.hash.slice(1)).get('code');
   const type_       = params.get('type') || 'files';
   const isLocal     = params.get('local') === '1';
   const autoconnect = params.get('autoconnect') === '1';
