@@ -7,7 +7,7 @@ package protocol
 import "encoding/json"
 
 // Version is the signaling protocol version.  Bumped on breaking changes.
-const Version = "1"
+const Version = "2" // 2: split codes (ADR-014); v1 clients cannot PAKE with v2
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Top-level envelope
