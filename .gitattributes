@@ -1,0 +1,2 @@
+# gofmt requires LF; keep Go sources LF even with core.autocrlf=true on Windows.
+*.go text eol=lf
