@@ -37,6 +37,15 @@ performing a man-in-the-middle on the WebRTC handshake. The PAKE-derived MAC
 binds the SDP to the shared secret, so a tampered offer/answer fails
 verification. The server brokers introductions but can never silently MITM.
 
+> **Status (2026-10): not yet achieved.** The broker generates the code
+> (`handleSlotCreate`), stores it in Redis as `code:<code>`, and joiners send
+> it in `slot.join`. Because that code *is* the CPace password, the server (or
+> anyone reading Redis) can complete PAKE with both sides and MITM. The PAKE
+> currently protects only against tampering on the relay path, not against the
+> server itself. Fix (breaking, v3): split the code into a server-visible
+> nameplate and a client-generated secret that never reaches the server, and
+> run PAKE over the secret only.
+
 **Consequences:** Offer and answer subkeys must stay distinct (role separation),
 or a responder could replay the initiator's MAC. Tests pin both the cross-key
 rejection and offer≠answer separation.
@@ -179,3 +188,38 @@ server applies safe defaults; it never refuses to start.
 **Why:** A typo in one feature flag should not take down the whole service. The
 server logs a structured warning per bad variable and continues with the default
 for that setting. Operators get visibility without an outage.
+
+---
+
+## ADR-012 — Forwarding headers are trusted only from known proxies
+
+**Decision:** Schedule IP allowlists read the client IP via `Config.ClientIP`,
+which honours `X-Real-IP` (then the rightmost `X-Forwarded-For` hop) only when
+the TCP peer is in `GMMFF_TRUSTED_PROXIES` (default: loopback + private
+ranges). chi `middleware.RealIP` was removed. Docker examples publish the port
+on `127.0.0.1` only.
+
+**Alternatives:** Trust headers from everyone (previous behaviour); trust only
+loopback (breaks Docker, where nginx on the host appears as the bridge gateway).
+
+**Why:** An IP in the upload allowlist skips the password (ADR-009). With
+headers trusted from anyone and the backend port published on all interfaces,
+any client could send `X-Real-IP: 10.0.0.1` and upload without the password.
+
+**Consequences:** Proxies outside the default ranges must be listed explicitly.
+Only a single proxy hop is supported for `X-Forwarded-For`; nginx's
+`X-Real-IP $remote_addr` is the recommended path.
+
+---
+
+## ADR-013 — Slot codes are rate-limited per connection and claimed atomically
+
+**Decision:** A WebSocket connection is disconnected after 5 `slot.join`
+attempts with an unknown or malformed code. Code index keys are claimed with
+`SETNX`; a collision regenerates the code.
+
+**Why:** The code is also the PAKE password and carries ~30 bits, so unlimited
+guessing turns the broker into an online oracle; a successful guess makes the
+attacker a full session peer. A plain `SET` on collision silently re-pointed a
+live code at a different slot whose PAKE password still matched. Pair with
+nginx `limit_req` on `/ws` so reconnecting does not reset the budget cheaply.
