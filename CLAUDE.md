@@ -77,8 +77,13 @@ Two peers exchange a human-readable code (e.g. `bear-cozy-cone`) out of band.
 That code drives a CPace PAKE handshake that produces a shared secret, which is
 HKDF-expanded into separate offer/answer subkeys used to MAC the SDP exchange.
 This authenticates the WebRTC handshake against a man-in-the-middle on the
-signaling server. The data channel is DTLS 1.3. The signaling server is
-untrusted by design — it only brokers introductions.
+signaling *relay path*. The data channel is DTLS 1.3.
+
+**Known gap (fix planned for v3):** the server currently *generates* the code
+and stores it in Redis, and joiners send it in `slot.join` — so the code (the
+PAKE password) is known to the server. A malicious or compromised signaling
+server, or anyone who can read Redis, can MITM. Until codes carry a
+client-only secret, the server must be trusted. See ADR-002.
 
 ---
 
@@ -151,6 +156,13 @@ In `schedule/config.go`, `isAllowAllCIDR` treats `""`, `0.0.0.0`, `0.0.0.0/0`,
 `::`, `::/0` (and comma combinations) as "no restriction" — leaving the IP list
 nil. Do not let these be parsed as literal `/32` host addresses; that blocks
 everyone instead of allowing everyone.
+
+Client IPs for these allowlists come from `Config.ClientIP`, which believes
+`X-Real-IP`/`X-Forwarded-For` **only** when the TCP peer is in
+`GMMFF_TRUSTED_PROXIES` (default: loopback + private ranges). Never read
+forwarding headers directly or reintroduce chi `middleware.RealIP` — a client
+reaching the backend directly could claim an allowlisted IP and skip the
+upload password.
 
 ### Schedule auth precedence (security-critical)
 In `schedule/handler.go`, `handleAuth` and `authorizeUpload` must follow this
@@ -321,6 +333,7 @@ GMMFF_PUSH_TTL                                            ephemeral cred TTL (de
 GMMFF_STUN / GMMFF_TURN                                   ICE server config
 GMMFF_SCHEDULE_PASSWORD                                   upload password gate
 GMMFF_SCHEDULE_UPLOAD_IP / GMMFF_SCHEDULE_DOWNLOAD_IP     IP allowlists (0.0.0.0 = all)
+GMMFF_TRUSTED_PROXIES                                     proxies whose X-Real-IP/XFF are believed
 GMMFF_SCHEDULE_MAX_SIZE / GMMFF_SCHEDULE_MAX_DOWNLOADS    upload limits
 GMMFF_SCHEDULE_CLEANUP_INTERVAL                           cron expression
 GMMFF_TTL_SETTINGS                                        schedule TTL dropdown options
