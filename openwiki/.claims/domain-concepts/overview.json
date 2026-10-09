@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:1d01d34a0fb79db0a93a9f1bfc68b6a6c54bb9ce8af680c3c53b6fdb3879cc13",
+  "claims": [
+    {
+      "id": "claim_1bdafc31f5f24474a12d5f66a8419279",
+      "statement": "The slot struct includes an EverFull boolean that is set to true when the slot first reaches MaxPeers, preventing new joins after a peer leaves even if slots become available.",
+      "evidence": [
+        {
+          "resource": "repo://internal/slot/slot.go#L64-L66",
+          "version": "repo-lines-v1:sha256:6818bc4aa7d26fbef985ae49ac05dd47dd3c1b2a661d83b763f24f07f4019508:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZjdkNWQ2Y2UwY2U3YjhiMzljMzcyM2ZjOGY0MjE4NWM1N2YzMWNiZDNjNTAzN2U0NDExZTQ0Mjc4MjE2NWZmZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDQyMmE2NDE0Mjc3MGY2NjJjZjU2OGMwZjhiZjU1ZWE2ODZlOTJhNDg0ZGNkYWY4YmQ5YWMwM2Q5MzZhZGE5MyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzQyNDAwNzdiMDFjNzRlNmRhNzI5ZWM0NzAxOGMzOGVmOTNlMTgxNmM3MDQwZjNmMjAyNDFhZTI3N2E0NDY4YiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTQ5NDQ3MDA2ZjkzNzJkZGZlMTdkOTA5ODA1YjkxYmViOWJkZjM3ZTAwM2JjNDRlNDA5ZmUwMTc4YTYwMTU3MCJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-09T14:54:52.045Z"
+  }
+}

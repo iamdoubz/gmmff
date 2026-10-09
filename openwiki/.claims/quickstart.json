@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:726411f8776fc6f8d2c246693d68ab9819bb06e85f1c9c28907ab100378a5c04",
+  "claims": [
+    {
+      "id": "claim_7c29cad3a86c48b98651b3069415d402",
+      "statement": "The gmmff Wiki Quickstart page serves as an entry point for the gmmff peer-to-peer file transfer system wiki, providing a high-level overview and navigation to key sections.",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L10-L10",
+          "version": "repo-lines-v1:sha256:07553b0d52eb824ef41e76bf45b562f1ce483a1263f4ffb43b11b09a072858ba:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDc1NTNiMGQ1MmViODI0ZWY0MWU3NmJmNDViNTYyZjFjZTQ4M2ExMjYzZjRmZmI0M2IxMWIwOWEwNzI4NThiYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDc1NTNiMGQ1MmViODI0ZWY0MWU3NmJmNDViNTYyZjFjZTQ4M2ExMjYzZjRmZmI0M2IxMWIwOWEwNzI4NThiYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTAyZDFlNjcyNTU4MTg3NTZjYjYyYmUxNGViZDVjMWI1M2FlYmQxOGZhZTVkNWMyMGVkYWNiYWZiYjdjZTMzZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNjZjYjMwYThmOTQ4MTMxNDkwODJmM2RjYjkxOWRiMTJmMjIwYjMxYTI5NWZiZWU5NTM1MWNmOGYxNGJhZGEyZSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_6ce6d6c3015941f783134aba2af39a14",
+      "statement": "gmmff (pronounced gimph) is a brutally simple, cryptographically sound peer-to-peer file and message transfer system consisting of a signaling server and CLI client.",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L14-L18",
+          "version": "repo-lines-v1:sha256:7eda518f96c22d9d88e1ca8b29728e470eb011517a9d633674b80cb2f31f51df:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjlkNDNjMTY2MjgyOGMxN2NmNjdhMzA1NGFkOTFiNDYyNGM5YmUzZTZjMGEzMmJhMTg0NGQzNDBiODc1ZWNhZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmI3ZTlhMzgzNmViMmMzMDc1ZTNiMDJhYjE0MmZhNmRkYTNkMzNhZjRmNzhlMmFjZDYxZGU0NzI4MTY2NTIyMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDhmZDhlYmRlMzFkOWJkYzU1NWViOTEwNjA5NmM5NTAwMTE0ZGU0NzcxOWM1ZmI4MWUxYjQ0YTcxNmNiMmNiZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYWYzNzdmMjExZWNmNWQ5YTcxN2NkNWI2MDQzZjMwY2U5M2YwZTU3ZGM3YjE1ZTAxNDU2ZjlhNjViMzUyZGM4YyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_37f56231a6244c9099859ee135ebc053",
+      "statement": "The gmmff signaling server never sees file contents once peers connect, as data flows directly between peers over encrypted WebRTC data channels.",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L17-L20",
+          "version": "repo-lines-v1:sha256:f32aa3aea54ddca45efc391b9d1826827708800e56a5a96b6f229ae1a177c473:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOThhYzMxZGU4YzIzY2Q3OGI5YzMwODFkYjIzYjFhMDcyOWM3OWM5NjE3NjQ5ZDZjNDhjMmI0NjJiMDFjMTc4MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDEwYzViZWZlOWVjM2M1N2YyNThhOWU1OWU4Y2RkZTBiOWRkNTA0Njc1NzNhZGYxOTYwNGExY2FkOGE5NDIwMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMWU2OTEyZjkyMDg1NzY1MjY2OTcxNjhlN2I2ZmZmODRlZGI3OTEzOTgwYzU4ZjYxY2FjYjc4MWMxNjVmYzkxYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-09T14:54:52.045Z"
+  }
+}

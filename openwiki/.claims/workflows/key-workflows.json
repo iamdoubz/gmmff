@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:f29994fa840e2c2fcf6018b06c3c408bc94b96d3d72c51a92fdd63a9287c85d0",
+  "claims": [
+    {
+      "id": "claim_724a0c78c67e40fab08e4e6691d77faf",
+      "statement": "The `gmmff create` command initiates a session by connecting to a signaling server, creating a slot, and waiting for the SlotCreated message before displaying a sharing code.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/create.go#L61-L73",
+          "version": "repo-lines-v1:sha256:d175f66a7733578ac4b5de2f494724659139cb87e697e04f021dc7b3f4ea65ef:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAzZTc3NzRmMGY3MDQ0NmEzNTRlM2FlNGVlNDZhYjA3MWMzOWU0MmRiNDcyNzIxODAzZTNjYzEyN2FhZjIxZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY3Y2RhODJkYTYwNjIzOGUwNWU2MjM5OTU2OWM1ZWUwMzk5MzQxOTY0OGFlNWQ0M2EyYmY4Y2Q2MzQ3ZjgyNjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVmNWM1MTlkMDNjZjU3NGFjNTEwMjJjNjkyYmQ2NTkzMDM5MTgyNGFiYzYzNDhmMTk4NzI4YTM0MjlkYzFmNmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRkNDc1NjIyOGQzNzBhN2JkZTY5ZGM3ZmFmOGQ1OTAyZDM5NjQ1NzAwMGMyMzdjZTQxOWRmZDVhMzhiY2ZlYzcifQ"
+        },
+        {
+          "resource": "repo://cmd/gmmff/create.go#L82-L92",
+          "version": "repo-lines-v1:sha256:8b299c3f3f8564728f7dfbe757ff29d133fbe8be71ef0cb1de7bcc116c1050b9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRhYzI5ZWU1M2Y5NTU5OTQ1Y2Y0MzU2NTllZmM0OWNlYWFmYWE0YTU4MjA5OTBkODdlMmNkOWNmZDEwMmY2Y2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNkY2M5MDZmZjk0OTc5OTM1ZjE0MGY1NGYwZWRhYzk5YjA4YzU0NTVmOTIxYjNhZDdmMjU5MzhjODYzZGE5MDYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIwMTRlNzNkNjI3YTQ0YmU5ODc5OWIwMzUxZTFhOTU5ZDliNTVmZTBhODZkODBjYjYyNzZmZDQ1YzM0ZGY1MTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_28b62085c616479fa527f9bd820862e3",
+      "statement": "The `gmmff join <code>` command connects to the signaling server, joins the slot using the provided code, waits for the SlotReady message to determine session type, and then joins the appropriate session (file or chat).",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/chat.go#L126-L150",
+          "version": "repo-lines-v1:sha256:490e8dfa7e6483a8a254d1b2f665ee4395db8f00bb8bbfef5a06d0d226e94d44:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ0NjRmODFkMWVlZTBjOTBhNmMyMmI5OGQ2ZWZkYzliODIyNzQ3ODYzZGZkNmY1ZGNmNzYwZjA0ZWRiMTZjY2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY3Y2RhODJkYTYwNjIzOGUwNWU2MjM5OTU2OWM1ZWUwMzk5MzQxOTY0OGFlNWQ0M2EyYmY4Y2Q2MzQ3ZjgyNjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVhNDIzNTU0MWEwNTdmZTM2YzJmMzFjOTg0NjY4MTdkNGY2NDc2MmI0NGYzZDc4OTBhZDhkMmE2NzJlMGQ0NDAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE2YThhM2VhYWMzYjQ3OWE1MWJjMDFhMTY4MjFkZmNjYmMzYzMxOTkxNDM1N2E1YzI2MTllYThkNmMwMzNhNjIifQ"
+        },
+        {
+          "resource": "repo://cmd/gmmff/chat.go#L158-L186",
+          "version": "repo-lines-v1:sha256:fd9ef9b043851ca14080b9b97d2e70453eb782283fdd58a3ad5028f8d79d88dd:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk2Nzc0MTNlZWU3OGM5NjgzMzljNzVmNzU1YWM1OTZlMDQ0MGNkZWRiYjY4YjQ1NmQzOWEyMzlkZWJhYjk4MjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY3Y2RhODJkYTYwNjIzOGUwNWU2MjM5OTU2OWM1ZWUwMzk5MzQxOTY0OGFlNWQ0M2EyYmY4Y2Q2MzQ3ZjgyNjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhjZTRlNDJjNGNlODI2OGIzMTE5MWY3MjMxYWUwNzFhMGUxZDkxMjIzZWRiOWRjZjU0NzU2OGYyMzMzYmY1MzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e1ddaf1255824f0f9e9ba2553e41ceca",
+      "statement": "The `gmmff send <file>` command creates a files session with exactly 2 peers, waits for one peer to join, sends the specified file(s) over an encrypted WebRTC data channel, verifies the transfer via hash, and then automatically exits.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/send.go#L150-L150",
+          "version": "repo-lines-v1:sha256:b298a6e02a2131de17fc7f37d9d4b79b7d5a67126178e1af958e8c166a20d0c5:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjI5OGE2ZTAyYTIxMzFkZTE3ZmM3ZjM3ZDlkNGI3OWI3ZDVhNjcxMjYxNzhlMWFmOTU4ZThjMTY2YTIwZDBjNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjI5OGE2ZTAyYTIxMzFkZTE3ZmM3ZjM3ZDlkNGI3OWI3ZDVhNjcxMjYxNzhlMWFmOTU4ZThjMTY2YTIwZDBjNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODM4NjkyZmNjNzQyMzIzMGE5MTBkMGZmNTVmYmVjZTdmOGJmN2UyY2RlODQ5YzNiN2ZkZjc3YTU3MGMyOGQ5MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDIxZDcyMGQ3YmU2NTNiNDk5YWMwNDkxMzgyMzRkMjBiYjQzM2FmZmEwMzhhN2U0NTY2MzFkOTg0Y2MxNDgwZiJ9"
+        },
+        {
+          "resource": "repo://cmd/gmmff/send.go#L179-L179",
+          "version": "repo-lines-v1:sha256:77035063763fd9d55bd9f71bf93bc90ebc230a1d237b16060d12dcbf944bd055:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNzcwMzUwNjM3NjNmZDlkNTViZDlmNzFiZjkzYmM5MGViYzIzMGExZDIzN2IxNjA2MGQxMmRjYmY5NDRiZDA1NSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzcwMzUwNjM3NjNmZDlkNTViZDlmNzFiZjkzYmM5MGViYzIzMGExZDIzN2IxNjA2MGQxMmRjYmY5NDRiZDA1NSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOThmNWUzNTJkMmM4MTNjZTRlOWYxYzkyODMxODU3Njk2NzVmNTBlNTNjOTMxMzk3YzZmNzE0ZTgzZDQ3NDYwMCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWI0Y2MxZjBiNzNiNWE3ZmNjMGM1ZTg1NGI5ZTNjMWFhNGQxMzc5ZTkzMjkxY2E2NjRlMjk2MDQ2ZmQ4ZmM3MSJ9"
+        },
+        {
+          "resource": "repo://cmd/gmmff/send.go#L205-L227",
+          "version": "repo-lines-v1:sha256:6a4f5efbaa5f430200f03020ad915f136824b25cde52d99b7fba51202f5929de:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYxNjQ4ODNmZmI0NjViZjNkYjUwMjZiNDM4YmM3YzAyOTAyNzUzMmI5Nzc4MjNjNDcwNDMyMDM1NjBjODBmNWIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQyYjExYmY1Mzg4MjQ5ZDlmM2I1YzAzN2Y4OGRlMjc2ZjBhODYyMjFkYWU0MGY1ODlkMTFmYzZhNWY0ZTJlYmEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQyNjE4MGU1M2VkYjJkNzQwMjQxNWYzZWRmMDg1YmYwNzFhMWY4ZThmMjBlYTc5M2QxMTg0MGE3OTE4YjNiNDIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRiOWQ3Y2E3NTdiZjJjZWQyYTk1ZjczYzk4Y2Q0NWFkZWE5MjVjMDkwNzJhM2ViNmU5MjM0YTYwMGQzYWRhNDQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_496d5b204b6340e5a8a0323d6dfdb90b",
+      "statement": "The `gmmff chat` command creates a chat-only session with exactly 2 peers and enables bidirectional text messaging that ends when either party types \\q, the connection is lost, or no activity occurs for 10 minutes.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/chat.go#L176-L176",
+          "version": "repo-lines-v1:sha256:1e9fc44621e4ad8464e65b3a2c0e3800079648c4284c3d95414191a877c22699:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMWU5ZmM0NDYyMWU0YWQ4NDY0ZTY1YjNhMmMwZTM4MDAwNzk2NDhjNDI4NGMzZDk1NDE0MTkxYTg3N2MyMjY5OSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMWU5ZmM0NDYyMWU0YWQ4NDY0ZTY1YjNhMmMwZTM4MDAwNzk2NDhjNDI4NGMzZDk1NDE0MTkxYTg3N2MyMjY5OSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTZjNGRlNzEyOGZlNmUwODZhMGE2NjU1MTQ3ZGZiZWMwNmVmMDE0MTA4MTRjOGQ0N2UyMzk3NGU5OThhNWYyYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiODAwNzg2OTRmNTI4Yzk0MzA5YzE2NjI5N2E3ZWEwODc3YTJkMmQyNTUwYzg1ZTFiMzg1Y2U0NTExNWQyNWE1NCJ9"
+        },
+        {
+          "resource": "repo://cmd/gmmff/chat.go#L62-L62",
+          "version": "repo-lines-v1:sha256:9eee50f117418a8d8bb053ccd2a7cf02086ce73219bbf44fae7f51b235ed3c28:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOWVlZTUwZjExNzQxOGE4ZDhiYjA1M2NjZDJhN2NmMDIwODZjZTczMjE5YmJmNDRmYWU3ZjUxYjIzNWVkM2MyOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOWVlZTUwZjExNzQxOGE4ZDhiYjA1M2NjZDJhN2NmMDIwODZjZTczMjE5YmJmNDRmYWU3ZjUxYjIzNWVkM2MyOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZWJhNDkzNzU3M2QyZTVjNThjNzA3MWNiNDgwMDAyNGM2NTcxY2NiNGNhMzNiNjM0YTZiNDVkNGZiYzQwOWJhOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGRjYTY3NjE4YzQyNTIzZTM5YzNkOGIxZDE5YmRkZTcyMjQxZGY1MjNiMjc4YjU5MzJhMjk2NzJjNWVhMzMyNCJ9"
+        },
+        {
+          "resource": "repo://cmd/gmmff/chat.go#L86-L86",
+          "version": "repo-lines-v1:sha256:f57751d46db8501d68b4c5e0ea22bf7145abf0233849ac37d427dfb243adcbc1:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZjU3NzUxZDQ2ZGI4NTAxZDY4YjRjNWUwZWEyMmJmNzE0NWFiZjAyMzM4NDlhYzM3ZDQyN2RmYjI0M2FkY2JjMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjU3NzUxZDQ2ZGI4NTAxZDY4YjRjNWUwZWEyMmJmNzE0NWFiZjAyMzM4NDlhYzM3ZDQyN2RmYjI0M2FkY2JjMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNmY1MTUwY2Y1NTkzNjJhOGJiZWVhNjM4MDRhNWQyMjJjZWZhMGE5NjM2YzI4OTBjZDM4NjhkZGNlOTM4N2NiNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDVkMzljNTYwNjEyNjM2M2Q1YTUxMjA1NmNiYTM5MTU5MTM0MzM2YWI0ODMyM2ExNjRkMzAyM2NjZDk4MTU3OSJ9"
+        },
+        {
+          "resource": "repo://cmd/gmmff/chat.go#L96-L96",
+          "version": "repo-lines-v1:sha256:27d2ccd3cffca0def0e3de900d227b47d1564ddec38d7a48e60f76f1c023e2ad:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjdkMmNjZDNjZmZjYTBkZWYwZTNkZTkwMGQyMjdiNDdkMTU2NGRkZWMzOGQ3YTQ4ZTYwZjc2ZjFjMDIzZTJhZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMjdkMmNjZDNjZmZjYTBkZWYwZTNkZTkwMGQyMjdiNDdkMTU2NGRkZWMzOGQ3YTQ4ZTYwZjc2ZjFjMDIzZTJhZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiN2NmYzljOTU3OGUzYzQ5MWM0YWYwYzk4ZDk1ZjRhOGQ3YWEyMTEwODk0ZThlYWUwZGU2YTFlYzhlZTdkMTJhNCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTg4YWViMjRhNzFhZDkxOTYwNWZiZmQxZjJiM2Q1NjQwNDI1ZWMxZGU2OGU3MzM1N2IzYjVmMjBlMmVkNTJhMiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_bb028caeb1b145b1b2463f8f5bf83dab",
+      "statement": "The `gmmff local` command starts an embedded signaling server with mDNS-based peer discovery, optionally uses self-signed TLS for browser compatibility, and operates entirely within a local network without requiring internet connectivity.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/local.go#L63-L71",
+          "version": "repo-lines-v1:sha256:ff25dae961b7c86f221eb50d6998b3efafec3a96624a21b01a3ce2ad704dfc7d:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTkxMmFmOTQzYzBmNDdjNWIzYTk1MjFmYzJlNWRlOGY1MjE5MjMxNzVhMmQ2ZThhNGRiYTEwNjYzZmZjY2M1NSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzdhOWI1ZTkwMTljOGRiODc4M2VjOWMzZmViYjBhMmM5ODYyZjYxYTA1YzMwOGZlODk1ZTRhOWJlZDAzZWRiMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjdmNTBiZWE4MmMwMDJiNDU3NjI5YTc3YjdlMmExNzQzYWQ1OGNiMjE3NjM3YmExNGRkNDA5ZTc5ZDIyM2QxYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjEsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSJ9"
+        },
+        {
+          "resource": "repo://cmd/gmmff/local.go#L69-L69",
+          "version": "repo-lines-v1:sha256:c7d73974dffd1e26ce58162e3dd0b87b5e1efbc904a48f40f55823d1b614c205:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzdkNzM5NzRkZmZkMWUyNmNlNTgxNjJlM2RkMGI4N2I1ZTFlZmJjOTA0YTQ4ZjQwZjU1ODIzZDFiNjE0YzIwNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzdkNzM5NzRkZmZkMWUyNmNlNTgxNjJlM2RkMGI4N2I1ZTFlZmJjOTA0YTQ4ZjQwZjU1ODIzZDFiNjE0YzIwNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYzdmNjFjODc2MzZmZjUxMmVkOWFkMDFjMTZmMTdiZDYwODZmZWQzZTU1MjMxNGI0ZjMxOGJlYTFlOTk2ODI2MyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiODg4ZWI0YTM4MzIwMTEzNTM4NDZhY2I5M2VhNDNkZTdlNDM3MjRkMjIyYjQ4MDg5ZmYwZDc1NDllNzNiMzk4OSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-09T14:54:52.045Z"
+  }
+}

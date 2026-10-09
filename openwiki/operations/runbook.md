@@ -2,6 +2,20 @@
 type: Operations
 title: Operations & Runbook
 description: Deployment, configuration, monitoring, and maintenance procedures for gmmff.
+tags: [operations, deployment, monitoring, maintenance]
+verified:
+  - by: openwiki/0.7.1
+    at: 2026-10-09T14:54:52.045Z
+sources:
+  - id: openwiki-source-3c5dff77bae4df4110d95849
+    resource: repo://cmd/gmmff/main.go
+  - id: openwiki-source-bb1ebe868e35e9e500714501
+    resource: repo://Dockerfile
+  - id: openwiki-source-2e94f5fb7613b123957d6f38
+    resource: repo://docs/ENV.md
+  - id: openwiki-source-012f2c78e3b1446dfc35803f
+    resource: repo://Makefile
+generated: { by: "openwiki/0.7.1", at: "2026-10-09T14:54:52.045Z" }
 ---
 # Operations & Runbook
 
@@ -18,6 +32,8 @@ docker compose up -d
 ```
 
 The server will be available at `ws://localhost:8080/ws`.
+
+To build the Docker image locally, run `make docker`.
 
 ### Local Development (Go + Redis/Valkey)
 
@@ -36,29 +52,44 @@ go run ./cmd/gmmff serve --memory --log-pretty --log-level debug
 go run ./cmd/gmmff serve --log-pretty --log-level debug
 ```
 
+Alternatively, use the Makefile:
+```bash
+make run-server
+```
+
 ### Production Deployment
 
+#### Docker Image
+The server runs as a non-root user (UID/GID 10001 by default, configurable via PUID/PGID in the container). Use the pre-built image from `ghcr.io/iamdoubz/gmmff:latest` or build your own with `make docker`.
+
 #### Systemd Service
+<!-- openwiki: broken internal link [docs/SYSTEMD.md] file "docs/SYSTEMD.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 See [docs/SYSTEMD.md](docs/SYSTEMD.md) for detailed instructions.
 
 #### NGINX Reverse Proxy
+<!-- openwiki: broken internal link [docs/NGINX.md] file "docs/NGINX.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 See [docs/NGINX.md](docs/NGINX.md) for TLS termination and WebSocket proxy configuration.
 
 #### Portainer
+<!-- openwiki: broken internal link [docs/PORTAINER.md] file "docs/PORTAINER.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 See [docs/PORTAINER.md](docs/PORTAINER.md) for container management.
 
 ## Configuration
 
 ### Environment Variables
+
+<!-- openwiki: broken internal link [docs/ENV.md] file "docs/ENV.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 All configuration is done via environment variables with the `GMMFF_` prefix. See [docs/ENV.md](docs/ENV.md) for the full reference.
 
 Key variables:
-- `GMMFF_SERVER`: Signaling server WebSocket URL (default: `ws://localhost:8080/ws`)
-- `GMMFF_REDIS_URL`: Redis/Valkey connection string (optional, enables persistence and horizontal scaling)
-- `GMMFF_LOG_LEVEL`: Log level (`debug`, `info`, `warn`, `error`)
-- `GMMFF_LOG_PRETTY`: Enable pretty-logging (`true`/`false`)
-- `GMMFF_STUN`: STUN server URL (repeatable)
-- `GMMFF_TURN`: TURN server URL (repeatable)
+- `GMMFF_ADDR`: Listen address (default: `:8080`)
+- `GMMFF_REDIS_URL`: Redis/Valkey connection string (default: `redis://localhost:6379/0`)
+- `GMMFF_LOG_LEVEL`: Log level (`trace`, `debug`, `info`, `warn`, `error`; default: `info`)
+- `GMMFF_WEB_DIR`: Path to `web/static/` to serve the browser UI alongside signaling (default: not set)
+- `GMMFF_TLS_CERT`: TLS certificate path (default: not set)
+- `GMMFF_TLS_KEY`: TLS private key path (default: not set)
+
+Note: The `--memory`, `--log-pretty`, `--slot-ttl`, and `--csp-report-only` flags do not have corresponding environment variables and must be set via command-line flags.
 
 ### Configuration Validation
 The application validates configuration on startup. Invalid configuration will cause the server to exit with an error message.
@@ -103,7 +134,7 @@ Logs do **not** contain:
 - Slot codes (the 3-word codes)
 - Transfer contents
 
-Log format can be toggled between JSON and pretty-printed text via `GMMFF_LOG_PRETTY`.
+Log format can be toggled between JSON and pretty-printed text via `GMMFF_LOG_PRETTY` (flag only, no environment variable).
 
 ## Maintenance
 
@@ -136,7 +167,7 @@ If using persistent storage for other components (e.g., schedule mode), back up 
 
 | Symptom | Likely Cause | Solution |
 |---------|--------------|----------|
-| `connection refused` | Server not running or wrong port | Check server status, verify `GMMFF_SERVER` |
+| `connection refused` | Server not running or wrong port | Check server status, verify `GMMFF_ADDR` |
 | `context deadline exceeded` | Network connectivity or firewall blocking | Check network, STUN/TURN settings |
 | `slot not found` or `invalid code` | Code expired (10 min TTL) or mistyped | Create new session, verify code |
 | `failed to set up WebRTC connection` | STUN/TURN issues or symmetric NAT | Try different STUN/TURN servers |
@@ -146,7 +177,7 @@ If using persistent storage for other components (e.g., schedule mode), back up 
 Enable debug logging:
 ```bash
 export GMMFF_LOG_LEVEL=debug
-export GMMFF_LOG_PRETTY=true
+# Note: --log-pretty is a flag, not an environment variable
 ```
 
 #### Diagnostics
@@ -157,7 +188,7 @@ export GMMFF_LOG_PRETTY=true
 ## Security Considerations
 
 ### Firewall Rules
-- Server TCP port: 8080 (WebSocket) or custom via `--port`
+- Server TCP port: 8080 (WebSocket) or custom via `--addr`
 - STUN: UDP 3478 (default Google STUN) or custom
 - TURN: UDP/TCP 3478 (default) or custom
 - For local mode: mDNS uses UDP 5353
@@ -173,8 +204,13 @@ export GMMFF_LOG_PRETTY=true
 - Rebuild and redeploy after dependency updates
 
 ## Related Documentation
+<!-- openwiki: broken internal link [/openwiki/architecture/overview.md] link "/openwiki/architecture/overview.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
 - [Architecture Overview](/openwiki/architecture/overview.md)
+<!-- openwiki: broken internal link [docs/ENV.md] file "docs/ENV.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Configuration Reference](docs/ENV.md)
+<!-- openwiki: broken internal link [docs/CMDS.md] file "docs/CMDS.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Commands Reference](docs/CMDS.md)
+<!-- openwiki: broken internal link [docs/SECURITY.md] file "docs/SECURITY.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Security Documentation](docs/SECURITY.md)
+<!-- openwiki: broken internal link [docs/MONITORING.md] file "docs/MONITORING.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [Monitoring & Metrics](docs/MONITORING.md) *(if exists)*

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:4678955a50b194933963fd0d31d67587fb2295d2d49947998d0e011fce53f6e9",
+  "claims": [
+    {
+      "id": "claim_6d12974075ca4c4a913cb724d2241b8c",
+      "statement": "The Docker image is built using the `make docker` target which executes `docker build` with build arguments for version, commit, and date.",
+      "evidence": [
+        {
+          "resource": "repo://Makefile#L108-L119",
+          "version": "repo-lines-v1:sha256:cfc4bcd5665673dd35aab39ef58226db0f8c043fd67ede77142ad4b4114f338a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhlMGQ2NTYxYTdiMmFkYzg5MzYyNGQ5ZDE1NTA1N2ViNzM1YzdjZTcxYzA1YjMxYTc2MGJjNmY0N2VhZmQ2NzIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyNDE2YTEzOTFiZjlmNDRiYWY5NmY2NDYyZTQyZTc1Njg0MDgxYWU5ZGE0MGNiMDIyNjE3Yjg0YmRkNWYzZDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVhZWQ5YTc1YmNkNzRjODU1ODMxOWE0ODMxYjdhMzNjZjUxZDJiMjJjZDNlNmQxNDhhYTE1MDEzMjYwNzE2MWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZiMTRlZmFjNGFlODQ3ODg4Y2Q2OThiN2E4MzJjYTQ4NThlMGExOWZlZjg2NGRhYzBhYTMzNzc3NjM2YjZlYWEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_66d438636fd64dd2a3bcf4e8eea20fd7",
+      "statement": "The containerized server runs as a non-root user with UID/GID 10001 by default, configurable via PUID and PGID environment variables at container startup.",
+      "evidence": [
+        {
+          "resource": "repo://Dockerfile#L76-L95",
+          "version": "repo-lines-v1:sha256:af9c2868cd0e47ceb410f4497d3b70e13b1647cd225a3ac1df84fb032bda0b14:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM1Nzc1ZWE4MjIyNGUzNDQwMzYwYjUyNGEwMjEwZWM0ZDQxZjkwNmFiMjg2YTI2ZjBmMTcxZmY4MGJiZDBhMTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJhMjFjNWIzYmZmMDI5OWMwMTYxNDcwNDY4ZjM1NWU1YjRhZmNmMTdhNWY1OTNhYjY4Mzk0ZWY3YWYzMTljZGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEwYjFiZTM0MmMzZDNjNDk0NjRlZmJkZWExYzU0YzcwMzgxNzNhNGNkYmZiOGIxM2VjZjQyYmQ5YmEyNzk5ZTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBlYjUxNTk5OGJkYzYzNjBlY2FmNzU0NDhkYjIzNGQyY2IyZTMzMjIzYjY3N2EwOThhYTFmNTNmZTlmM2UwZWIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e551039f3a334dff8fc7c237e9645bf8",
+      "statement": "Configuration flags (e.g., --memory, --log-pretty, --slot-ttl, --csp-report-only) do not have corresponding environment variables and must be set via command-line flags, while other settings like addr, redis-url, log-level, tls-cert, tls-key, web, and csp-report-only can be set via GMMFF_ prefixed environment variables.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go#L101-L130",
+          "version": "repo-lines-v1:sha256:06016a3eeb7a1632deeaf99e6ad93e6eaab7546590aef25fac5ebf9d15aea20a:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU1MzAwNDdiOWZhZTA5YmE0NDVlZWMzNGIyNzc1NjU0MDFlYzNjMTZhYjRiZThkODU4Njk4MTI0N2MxODZlYzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVjZDUxYjg4NzBmNjY0ZjFjMDVmMDJlY2RjZTlmZDk2ZjdjOWY3MDVlMGMxZDdhOTc1ZTFkYjVkMzkyZjllZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIwOTQ2NGQ5Y2JkN2NjNTIwNGZhMTY4MjljODNhOWY0YjM5ZGE4NzgxOGUwNTE3NDhlOTJiMGZkMjdkYjllOGUifQ"
+        },
+        {
+          "resource": "repo://docs/ENV.md#L5-L16",
+          "version": "repo-lines-v1:sha256:0ed9ce6c13fca73fc687dfe73c74050470c162878189c187f488d868b8de070f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNlMTA1MTA0ODJkNDdhMzM0M2Y0NGY0MjI2ODU1NTQwNmQxOWEyMmRmMTVhMDQ2MWFkNjRjZGQxYjgwMmJjYTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJiZGUxMDI5ZWJhMzgyMjcxNWM3OGIwZGU3MmU4NjVkYzIwZWI3MTM1MzZiMzc3ZmE5NDBmOGVjZTljZmYwY2EiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQzNTVmM2RhZjZhZWQ4N2RmNzZlYmExYTZiZWEzMGYwZGFjZGViMmRkNzU5ZGRjM2E0NGJkMjhjZjJmMTE1OWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMzZGY1MTJhMzIxMTY5MjExYjkyNmEzNGNhYzdlN2Q3NTI5YTMwNjcyMGI0MDdkM2U1ZmU4Zjc1ZjA0NmU0MzIifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-09T14:54:52.045Z"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:b472504244f3da6e5e40c530b0967e1d576dcbe19e3bf9c7566b5ee0ec336f8f",
+  "claims": [
+    {
+      "id": "claim_f6c061c6a452485089e508064a74186e",
+      "statement": "The `make test` command runs all unit tests with CGO disabled and works on Windows.",
+      "evidence": [
+        {
+          "resource": "repo://Makefile",
+          "version": "repo-file-v1:sha256:2d122a97ec0a3cbff25c3f39bd79ec228070975f5c409583db0d46035a738497"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-09T14:54:52.045Z"
+  }
+}

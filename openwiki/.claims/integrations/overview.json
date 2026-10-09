@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:6ffc301abbf832978ea9a9a4cb91b722dcb6e3727561487d00c79ac1a93fee2c",
+  "claims": [
+    {
+      "id": "claim_1ba4defc02c94432b4c4e7b7cac86c29",
+      "statement": "gmmff uses Redis/Valkey as a distributed storage backend for slot state, with an in-memory fallback for development.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go#L197-L215",
+          "version": "repo-lines-v1:sha256:59df8c7aa29da701aecaa497691df4eeb9c1f1fca7a0b2d8e700018df3a01bda:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVjYjk2Y2QzMWEzY2Y2ODZhOTI0MWI2NGEyMmRmNzM2M2I2YmRiMGZhZGZmM2IzYTFkNTA1YTE3OTUzMjkzMDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkN2QwMmJkN2FmZWIzYWEzODdhZTFmYjEwNzdlOWU1NDIyYjNjNWVjNjIwY2Y1N2JlYThmZTJjZTYzZTQzM2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFhNDBmNTAzN2U1NDI3MzcxODdmNmI5NTIxN2E2MmY0M2E3ZWFmOTE5MjhiNjlmNGU2MmNlMWZjYzY2NWFhNzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZjMDVmYzA5ODllNzJhZDVlZGYwMzY2NmRiNTQyNWZjNmZkOWYyODJhZWViMGZmYWU1YTdlMWVkZmQ3N2YzNjAifQ"
+        },
+        {
+          "resource": "repo://internal/store/store.go",
+          "version": "repo-file-v1:sha256:26ff50c7b177fe3126c9cfb712731c316ab722b404e6c7b1c6b58cdc90e43c37"
+        }
+      ]
+    },
+    {
+      "id": "claim_886c47da71da4df38b92bf8112f13aff",
+      "statement": "WebRTC peer connections and data channels are implemented using the Pion WebSocket library (github.com/pion/webrtc/v2).",
+      "evidence": [
+        {
+          "resource": "repo://go.mod",
+          "version": "repo-file-v1:sha256:15ffe10d3deaf9a40e0fadec9d3c560782ffc6fa391a534acda880cfd4741113"
+        },
+        {
+          "resource": "repo://internal/peer/peer.go",
+          "version": "repo-file-v1:sha256:49acad35388764863c32afea0f9c5ce55abf8be9932b61397a9d0fe3994493ae"
+        }
+      ]
+    },
+    {
+      "id": "claim_79a8d74b62904980840b0b93b7571317",
+      "statement": "STUN and TURN server configuration is handled by the internal/turn package, supporting both long-term and ephemeral credentials.",
+      "evidence": [
+        {
+          "resource": "repo://internal/turn/turn.go",
+          "version": "repo-file-v1:sha256:ab1b251ad6d25e903f693af63d8cc60bc55c2bc20cb247a079116d12117e2400"
+        }
+      ]
+    },
+    {
+      "id": "claim_3b75518e2223457da2c95f3271956af9",
+      "statement": "Configuration is managed via environment variables with the GMMFF_ prefix, parsed by Cobra flags and validated at startup.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go#L101-L130",
+          "version": "repo-lines-v1:sha256:06016a3eeb7a1632deeaf99e6ad93e6eaab7546590aef25fac5ebf9d15aea20a:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU1MzAwNDdiOWZhZTA5YmE0NDVlZWMzNGIyNzc1NjU0MDFlYzNjMTZhYjRiZThkODU4Njk4MTI0N2MxODZlYzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVjZDUxYjg4NzBmNjY0ZjFjMDVmMDJlY2RjZTlmZDk2ZjdjOWY3MDVlMGMxZDdhOTc1ZTFkYjVkMzkyZjllZWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIwOTQ2NGQ5Y2JkN2NjNTIwNGZhMTY4MjljODNhOWY0YjM5ZGE4NzgxOGUwNTE3NDhlOTJiMGZkMjdkYjllOGUifQ"
+        },
+        {
+          "resource": "repo://cmd/gmmff/main.go#L338-L344",
+          "version": "repo-lines-v1:sha256:e68fe8d9457b6d75a36aa2f3878fc5fba4edb6dc36efde42d7342dc8be8b6291:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjZjZjkzNDZjZTA0MTRiMzAxNGFlZjI2Y2Q5OTE4MWIxOTc0NDRjMDdhMzBmZjM4NTZjZGZmMzVmNDNjNzliMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjI3OWY1MDgxMmY4MTg3MmJkZGY3NWMzZmJkZGRlOWZjMmRjYTkzMGZkOGVlYWJlMWU2MGMyNzNiMDdiNTQ2NyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjIwN2Y4NDA4OGY3ZjBlNWI2MDYzMmUzYzgzOWNiOGZlYzdhZGY2YzIwZGE2MmVmNmNjOGExNzBlZGM1ZjQ1YSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-09T14:54:52.045Z"
+  }
+}

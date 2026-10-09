@@ -2,6 +2,13 @@
 type: Documentation
 title: Testing Guidance
 description: How to run tests, understand test coverage, and contribute tests for gmmff.
+verified:
+  - by: openwiki/0.7.1
+    at: 2026-10-09T14:54:52.045Z
+sources:
+  - id: openwiki-source-012f2c78e3b1446dfc35803f
+    resource: repo://Makefile
+generated: { by: "openwiki/0.7.1", at: "2026-10-09T14:54:52.045Z" }
 ---
 # Testing Guidance
 
@@ -20,8 +27,6 @@ make test-race
 Runs tests with race detector enabled. Requires clang and a non-Windows host.
 
 ### Coverage
-## Test Coverage
-
 ```bash
 make test-cover
 ```
@@ -42,6 +47,7 @@ go test ./internal/transfer/  # Test transfer package
 ## Test Structure
 
 ### Test Tiers
+<!-- openwiki: broken internal link [docs/TEST-PLAN.md] file "docs/TEST-PLAN.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 The project follows a tiered testing approach documented in [TEST-PLAN.md](docs/TEST-PLAN.md):
 
 - **Tiers 1-8d**: Completed unit and integration tests covering core packages
@@ -99,6 +105,44 @@ Run with allocation profiling:
 go test ./... -bench=. -benchmem
 ```
 
+## Test Coverage
+### How to Run Coverage
+```bash
+make test-cover
+```
+Runs tests and generates a coverage profile, then opens the coverage report in your browser.
+
+Alternative:
+```bash
+go test ./... -coverprofile=coverage.out
+go tool cover -html=coverage.out
+```
+
+### Latest Coverage Snapshot
+As of 2026-06-23 (after Tier 8d):
+
+| Package | Coverage | Notes |
+|---|---|---|
+| slot | **100%** | complete |
+| protocol | **100%** | complete (Tier 8a) |
+| display | **100%** | complete (Tier 8a) |
+| turn | **93.3%** | complete |
+| crypto | **91.7%** | complete |
+| pake | **88.9%** | complete |
+| transfer | **84.3%** | sender + disk receiver + in-memory receiver covered (Tiers 4, 7, 8c) |
+| archive | **81.5%** | complete (Tier 6); small gap in `writeZip` error paths |
+| schedule | **80.0%** | handler + client round-trip covered (Tiers 3, 8d); store integration pending (8e) |
+| broker | **78.6%** | hub + HTTP routes + ICE gating covered (Tiers 7, 8b) |
+| store | **25.7%** | MemStore covered (Tier 6); Redis Store needs real Redis (Tier 8e) |
+| chat | **23.2%** | frame dispatch covered (Tier 8a); REPL needs live DC |
+| cmd/gmmff | **9.5%** | CLI commands — hard to unit test, low ROI |
+| session | **0%** | **Tier 8e target — estimated ~65–75% reachable with pion loopback** |
+| peer | **0%** | live WebRTC orchestration — impractical to unit test (see Out-of-scope) |
+| signaling | **0%** | WebSocket client — needs live server or full mock |
+| localmode | **0%** | integration-only (embeds full server, mDNS, TLS) |
+| log | **0%** | trivial init — low value |
+| **Total** | **35.7%** | up from 26.3% before Tiers 8a–8d |
+
 ## Performance Testing
 
 Performance-sensitive areas:
@@ -125,15 +169,20 @@ Tests marked as slow or requiring external resources (Redis, network) should be:
 - Run less frequently in local development
 
 ### Test Coverage Gaps
-As of the latest coverage snapshot (see [TEST-PLAN.md](docs/TEST-PLAN.md)), the following packages have low coverage and are targets for improvement:
-- `store` (Redis integration needed)
+See the [latest coverage snapshot](#latest-coverage-snapshot) for detailed coverage per package.
+Packages with coverage below 50% and requiring attention:
+- `store` (Redis integration needed for Tier 8e)
 - `chat` (REPL requires live data channel)
-- `session` (WebRTC orchestration)
+- `session` (WebRTC orchestration - Tier 8e target)
 - `peer`, `signaling`, `localmode` (require live WebRTC/WebSocket)
+- `cmd/gmmff` (CLI commands - hard to unit test, low ROI)
+- `log` (trivial init - low value)
 
 ## Resources
 
+<!-- openwiki: broken internal link [docs/TEST-PLAN.md] file "docs/TEST-PLAN.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [TEST-PLAN.md](docs/TEST-PLAN.md) - Detailed test strategy and coverage
+<!-- openwiki: broken internal link [docs/DECISIONS.md] file "docs/DECISIONS.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - [docs/DECISIONS.md](docs/DECISIONS.md) - Architectural decisions that may affect testing
 - [internal/mocks/] - Mock implementations for testing
 - [scripts/] - Helper scripts for development (if any exist)

@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:5f301911cd8889ae632bc2ab3fb4e85ad8b0ec8704daecd4c69ea1f90477e1ef",
+  "claims": [
+    {
+      "id": "claim_01577ac167c6485fbe11e202f0f89f16",
+      "statement": "gmmff consists of a signaling broker that handles WebSocket connections and slot management, and a CLI client that handles file/message transfer over encrypted WebRTC data channels.",
+      "evidence": [
+        {
+          "resource": "repo://cmd/gmmff/main.go",
+          "version": "repo-file-v1:sha256:52c7a23881eb71a14be739a0730a8d0f4f82025a8992d326a21e4024e9794e71"
+        }
+      ]
+    },
+    {
+      "id": "claim_8765bf477336435186c65570f7dac67c",
+      "statement": "The signaling broker never decodes PAKE/SDP/ICE payloads; it forwards them opaquely so the server cannot intercept the session content.",
+      "evidence": [
+        {
+          "resource": "repo://internal/broker/broker.go",
+          "version": "repo-file-v1:sha256:85f09c996defb56c19b8b3627a2c1ead175e0bca02c115cf1b4315a2ce4cdd24"
+        }
+      ]
+    },
+    {
+      "id": "claim_6242b83ef19345b6934b8c7fcccc0e95",
+      "statement": "The signaling broker uses a hub goroutine that owns connection and slot maps, with per-connection readPump and writePump goroutines communicating via channels.",
+      "evidence": [
+        {
+          "resource": "repo://internal/broker/broker.go",
+          "version": "repo-file-v1:sha256:85f09c996defb56c19b8b3627a2c1ead175e0bca02c115cf1b4315a2ce4cdd24"
+        }
+      ]
+    },
+    {
+      "id": "claim_c72f7a5c19c24e2c9b315752a03f7b3d",
+      "statement": "Slot lifecycle includes Waiting, Active, Full, and Closed states, with transitions validated before any store write to prevent invalid state persistence.",
+      "evidence": [
+        {
+          "resource": "repo://internal/broker/broker.go",
+          "version": "repo-file-v1:sha256:85f09c996defb56c19b8b3627a2c1ead175e0bca02c115cf1b4315a2ce4cdd24"
+        },
+        {
+          "resource": "repo://internal/slot/slot.go",
+          "version": "repo-file-v1:sha256:bc38f7058ea18adfdbdef6e76a75db9d7950905d6d2acc1045a87612358034b7"
+        }
+      ]
+    },
+    {
+      "id": "claim_6cd5d540aedb44d7934f08192ae659d8",
+      "statement": "PAKE authentication using CPace establishes a shared secret between peers without revealing the password to the server.",
+      "evidence": [
+        {
+          "resource": "repo://internal/pake/session.go",
+          "version": "repo-file-v1:sha256:846371e1ff61469b2acc00b6ff2c55155e57abe7a358517a29d8f1285c7e5a41"
+        }
+      ]
+    },
+    {
+      "id": "claim_c13596b81fda4dbbb07ab2654007fb1c",
+      "statement": "WebRTC data channels provide encrypted direct peer-to-peer transfer using DTLS 1.2+ after signaling broker facilitation.",
+      "evidence": [
+        {
+          "resource": "repo://internal/peer/peer.go",
+          "version": "repo-file-v1:sha256:49acad35388764863c32afea0f9c5ce55abf8be9932b61397a9d0fe3994493ae"
+        }
+      ]
+    },
+    {
+      "id": "claim_a4acbcce42e645819b32e0de68be2f4c",
+      "statement": "Slot state is persisted with TTL (default 10 minutes) in Redis/Valkey for horizontal scaling, with memory store fallback for development.",
+      "evidence": [
+        {
+          "resource": "repo://internal/broker/broker.go",
+          "version": "repo-file-v1:sha256:85f09c996defb56c19b8b3627a2c1ead175e0bca02c115cf1b4315a2ce4cdd24"
+        },
+        {
+          "resource": "repo://internal/store/store.go",
+          "version": "repo-file-v1:sha256:26ff50c7b177fe3126c9cfb712731c316ab722b404e6c7b1c6b58cdc90e43c37"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.1",
+    "at": "2026-10-09T14:54:52.045Z"
+  }
+}

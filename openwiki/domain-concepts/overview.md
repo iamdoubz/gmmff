@@ -2,6 +2,13 @@
 type: Documentation
 title: Domain Concepts Overview
 description: Core domain concepts in gmmff including sessions, slots, PAKE, WebRTC data channels, and slot lifecycle.
+verified:
+  - by: openwiki/0.7.1
+    at: 2026-10-09T14:54:52.045Z
+sources:
+  - id: openwiki-source-ce826a3573a98651b26c85cd
+    resource: repo://internal/slot/slot.go
+generated: { by: "openwiki/0.7.1", at: "2026-10-09T14:54:52.045Z" }
 ---
 # Domain Concepts Overview
 
@@ -24,16 +31,30 @@ Key characteristics:
 A **slot** is the server-side representation of a session waiting for peers to join. It lives in the signaling server's storage (Redis/Valkey or in-memory map) and tracks the state of peers attempting to establish a session.
 
 Slot lifecycle:
-1. **WAITING**: Created by first peer (`gmmff create`), waiting for peers`), waiting for additional peers
-2. **READY**: All expected peers have connected, ready to exchange signaling
-3. **CLOSED**: Session ended (peer disconnected or TTL expired)
+1. **waiting**: Created by first peer (`gmmff create`), waiting for peers to join
+2. **active**: At least one peer has joined, still accepting new peers if not full
+3. **full**: Maximum number of peers reached, no longer accepting new joins
+4. **closed**: Session ended (peer disconnected, initiator left, or TTL expired)
 
 Slot structure:
-- UUID: Unique identifier for the slot
-- State: Current state (WAITING, READY, CLOSED)
+- ID: Unique identifier for the slot
+- Code: The 3-word secret code used for PAKE
+- State: Current state (waiting, active, full, closed)
+- SessionType: Type of session (e.g., "default")
 - CreatedAt: Timestamp when slot was created
 - ExpiresAt: Timestamp when slot expires (10 minutes after creation)
-- PeerA/PeerB: WebSocket connection IDs of connected peers (optional)
+- InitiatorID: WebSocket connection ID of the peer that created the slot
+- PeerIDs: List of WebSocket connection IDs of joined peers (not including initiator)
+- MaxPeers: Maximum number of participants allowed (initiator counts as 1)
+- EverFull: Boolean set to true when slot first reaches MaxPeers; prevents rejoining after leaving
+
+Slot behavior:
+- A slot starts in waiting state with only the initiator connected
+- When a peer joins via `gmmff join`, the slot transitions to active
+- If the slot reaches MaxPeers, it transitions to full and sets EverFull=true
+- If a peer leaves and EverFull=false, the slot may return to waiting or active
+- If EverFull=true, the slot remains full even after peers leave
+- Slots transition to closed when expired, initiator disconnects, or explicit bye is received
 
 ### PAKE (Password Authenticated Key Exchange)
 
@@ -48,9 +69,14 @@ gmmff uses the **CPace** protocol:
   - Server oblivious: server sees only protocol messages, cannot derive secret
   - Resistant to offline dictionary attacks
 
-The PAKE secret is used to:
-1. Derive keys for HMAC-signing SDP messages (prevents MITM)
-2. Seed the key derivation for WebRTC/DTLS encryption
+After CPace completes, both peers hold the same shared secret (S). From S, two subkeys are derived using HKDF-SHA256 with distinct info labels:
+- offerKey  = HKDF(S, salt="gmmff-v1", info="sdp-offer-mac")
+- answerKey = HKDF(S, salt="gmmff-v1", info="sdp-answer-mac")
+
+The initiator signs the SDP offer with offerKey and verifies the answer with answerKey.
+The responder signs the SDP answer with answerKey and verifies the offer with offerKey.
+
+These HMACs prevent a compromised signaling server from substituting its own SDP fingerprints.
 
 ### WebRTC Data Channel
 
@@ -75,24 +101,33 @@ The slot lifecycle is managed by a strict state machine to prevent invalid state
 
 ```mermaid
 stateDiagram-v2
-    [*] --> WAITING
-    WAITING --> READY: slot.join (peer connects)
-    READY --> CLOSED: bye (peer disconnects) OR expire (TTL)
-    CLOSED --> [*]
+    [*] --> waiting
+    waiting --> active: slot.join (peer joins)
+    active --> full: slot.join (max peers reached)
+    active --> waiting: peer leaves (if not ever full)
+    full --> closed: bye OR expire
+    waiting --> closed: bye OR expire
+    active --> closed: bye OR expire
+    closed --> [*]
     
-    state WAITING {
-        [*] --> WaitingForPeer
-        WaitingForPeer --> [*]: TTL expiry
+    state waiting {
+        [*] --> waitingForPeer
+        waitingForPeer --> [*]: TTL expiry
     }
     
-    state READY {
-        [*] --> ExchangingSignaling
-        ExchangingSignaling --> [*]: Signaling complete
+    state active {
+        [*] --> peersConnected
+        peersConnected --> [*]: Signaling complete
     }
     
-    state CLOSED {
-        [*] --> Cleanup
-        Cleanup --> [*]: Resources released
+    state full {
+        [*] --> noMoreJoins
+        noMoreJoins --> [*]: At max capacity
+    }
+    
+    state closed {
+        [*] --> cleanup
+        cleanup --> [*]: Resources released
     }
 ```
 
@@ -105,19 +140,23 @@ State transitions are validated in `internal/slot/slot.go` before any storage wr
    - Peer B: `pake2` → Server → Peer A
    - Result: Both derive shared secret `S`
 
-2. **SDP Exchange** (HMAC-signed with `S`)
-   - Peer A: `sdp1 = offer || HMAC_S(offer)` → Server → Peer B
-   - Peer B: `sdp2 = answer || HMAC_S(answer)` → Server → Peer A
-   - Verification: Each peer verifies HMAC using `S`
+2. **Key Derivation** (from shared secret `S`)
+   - offerKey  = HKDF(S, salt="gmmff-v1", info="sdp-offer-mac")
+   - answerKey = HKDF(S, salt="gmmff-v1", info="sdp-answer-mac")
 
-3. **ICE Exchange** (not HMAC-signed, but integrity protected by DTLS)
+3. **SDP Exchange** (HMAC-signed with derived keys)
+   - Peer A signs offer with offerKey: `sdp1 = offer || HMAC_offerKey(offer)` → Server → Peer B
+   - Peer B signs answer with answerKey: `sdp2 = answer || HMAC_answerKey(answer)` → Server → Peer A
+   - Verification: Each peer verifies HMAC using the appropriate derived key
+
+4. **ICE Exchange** (not HMAC-signed, but integrity protected by DTLS)
    - Peer A: `ice1` → Server → Peer B
    - Peer B: `ice2` → Server → Peer A
 
-4. **DTLS Handshake** (uses keys derived from `S`)
+5. **DTLS Handshake** (uses keys derived from `S`)
    - Establishes encrypted SRTP/SCTP associations
 
-5. **SCTP Data Channel** (application data)
+6. **SCTP Data Channel** (application data)
    - File transfer and messaging over encrypted channel
 
 ## Key Source Files by Concept
@@ -215,7 +254,11 @@ State transitions are validated in `internal/slot/slot.go` before any storage wr
 
 ## See Also
 
+<!-- openwiki: broken internal link [/openwiki/architecture/overview.md] link "/openwiki/architecture/overview.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
 - [Architecture Overview](/openwiki/architecture/overview.md) - System components and deployment
+<!-- openwiki: broken internal link [/openwiki/workflows/key-workflows.md] link "/openwiki/workflows/key-workflows.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
 - [Key Workflows](/openwiki/workflows/key-workflows.md) - Step-by-step walkthroughs of common operations
+<!-- openwiki: broken internal link [/openwiki/source-map.md] link "/openwiki/source-map.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
 - [Source Map](/openwiki/source-map.md) - Direct mapping of concepts to source files
+<!-- openwiki: broken internal link [/openwiki/operations/runbook.md] link "/openwiki/operations/runbook.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
 - [Operations & Runbook](/openwiki/operations/runbook.md) - Deployment, configuration, and maintenance

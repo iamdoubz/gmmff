@@ -2,6 +2,22 @@
 type: Documentation
 title: Integration Points
 description: How gmmff integrates with external systems and services.
+tags: [integration, redis, webrtc, turn, nginx, docker, schedule]
+verified:
+  - by: openwiki/0.7.1
+    at: 2026-10-09T14:54:52.045Z
+sources:
+  - id: openwiki-source-3c5dff77bae4df4110d95849
+    resource: repo://cmd/gmmff/main.go
+  - id: openwiki-source-7bd911fdd3026b7b031a01e3
+    resource: repo://go.mod
+  - id: openwiki-source-4b847332166285c0b52606b7
+    resource: repo://internal/peer/peer.go
+  - id: openwiki-source-4a81fcd95533ed8ba5a77739
+    resource: repo://internal/store/store.go
+  - id: openwiki-source-2588ae43c486537fdca4a70b
+    resource: repo://internal/turn/turn.go
+generated: { by: "openwiki/0.7.1", at: "2026-10-09T14:54:52.045Z" }
 ---
 # Integration Points
 
@@ -9,7 +25,7 @@ description: How gmmff integrates with external systems and services.
 
 ### Redis/Valkey
 - **Purpose**: Distributed storage for slot state enabling horizontal scaling
-- **Integration point**: `internal/store/redis.go`
+- **Integration point**: `internal/store/store.go`
 - **Configuration**: `GMMFF_REDIS_URL` environment variable
 - **Features used**:
   - Key-value storage with TTL (10-minute slot expiration)
@@ -34,6 +50,7 @@ description: How gmmff integrates with external systems and services.
 - **Configuration**:
   - `GMMFF_STUN`: STUN server URLs (repeatable, default: Google STUN)
   - `GMMFF_TURN`: TURN server URLs with credentials (repeatable)
+<!-- openwiki: broken internal link [docs/TURN.md] file "docs/TURN.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - **See**: [TURN documentation](docs/TURN.md)
 
 ### mDNS (Multicast DNS)
@@ -78,6 +95,7 @@ description: How gmmff integrates with external systems and services.
 - **Integration**: `internal/signaling/client_js.go` and `/web/` directory
 - **Build**: `GOOS=js GOARCH=wasm go build -o web/gmmff.wasm ./internal/signaling/client_js.go`
 - **Usage**: Served via HTTP endpoint (`/`) when server runs with webclient enabled
+<!-- openwiki: broken internal link [docs/WASM.md] file "docs/WASM.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - **Documentation**: See [WASM documentation](docs/WASM.md)
 
 ### HTTP/Web Server
@@ -93,24 +111,21 @@ description: How gmmff integrates with external systems and services.
 - **Middleware**: Security headers (CSP, X-Frame-Options, COOP, COEP)
 
 ### Configuration System
-- **Purpose**: Centralized configuration management
-- **Integration**: `internal/conf/`
+- **Purpose**: Centralized configuration management via environment variables
+- **Integration**: 
+  - `cmd/gmmff/main.go` - Cobra flag parsing with `GMMFF_` prefix
+  - `internal/broker/uiconfig.go` - UI configuration served via `/config.json`
 - **Features**:
   - Environment variable parsing with `GMMFF_` prefix
   - Default values and validation
   - Byte size parsing (e.g., `10MB`, `1GB`)
-  - Duration parsing (e.g., `1h30m`, `10s)
+  - Duration parsing (e.g., `1h30m`, `10s`)
   - CIDR list parsing
-- **Validation**: `ValidateEnv()` function called onfiguration System Integration**: `docs/SYSTEMD.md`Purpose**: `docs/SYSTEMD.md`
-- **Service file**: `gmmff.service`
-- **User**: Runs as dedipurpose**: Creates dedicated system user `gmmff`
-- **Binary**: Installs binary to `/usr/local/bin/gmmff`
-- **Configuration**: Uses `/etc/gmmff/.env` for environment variables
-- **Logging**: Uses `journalctld` for logs
-- **Redis socket**: Configures access to Redis Unix socket if used
+  - Validation via `broker.ValidateEnv()` returning configuration warnings
+- **UI Configuration**: Feature flags for the web client (tabs, ICE settings, schedule visibility, etc.)
 
-### N
-**Purpose**: Reverse proxy with TLS termiWebSocket proxying
+### Nginx Reverse Proxy
+- **Purpose**: Reverse proxy with TLS termination and WebSocket proxying
 - **Integration**: `docs/NGINX.md`
 - **Features**:
   - TLS termination with Let's Encrypt support
@@ -138,6 +153,7 @@ description: How gmmff integrates with external systems and services.
   - `GET /api/schedule/:id/meta` - Fetch metadata
   - `GET /api/schedule/:id/download` - Download file
   - `DELETE /api/schedule/:id/delete` - Delete file
+<!-- openwiki: broken internal link [docs/SCHEDULE.md] file "docs/SCHEDULE.md" does not exist. Fix the href or restore the target, then delete this comment. -->
 - **See**: [Schedule documentation](docs/SCHEDULE.md)
 
 ### Docker
@@ -243,9 +259,13 @@ description: How gmmff integrates with external systems and services.
 
 ## See Also
 
+<!-- openwiki: broken internal link [/openwiki/architecture/overview.md] link "/openwiki/architecture/overview.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
 - [Architecture Overview](/openwiki/architecture/overview.md) - System components and deployment
+<!-- openwiki: broken internal link [/openwiki/workflows/key-workflows.md] link "/openwiki/workflows/key-workflows.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
 - [Key Workflows](/openwiki/workflows/key-workflows.md) - Step-by-step operational guides
+<!-- openwiki: broken internal link [/openwiki/domain-concepts/overview.md] link "/openwiki/domain-concepts/overview.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
 - [Domain Concepts](/openwiki/domain-concepts/overview.md) - Core abstractions and models
+<!-- openwiki: broken internal link [/openwiki/source-map.md] link "/openwiki/source-map.md" is root-absolute, which no real consumer resolves against the repository root (not a coding agent reading the page, not GitHub's Markdown renderer, not a local viewer); use a path relative to this file instead. Fix the href or restore the target, then delete this comment. -->
 - [Source Map](/openwiki/source-map.md) - Direct mapping of concepts to source files
 - [go.mod] - Complete dependency list
 - [docs/] - Detailed documentation for specific features
