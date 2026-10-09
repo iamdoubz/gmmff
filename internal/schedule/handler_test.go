@@ -217,6 +217,7 @@ func TestHandleAuth_XRealIP_UsedWhenPresent(t *testing.T) {
 		nets, _ := parseCIDRList("10.0.0.1")
 		cfg.UploadIPs = nets
 		cfg.UploadPassword = "secret"
+		cfg.TrustedProxies, _ = parseCIDRList("127.0.0.0/8") // request comes from nginx on loopback
 	})
 
 	// Simulate nginx forwarding X-Real-IP.
