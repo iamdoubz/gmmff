@@ -107,7 +107,9 @@ func (s *Server) routes() {
 	r := s.router
 
 	// ── Middleware ────────────────────────────────────────────────────────────
-	r.Use(middleware.RealIP)
+	// No middleware.RealIP: it trusts client-supplied forwarding headers and
+	// rewrites RemoteAddr. Schedule allowlists use Config.ClientIP instead,
+	// which only believes headers from GMMFF_TRUSTED_PROXIES.
 	r.Use(privacyLogger) // logs only method + path + status — no IPs
 	r.Use(middleware.Recoverer)
 	r.Use(s.securityHeaders)
