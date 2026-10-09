@@ -132,6 +132,7 @@
   "schedule_password_wrong": "Incorrect password.",
   "schedule_invalid_url": "Invalid share URL — missing file ID.",
   "schedule_invalid_url_key": "Invalid share URL — missing decryption key.",
+  "schedule_chunk_tampered": "ডাউনলোড প্রত্যাখ্যাত: ফাইলের অংশগুলি পুনর্বিন্যস্ত বা পরিবর্তিত হয়েছে।",
   "schedule_invalid_key": "Invalid decryption key format.",
   "schedule_deleted": "File deleted successfully.",
   "schedule_delete_failed": "Could not delete file.",

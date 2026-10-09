@@ -261,6 +261,35 @@ GMMFF_PUSH_TTL=30m
 
 ---
 
+## Rate limiting `/ws` and the upload password
+
+Slot codes double as the PAKE password, so guessing them must be slow. gmmff
+drops a WebSocket after 5 `slot.join` attempts with an unknown code; nginx caps
+how quickly one IP can reconnect:
+
+```nginx
+limit_req_zone  $binary_remote_addr zone=ws_limit:10m rate=30r/m;
+limit_conn_zone $binary_remote_addr zone=ws_conn:10m;
+
+location /ws {
+    limit_req  zone=ws_limit burst=20 nodelay;
+    limit_conn ws_conn 20;
+    ...
+}
+```
+
+`/api/schedule/upload/init` is where `GMMFF_SCHEDULE_PASSWORD` is checked, so
+it gets its own exact-match location with `rate=10r/m`. Raise either limit if
+many legitimate users share one IP (e.g. behind a corporate NAT).
+
+## Real client IPs and `GMMFF_TRUSTED_PROXIES`
+
+The schedule IP allowlists believe `X-Real-IP` / `X-Forwarded-For` only when
+the request arrives from a trusted proxy (`GMMFF_TRUSTED_PROXIES`, default
+loopback + private ranges). Keep `proxy_set_header X-Real-IP $remote_addr;`
+on the schedule locations, and do not expose gmmff's port directly — the
+Docker examples bind it to `127.0.0.1`.
+
 ## Applying the config
 
 ```bash

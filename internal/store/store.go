@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	applog "github.com/iamdoubz/gmmff/v2/internal/log"
@@ -48,8 +49,14 @@ func New(rdb *redis.Client, ttl time.Duration) *Store {
 // Write operations
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ErrCodeTaken is returned by Create when the slot's code is already in use
+// by another live slot. The caller should generate a new code and retry.
+var ErrCodeTaken = errors.New("store: code already in use")
+
 // Create persists a new slot and a code→slot_id index.
-// Both keys are set with the same TTL in a single pipeline (atomic w.r.t. expiry).
+// The code index is claimed with SETNX so a colliding code can never
+// silently re-point an existing slot's code at the new slot (which would let
+// joiners land in the wrong session with a PAKE password that still matches).
 func (s *Store) Create(ctx context.Context, sl *slot.Slot) error {
 	data, err := json.Marshal(sl)
 	if err != nil {
@@ -59,13 +66,20 @@ func (s *Store) Create(ctx context.Context, sl *slot.Slot) error {
 	slotKey := slotKeyPrefix + sl.ID
 	codeKey := codeKeyPrefix + sl.Code
 
-	pipe := s.rdb.Pipeline()
-	pipe.Set(ctx, slotKey, data, s.ttl)
-	pipe.Set(ctx, codeKey, sl.ID, s.ttl)
-	if _, err := pipe.Exec(ctx); err != nil {
+	ok, err := s.rdb.SetNX(ctx, codeKey, sl.ID, s.ttl).Result()
+	if err != nil {
+		logger().Error().Str("error_code", "ERR_STORE_CREATE").Str("slot_id", sl.ID).
+			Msg("failed to claim slot code")
+		return fmt.Errorf("store.Create setnx: %w", err)
+	}
+	if !ok {
+		return ErrCodeTaken
+	}
+	if err := s.rdb.Set(ctx, slotKey, data, s.ttl).Err(); err != nil {
+		_ = s.rdb.Del(ctx, codeKey).Err()
 		logger().Error().Str("error_code", "ERR_STORE_CREATE").Str("slot_id", sl.ID).
 			Msg("failed to persist slot")
-		return fmt.Errorf("store.Create pipeline: %w", err)
+		return fmt.Errorf("store.Create set: %w", err)
 	}
 	return nil
 }
@@ -165,6 +179,7 @@ func (s *Store) Ping(ctx context.Context) error {
 // deployments where Redis is not available.  NOT suitable for production
 // (no TTL enforcement, no distributed safety).
 type MemStore struct {
+	mu    sync.RWMutex          // hub goroutine writes; HTTP handlers (/api/ice) read
 	slots map[string]*slot.Slot // key: slot_id
 	codes map[string]string     // key: code → slot_id
 }
@@ -178,17 +193,26 @@ func NewMemStore() *MemStore {
 }
 
 func (m *MemStore) Create(_ context.Context, sl *slot.Slot) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, taken := m.codes[sl.Code]; taken {
+		return ErrCodeTaken
+	}
 	m.slots[sl.ID] = sl
 	m.codes[sl.Code] = sl.ID
 	return nil
 }
 
 func (m *MemStore) Update(_ context.Context, sl *slot.Slot) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.slots[sl.ID] = sl
 	return nil
 }
 
 func (m *MemStore) Delete(_ context.Context, slotID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if sl, ok := m.slots[slotID]; ok {
 		delete(m.codes, sl.Code)
 	}
@@ -197,6 +221,8 @@ func (m *MemStore) Delete(_ context.Context, slotID string) error {
 }
 
 func (m *MemStore) GetByID(_ context.Context, slotID string) (*slot.Slot, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	sl, ok := m.slots[slotID]
 	if !ok {
 		return nil, slot.ErrSlotNotFound
@@ -205,7 +231,9 @@ func (m *MemStore) GetByID(_ context.Context, slotID string) (*slot.Slot, error)
 }
 
 func (m *MemStore) GetByCode(_ context.Context, code string) (*slot.Slot, error) {
+	m.mu.RLock()
 	id, ok := m.codes[code]
+	m.mu.RUnlock()
 	if !ok {
 		return nil, slot.ErrSlotNotFound
 	}

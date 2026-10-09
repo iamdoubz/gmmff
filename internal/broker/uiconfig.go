@@ -353,14 +353,14 @@ var allowAllIP = map[string]bool{
 }
 
 func validateIPVars(add warnAdder) {
-	for _, key := range []string{"GMMFF_SCHEDULE_UPLOAD_IP", "GMMFF_SCHEDULE_DOWNLOAD_IP"} {
+	for _, key := range []string{"GMMFF_SCHEDULE_UPLOAD_IP", "GMMFF_SCHEDULE_DOWNLOAD_IP", "GMMFF_TRUSTED_PROXIES"} {
 		raw := strings.TrimSpace(os.Getenv(key))
 		if raw == "" {
 			continue
 		}
 		for _, entry := range strings.Split(raw, ",") {
 			entry = strings.TrimSpace(entry)
-			if entry == "" || allowAllIP[entry] {
+			if entry == "" || allowAllIP[entry] || strings.EqualFold(entry, "none") {
 				continue
 			}
 			if msg := validateIPOrCIDR(entry); msg != "" {

@@ -1,13 +1,15 @@
 package schedule
 
 import (
+	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -75,7 +77,7 @@ func (h *Handler) handleProbe(w http.ResponseWriter, r *http.Request) {
 // handleAuth returns the caller's upload auth status.
 // The UI calls this when the user clicks "Create" to decide what to show.
 func (h *Handler) handleAuth(w http.ResponseWriter, r *http.Request) {
-	ip := remoteIP(r)
+	ip := h.cfg.ClientIP(r)
 
 	// If neither IP allowlist nor password configured — allow everyone.
 	if len(h.cfg.UploadIPs) == 0 && h.cfg.UploadPassword == "" {
@@ -119,7 +121,7 @@ type uploadInitResponse struct {
 }
 
 func (h *Handler) handleUploadInit(w http.ResponseWriter, r *http.Request) {
-	ip := remoteIP(r)
+	ip := h.cfg.ClientIP(r)
 
 	if !h.authorizeUpload(w, r, ip) {
 		return
@@ -142,14 +144,20 @@ func (h *Handler) handleUploadInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate TTL.
+	// Validate TTL. Clamp to the longest configured option so a client cannot
+	// keep files forever (or overflow time.Duration with a huge value).
 	if req.TTLSeconds <= 0 {
 		writeError(w, http.StatusBadRequest, "ttl_seconds must be > 0")
 		return
 	}
+	ttl := time.Duration(req.TTLSeconds) * time.Second
+	if maxTTL := h.cfg.MaxTTL(); maxTTL > 0 && (req.TTLSeconds > int64(maxTTL/time.Second) || ttl <= 0) {
+		ttl = maxTTL
+	}
 
 	// Validate download limit.
-	maxDl := req.MaxDownloads
+	// A negative value would be stored as "unlimited" and dodge the cap.
+	maxDl := max(req.MaxDownloads, 0)
 	if h.cfg.MaxDownloads > 0 && (maxDl == 0 || maxDl > h.cfg.MaxDownloads) {
 		maxDl = h.cfg.MaxDownloads
 	}
@@ -174,7 +182,7 @@ func (h *Handler) handleUploadInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expires := time.Now().Add(time.Duration(req.TTLSeconds) * time.Second)
+	expires := time.Now().Add(ttl)
 	meta, err := h.store.InitUpload(req.ChunksTotal, req.TotalSize, expires, maxDl, cs)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to init upload")
@@ -231,7 +239,7 @@ func (h *Handler) handleUploadChunk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.store.AppendChunk(uploadID, chunkIndex, data); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, publicError(err))
 		return
 	}
 
@@ -271,7 +279,7 @@ func (h *Handler) handleUploadComplete(w http.ResponseWriter, r *http.Request) {
 
 	fm, err := h.store.FinalizeUpload(req.UploadID, req.FileNameEnc, req.FileNameNonce, req.SHA256Cipher)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusBadRequest, publicError(err))
 		return
 	}
 
@@ -288,7 +296,7 @@ func (h *Handler) handleUploadComplete(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 	fileID := chi.URLParam(r, "fileID")
-	ip := remoteIP(r)
+	ip := h.cfg.ClientIP(r)
 
 	if !h.cfg.IPAllowedToDownload(ip) {
 		writeError(w, http.StatusForbidden, "download not permitted from your IP")
@@ -297,10 +305,11 @@ func (h *Handler) handleDownload(w http.ResponseWriter, r *http.Request) {
 
 	meta, f, err := h.store.OpenDownload(fileID)
 	if err != nil {
-		if strings.Contains(err.Error(), "no such file") {
+		// Generic messages only — store errors can carry filesystem paths.
+		if errors.Is(err, fs.ErrNotExist) {
 			writeError(w, http.StatusNotFound, "file not found")
 		} else {
-			writeError(w, http.StatusGone, err.Error())
+			writeError(w, http.StatusGone, "file expired or download limit reached")
 		}
 		return
 	}
@@ -333,7 +342,7 @@ type publicMeta struct {
 
 func (h *Handler) handleMeta(w http.ResponseWriter, r *http.Request) {
 	fileID := chi.URLParam(r, "fileID")
-	ip := remoteIP(r)
+	ip := h.cfg.ClientIP(r)
 
 	if !h.cfg.IPAllowedToDownload(ip) {
 		writeError(w, http.StatusForbidden, "not permitted")
@@ -375,7 +384,7 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) {
 	deleteKey := chi.URLParam(r, "deleteKey")
 
 	if err := h.store.Delete(fileID, deleteKey); err != nil {
-		if strings.Contains(err.Error(), "invalid delete key") {
+		if !errors.Is(err, fs.ErrNotExist) {
 			writeError(w, http.StatusForbidden, "invalid delete key")
 		} else {
 			writeError(w, http.StatusNotFound, "file not found")
@@ -438,7 +447,7 @@ func (h *Handler) authorizeUpload(w http.ResponseWriter, r *http.Request, ip net
 		if pw == "" {
 			pw = r.FormValue("password")
 		}
-		if pw == h.cfg.UploadPassword {
+		if subtle.ConstantTimeCompare([]byte(pw), []byte(h.cfg.UploadPassword)) == 1 {
 			return true
 		}
 		writeError(w, http.StatusForbidden, "invalid upload password")
@@ -454,19 +463,14 @@ func (h *Handler) authorizeUpload(w http.ResponseWriter, r *http.Request, ip net
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-func remoteIP(r *http.Request) net.IP {
-	// Respect X-Forwarded-For / X-Real-IP when behind a proxy.
-	for _, h := range []string{"X-Real-IP", "X-Forwarded-For"} {
-		if v := r.Header.Get(h); v != "" {
-			// X-Forwarded-For may be comma-separated; take the first.
-			raw := strings.SplitN(v, ",", 2)[0]
-			if ip := net.ParseIP(strings.TrimSpace(raw)); ip != nil {
-				return ip
-			}
-		}
+// publicError hides filesystem errors (which carry server paths) and passes
+// through the store's own validation messages (e.g. out-of-order chunk).
+func publicError(err error) string {
+	var pe *fs.PathError
+	if errors.As(err, &pe) {
+		return "upload not found or storage error"
 	}
-	host, _, _ := net.SplitHostPort(r.RemoteAddr)
-	return net.ParseIP(host)
+	return err.Error()
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

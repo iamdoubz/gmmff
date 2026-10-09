@@ -51,6 +51,17 @@ const (
 
 	// sendBufSize is the outbound channel depth per connection.
 	sendBufSize = 16
+
+	// maxFailedJoins is how many slot.join attempts with an unknown or
+	// malformed code one connection may make before it is disconnected.
+	// The code is also the PAKE password, so unlimited attempts would turn
+	// the broker into an online guessing oracle. Pair with an nginx
+	// limit_req on /ws so attackers cannot simply reconnect at full speed.
+	maxFailedJoins = 5
+
+	// maxCodeAttempts bounds code regeneration when a new code collides
+	// with a live slot.
+	maxCodeAttempts = 5
 )
 
 var logger = applog.Component("broker")
@@ -67,6 +78,8 @@ type conn struct {
 	send   chan []byte // buffered outbound queue; writePump drains it
 	broker *Broker
 	once   sync.Once // ensures close() is idempotent
+
+	failedJoins int // owned by the hub goroutine; see maxFailedJoins
 }
 
 // enqueue puts a message on the send channel, dropping silently if full.
@@ -91,11 +104,12 @@ func (c *conn) sendEnvelope(env protocol.Envelope) {
 	c.enqueue(b)
 }
 
-// close tears down the connection once.
+// close tears down the connection once. Only called after readPump has
+// exited, so closing c.send is enough: writePump drains any queued frames
+// (e.g. a final error), sends a close frame, then closes the socket.
 func (c *conn) close() {
 	c.once.Do(func() {
 		close(c.send)
-		_ = c.ws.Close()
 	})
 }
 
@@ -275,14 +289,6 @@ func (b *Broker) handleSlotCreate(ctx context.Context, c *conn, env protocol.Env
 		return
 	}
 
-	code, err := crypto.GenerateCode()
-	if err != nil {
-		logger().Error().Str("error_code", "ERR_CODEGEN").Msg("code generation failed")
-		c.sendEnvelope(protocol.ErrorEnvelope("ERR_INTERNAL", "server error; please retry"))
-		return
-	}
-
-	slotID := uuid.New().String()
 	maxPeers := payload.MaxPeers
 	if maxPeers < 2 {
 		maxPeers = slot.DefaultMaxPeers
@@ -290,12 +296,12 @@ func (b *Broker) handleSlotCreate(ctx context.Context, c *conn, env protocol.Env
 	if maxPeers > slot.MaxAllowedPeers {
 		maxPeers = slot.MaxAllowedPeers
 	}
-	sl := slot.New(slotID, code, c.id, payload.SessionType, maxPeers)
-	if err := b.store.Create(ctx, sl); err != nil {
-		logger().Error().Str("error_code", "ERR_STORE_CREATE").Str("slot_id", slotID).Msg("failed to persist slot")
+	sl, err := b.createSlot(ctx, c.id, payload.SessionType, maxPeers)
+	if err != nil {
 		c.sendEnvelope(protocol.ErrorEnvelope("ERR_INTERNAL", "server error; please retry"))
 		return
 	}
+	slotID, code := sl.ID, sl.Code
 
 	c.slotID = slotID
 
@@ -308,6 +314,43 @@ func (b *Broker) handleSlotCreate(ctx context.Context, c *conn, env protocol.Env
 	}))
 
 	logger().Info().Str("slot_id", slotID).Msg("slot created")
+}
+
+// createSlot generates a fresh code and persists a new slot, regenerating the
+// code if it collides with a live slot (store.ErrCodeTaken).
+func (b *Broker) createSlot(ctx context.Context, initiatorID, sessionType string, maxPeers int) (*slot.Slot, error) {
+	for attempt := 0; attempt < maxCodeAttempts; attempt++ {
+		code, err := crypto.GenerateCode()
+		if err != nil {
+			logger().Error().Str("error_code", "ERR_CODEGEN").Msg("code generation failed")
+			return nil, err
+		}
+		sl := slot.New(uuid.New().String(), code, initiatorID, sessionType, maxPeers)
+		err = b.store.Create(ctx, sl)
+		if err == nil {
+			return sl, nil
+		}
+		if !errors.Is(err, store.ErrCodeTaken) {
+			logger().Error().Str("error_code", "ERR_STORE_CREATE").Str("slot_id", sl.ID).Msg("failed to persist slot")
+			return nil, err
+		}
+	}
+	logger().Error().Str("error_code", "ERR_CODEGEN").Msg("no free code after retries")
+	return nil, store.ErrCodeTaken
+}
+
+// recordFailedJoin counts a join with an unknown or malformed code and
+// disconnects the connection once maxFailedJoins is reached. Expiring the
+// read deadline makes readPump return, which runs the normal unregister path.
+func (c *conn) recordFailedJoin() {
+	c.failedJoins++
+	if c.failedJoins >= maxFailedJoins {
+		logger().Warn().Str("error_code", "ERR_TOO_MANY_JOINS").
+			Str("conn_id", c.id).Msg("too many failed joins — disconnecting")
+		c.sendEnvelope(protocol.ErrorEnvelope("ERR_TOO_MANY_ATTEMPTS",
+			"too many invalid codes — reconnect and try again"))
+		_ = c.ws.SetReadDeadline(time.Now())
+	}
 }
 
 // handleSlotJoin processes a slot.join request.
@@ -375,6 +418,7 @@ func (b *Broker) validateJoinRequest(ctx context.Context, c *conn, payload proto
 	}
 	if !crypto.ValidateCode(payload.Code) {
 		c.sendEnvelope(protocol.ErrorEnvelope("ERR_INVALID_CODE", "invalid slot code format"))
+		c.recordFailedJoin()
 		return nil, errors.New("invalid code")
 	}
 	sl, err := b.store.GetByCode(ctx, payload.Code)
@@ -382,6 +426,7 @@ func (b *Broker) validateJoinRequest(ctx context.Context, c *conn, payload proto
 		if errors.Is(err, slot.ErrSlotNotFound) {
 			c.sendEnvelope(protocol.ErrorEnvelope("ERR_SLOT_NOT_FOUND",
 				"slot not found — check the code or ask the sender to create a new one"))
+			c.recordFailedJoin()
 		} else {
 			logger().Error().Str("error_code", "ERR_STORE_LOOKUP").Msg("slot lookup failed")
 			c.sendEnvelope(protocol.ErrorEnvelope("ERR_INTERNAL", "server error; please retry"))
@@ -457,6 +502,11 @@ func (b *Broker) relay(ctx context.Context, c *conn, env protocol.Envelope) {
 		var tp protocol.TargetedPayload
 		if err := json.Unmarshal(env.Payload, &tp); err != nil {
 			c.sendEnvelope(protocol.ErrorEnvelope("ERR_BAD_PAYLOAD", "malformed targeted payload"))
+			return
+		}
+		// Only deliver to members of the sender's own slot — never let a
+		// connection inject messages into another session.
+		if !sl.IsMember(tp.TargetPeerID) {
 			return
 		}
 		if target, ok := b.conns[tp.TargetPeerID]; ok {

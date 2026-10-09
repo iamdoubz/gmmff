@@ -396,3 +396,54 @@ func TestParseAckFrame_Invalid(t *testing.T) {
 // Silence the unused import lint — binary is used by buildChunkFrame in transfer_test.go
 // but we also reference it indirectly through the shared test helpers.
 var _ = binary.BigEndian
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hostile-sender hardening
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestReceiveState_RejectsBytesBeyondHeaderSize(t *testing.T) {
+	data := []byte("announced")
+	rs := NewReceiveState(tmpDir(t), noopAckDisk, noopResume)
+	if _, err := rs.Feed(buildFileHeaderFrame(t, makeHeader("f.bin", data, len(data)))); err != nil {
+		t.Fatalf("header: %v", err)
+	}
+	if _, err := rs.Feed(buildChunkFrame(0, append(data, "extra"...))); err == nil {
+		t.Fatal("chunk exceeding header size should be rejected")
+	}
+}
+
+func TestReceiveStateMem_RejectsBytesBeyondHeaderSize(t *testing.T) {
+	data := []byte("announced")
+	recv := NewReceiveStateMem(noopAckDisk)
+	if _, err := recv.Feed(buildFileHeaderFrame(t, makeHeader("f.bin", data, len(data)))); err != nil {
+		t.Fatalf("header: %v", err)
+	}
+	if _, err := recv.Feed(buildChunkFrame(0, append(data, "extra"...))); err == nil {
+		t.Fatal("chunk exceeding header size should be rejected")
+	}
+}
+
+func TestReceiveState_DoesNotOverwriteExistingFile(t *testing.T) {
+	dir := tmpDir(t)
+	existing := filepath.Join(dir, "notes.txt")
+	if err := os.WriteFile(existing, []byte("keep me"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	data := []byte("from peer")
+	rs := NewReceiveState(dir, noopAckDisk, noopResume)
+	rs.Feed(buildFileHeaderFrame(t, makeHeader("notes.txt", data, len(data)))) //nolint:errcheck
+	rs.Feed(buildChunkFrame(0, data))                                          //nolint:errcheck
+	if done, err := rs.Feed([]byte{TagTransferDone}); err != nil || !done {
+		t.Fatalf("done: done=%v err=%v", done, err)
+	}
+	if got, _ := os.ReadFile(existing); string(got) != "keep me" {
+		t.Errorf("existing file overwritten: %q", got)
+	}
+	want := filepath.Join(dir, "notes (1).txt")
+	if rs.OutputPath() != want {
+		t.Errorf("OutputPath = %q, want %q", rs.OutputPath(), want)
+	}
+	if got, _ := os.ReadFile(want); string(got) != string(data) {
+		t.Errorf("received file content = %q", got)
+	}
+}

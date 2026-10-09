@@ -2160,6 +2160,7 @@ async function schedStartDownload() {
 
     // ── 5. Decrypt chunks ─────────────────────────────────────────────────────
     const plainParts = [];
+    let noncePrefix = null; // fixed per upload; taken from chunk 0
     for (let i = 0; i < chunksTotal; i++) {
       const start = i * encChunkSize;
       const end   = Math.min(start + encChunkSize, cipherBuf.length);
@@ -2167,6 +2168,15 @@ async function schedStartDownload() {
 
       const nonce  = chunk.slice(0, SCHED_NONCE_SIZE);
       const cipher = chunk.slice(SCHED_NONCE_SIZE);
+
+      // Uploads always use nonce = [uint32 BE index][8-byte prefix]. Enforce it
+      // so a malicious server cannot reorder or splice chunks between uploads.
+      if (i === 0) noncePrefix = nonce.slice(4);
+      const idx = new DataView(nonce.buffer, nonce.byteOffset, 4).getUint32(0, false);
+      if (nonce.length !== SCHED_NONCE_SIZE || idx !== i ||
+          !nonce.slice(4).every((b, k) => b === noncePrefix[k])) {
+        throw new Error(t('schedule_chunk_tampered') || 'Download rejected: file chunks were reordered or tampered with.');
+      }
 
       const plain = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: nonce, tagLength: 128 }, cryptoKey, cipher

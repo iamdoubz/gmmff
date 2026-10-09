@@ -21,6 +21,20 @@ func storeContractSuite(t *testing.T, s SlotStore) {
 	t.Helper()
 	ctx := context.Background()
 
+	t.Run("Create_DuplicateCode_ErrCodeTaken", func(t *testing.T) {
+		if err := s.Create(ctx, testSlot("id-dup-1", "elk-gold-reef")); err != nil {
+			t.Fatalf("Create: %v", err)
+		}
+		err := s.Create(ctx, testSlot("id-dup-2", "elk-gold-reef"))
+		if !errors.Is(err, ErrCodeTaken) {
+			t.Fatalf("duplicate code: want ErrCodeTaken, got %v", err)
+		}
+		got, err := s.GetByCode(ctx, "elk-gold-reef")
+		if err != nil || got.ID != "id-dup-1" {
+			t.Errorf("code must still resolve to the original slot, got %v / %v", got, err)
+		}
+	})
+
 	t.Run("Create_GetByID_RoundTrip", func(t *testing.T) {
 		sl := testSlot("id-create-1", "cat-blue-sky")
 		if err := s.Create(ctx, sl); err != nil {

@@ -2,6 +2,7 @@ package schedule
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -62,6 +64,11 @@ const (
 // Store provides file system operations for the schedule feature.
 type Store struct {
 	cfg *Config
+
+	// dlMu serialises the read-modify-write of DownloadsLeft so concurrent
+	// downloads cannot exceed MaxDownloads.
+	// ponytail: one global lock; per-file locks if download volume ever matters.
+	dlMu sync.Mutex
 }
 
 // NewStore creates a Store and ensures the directory layout exists.
@@ -207,6 +214,8 @@ func (s *Store) FinalizeUpload(uploadID string, fileNameEnc, fileNameNonce, sha2
 // download counter.  Returns the FileMeta and an open *os.File.
 // Caller must close the file.
 func (s *Store) OpenDownload(fileID string) (*FileMeta, *os.File, error) {
+	s.dlMu.Lock()
+	defer s.dlMu.Unlock()
 	meta, err := s.ReadFileMeta(fileID)
 	if err != nil {
 		return nil, nil, err
@@ -245,7 +254,8 @@ func (s *Store) Delete(fileID, deleteKey string) error {
 	if err != nil {
 		return err
 	}
-	if meta.DeleteKey != deleteKey {
+	if meta.DeleteKey == "" ||
+		subtle.ConstantTimeCompare([]byte(meta.DeleteKey), []byte(deleteKey)) != 1 {
 		return fmt.Errorf("schedule: invalid delete key")
 	}
 	_ = os.RemoveAll(s.completeDir(fileID))
@@ -309,6 +319,9 @@ func (s *Store) CleanExpired() (int, error) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func (s *Store) ReadPendingMeta(uploadID string) (*UploadMeta, error) {
+	if !validID(uploadID) {
+		return nil, errInvalidID
+	}
 	data, err := os.ReadFile(s.pendingMetaPath(uploadID))
 	if err != nil {
 		return nil, fmt.Errorf("schedule: read pending meta: %w", err)
@@ -321,6 +334,9 @@ func (s *Store) ReadPendingMeta(uploadID string) (*UploadMeta, error) {
 }
 
 func (s *Store) ReadFileMeta(fileID string) (*FileMeta, error) {
+	if !validID(fileID) {
+		return nil, errInvalidID
+	}
 	data, err := os.ReadFile(s.completeMetaPath(fileID))
 	if err != nil {
 		return nil, fmt.Errorf("schedule: read file meta: %w", err)
@@ -369,6 +385,29 @@ func (s *Store) completeMetaPath(id string) string {
 	return filepath.Join(s.completeDir(id), "meta.json")
 }
 
+// idLen is the length of every upload and file ID: randomHex(16).
+const idLen = 32
+
+// errInvalidID wraps os.ErrNotExist so callers treat a malformed ID exactly
+// like an unknown one.
+var errInvalidID = fmt.Errorf("schedule: invalid id: %w", os.ErrNotExist)
+
+// validID reports whether id has the exact shape randomHex(16) produces.
+// IDs arrive from HTTP requests and are joined into filesystem paths, so
+// anything else (e.g. "../complete/<id>") must be rejected before use.
+func validID(id string) bool {
+	if len(id) != idLen {
+		return false
+	}
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
 func randomHex(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
@@ -380,6 +419,9 @@ func randomHex(n int) (string, error) {
 // OpenComplete opens the ciphertext for reading without modifying download counts.
 // Used internally by the download handler after auth is confirmed.
 func (s *Store) OpenComplete(fileID string) (*os.File, error) {
+	if !validID(fileID) {
+		return nil, errInvalidID
+	}
 	return os.Open(s.completeEncPath(fileID))
 }
 

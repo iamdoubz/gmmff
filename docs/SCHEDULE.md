@@ -137,8 +137,9 @@ location /api/schedule/upload {
 | `GMMFF_SCHEDULE_UPLOAD_IP` | — | Comma-separated IPs/CIDRs allowed to upload without a password |
 | `GMMFF_SCHEDULE_PASSWORD` | — | Required upload password (bypassed if caller's IP is in `UPLOAD_IP`) |
 | `GMMFF_SCHEDULE_DOWNLOAD_IP` | `0.0.0.0` | Comma-separated IPs/CIDRs allowed to download; `0.0.0.0` = anyone |
+| `GMMFF_TRUSTED_PROXIES` | loopback + private ranges | Proxies whose `X-Real-IP`/`X-Forwarded-For` are believed for the IP allowlists; `none` = ignore headers, `0.0.0.0` = trust all (unsafe) |
 | `GMMFF_SCHEDULE_CLEANUP_INTERVAL` | — | Crontab-format background cleanup, e.g. `*/30 * * * *` |
-| `GMMFF_TTL_SETTINGS` | `1h,8h,1 day,3 days,7 days,30 days` | Comma-separated TTL options for the upload dropdown |
+| `GMMFF_TTL_SETTINGS` | `1h,8h,1 day,3 days,7 days,30 days` | Comma-separated TTL options for the upload dropdown; requested TTLs above the longest option are clamped to it |
 
 ### TTL format
 

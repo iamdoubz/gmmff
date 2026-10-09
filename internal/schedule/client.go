@@ -408,6 +408,7 @@ func (c *Client) Download(ctx context.Context, fileID, keyHex string, meta *Publ
 	encChunkSize := NonceSize + chunkSize + TagSize
 	wireBuf := make([]byte, encChunkSize)
 	var written int64
+	var noncePrefix []byte // fixed per upload; set from chunk 0
 
 	for i := 0; i < chunksTotal; i++ {
 		// Read exactly one encrypted chunk from the HTTP body.
@@ -423,6 +424,16 @@ func (c *Client) Download(ctx context.Context, fileID, keyHex string, meta *Publ
 
 		nonce := wire[:NonceSize]
 		ciphertext := wire[NonceSize:]
+
+		// Uploads always use nonce = [uint32 index][8-byte per-upload prefix].
+		// Enforce it so a malicious server cannot reorder or splice chunks
+		// (each chunk would otherwise still authenticate on its own).
+		if i == 0 {
+			noncePrefix = append([]byte(nil), nonce[4:]...)
+		}
+		if binary.BigEndian.Uint32(nonce[:4]) != uint32(i) || !bytes.Equal(nonce[4:], noncePrefix) {
+			return nil, fmt.Errorf("schedule download: chunk %d out of order or from another upload", i)
+		}
 
 		plain, err := gcm.Open(nil, nonce, ciphertext, nil)
 		if err != nil {

@@ -407,3 +407,52 @@ func TestBroker_UnknownMessageType_ReturnsError(t *testing.T) {
 	sendEnv(t, ws, "totally.unknown", nil)
 	assertErrorCode(t, recvEnv(t, ws), "ERR_UNKNOWN_MSG_TYPE")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hardening
+// ─────────────────────────────────────────────────────────────────────────────
+
+// The slot code is also the PAKE password, so one connection must not be able
+// to guess codes indefinitely.
+func TestBroker_SlotJoin_TooManyFailures_Disconnects(t *testing.T) {
+	_, _, ts := newBrokerSuite(t)
+	ws := dialWS(t, ts)
+
+	for i := 0; i < maxFailedJoins-1; i++ {
+		assertErrorCode(t, doSlotJoin(t, ws, "abc-def-ghi"), "ERR_SLOT_NOT_FOUND")
+	}
+	assertErrorCode(t, doSlotJoin(t, ws, "abc-def-ghi"), "ERR_SLOT_NOT_FOUND")
+	assertErrorCode(t, recvEnv(t, ws), "ERR_TOO_MANY_ATTEMPTS")
+
+	// The server closes the connection; further reads must fail.
+	ws.SetReadDeadline(time.Now().Add(3 * time.Second)) //nolint:errcheck
+	if _, _, err := ws.ReadMessage(); err == nil {
+		t.Fatal("connection should be closed after too many failed joins")
+	}
+}
+
+// A connection must not be able to inject targeted messages into a slot it
+// is not a member of, even if it learns a peer ID.
+func TestBroker_Relay_Targeted_CrossSlotBlocked(t *testing.T) {
+	_, _, ts := newBrokerSuite(t)
+	victimInit := dialWS(t, ts)
+	victimJoiner := dialWS(t, ts)
+	attacker := dialWS(t, ts)
+
+	code := doSlotCreate(t, victimInit, "files", 2)
+	doSlotJoin(t, victimJoiner, code)
+	peerJoinedEnv := recvEnv(t, victimInit)
+	var pj protocol.PeerJoinedPayload
+	json.Unmarshal(peerJoinedEnv.Payload, &pj) //nolint:errcheck
+
+	doSlotCreate(t, attacker, "files", 2) // attacker sits in its own slot
+	sendEnv(t, attacker, protocol.MsgTargeted, protocol.TargetedPayload{
+		TargetPeerID: pj.PeerID,
+		Inner:        json.RawMessage(`{"type":"sdp.offer","payload":{}}`),
+	})
+
+	victimJoiner.SetReadDeadline(time.Now().Add(500 * time.Millisecond)) //nolint:errcheck
+	if _, msg, err := victimJoiner.ReadMessage(); err == nil {
+		t.Fatalf("cross-slot targeted message was delivered: %s", msg)
+	}
+}

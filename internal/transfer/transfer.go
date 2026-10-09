@@ -31,6 +31,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -555,6 +556,15 @@ func (rs *ReceiveState) handleChunk(data []byte) (bool, error) {
 	seq := binary.BigEndian.Uint64(data[:8])
 	payload := data[8:]
 
+	// Never accept more bytes than the header announced — a hostile peer
+	// could otherwise stream until the disk is full.
+	// Close the partial so the handle isn't leaked (Windows can't delete or
+	// rename an open file); later frames then fail as "before header".
+	if rs.received+int64(len(payload)) > rs.Header.Size {
+		_ = rs.f.Close()
+		rs.f = nil
+		return false, fmt.Errorf("transfer: peer sent more than the announced %d bytes", rs.Header.Size)
+	}
 	if _, err := rs.f.Write(payload); err != nil {
 		return false, fmt.Errorf("transfer: write chunk %d: %w", seq, err)
 	}
@@ -589,7 +599,9 @@ func (rs *ReceiveState) handleDone() (bool, error) {
 			rs.Header.SHA256, got)
 	}
 
-	// Rename partial → final.
+	// Rename partial → final, never over an existing file (os.Rename replaces
+	// silently, so a peer could otherwise clobber files in outDir).
+	rs.finalPath = uniquePath(rs.finalPath)
 	if err := os.Rename(rs.partialPath, rs.finalPath); err != nil {
 		return false, fmt.Errorf("transfer: rename partial to final: %w", err)
 	}
@@ -821,11 +833,15 @@ func BuildErrorFrame(code, message string) []byte {
 }
 
 // sanitiseName strips all path separators and traversal sequences from a filename.
+// It also removes characters and names that are dangerous on Windows (":" for
+// alternate data streams, reserved device names like CON/NUL, trailing dots
+// and spaces) and control characters that could inject terminal escapes when
+// the CLI prints the name.
 func sanitiseName(name string) string {
 	safe := make([]byte, 0, len(name))
 	for i := 0; i < len(name); i++ {
 		c := name[i]
-		if c == '/' || c == '\\' || c == 0 {
+		if c == '/' || c == '\\' || c == ':' || c < 0x20 || c == 0x7f {
 			continue
 		}
 		safe = append(safe, c)
@@ -836,11 +852,42 @@ func sanitiseName(name string) string {
 	for strings.Contains(result, "..") {
 		result = strings.ReplaceAll(result, "..", "")
 	}
-	result = strings.TrimSpace(result)
+	result = strings.TrimRight(strings.TrimSpace(result), ". ")
 	if len(result) == 0 {
 		return "gmmff_received_file"
 	}
+	if isWindowsReserved(result) {
+		result = "_" + result
+	}
 	return result
+}
+
+// isWindowsReserved reports whether name's stem (before the first dot) is a
+// Windows device name, e.g. "CON", "nul.txt", "COM1.log".
+func isWindowsReserved(name string) bool {
+	stem := strings.ToUpper(strings.SplitN(name, ".", 2)[0])
+	switch stem {
+	case "CON", "PRN", "AUX", "NUL":
+		return true
+	}
+	return len(stem) == 4 && (strings.HasPrefix(stem, "COM") || strings.HasPrefix(stem, "LPT")) &&
+		stem[3] >= '1' && stem[3] <= '9'
+}
+
+// uniquePath returns path unchanged if nothing exists there, otherwise the
+// first free "name (N).ext" variant.
+func uniquePath(path string) string {
+	if _, err := os.Lstat(path); errors.Is(err, os.ErrNotExist) {
+		return path
+	}
+	ext := filepath.Ext(path)
+	base := strings.TrimSuffix(path, ext)
+	for i := 1; ; i++ {
+		p := fmt.Sprintf("%s (%d)%s", base, i, ext)
+		if _, err := os.Lstat(p); errors.Is(err, os.ErrNotExist) {
+			return p
+		}
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -898,6 +945,9 @@ func (r *ReceiveStateMem) Feed(frame []byte) (done bool, err error) {
 		data := frame[1:]
 		seq := binary.BigEndian.Uint64(data[:8])
 		payload := data[8:]
+		if int64(r.buf.Len()+len(payload)) > r.Header.Size {
+			return false, fmt.Errorf("transfer: peer sent more than the announced %d bytes", r.Header.Size)
+		}
 		r.buf.Write(payload)
 		r.h.Write(payload)
 		if err := r.sendAck(seq); err != nil {
