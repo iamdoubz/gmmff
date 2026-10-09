@@ -132,6 +132,7 @@
   "schedule_password_wrong": "Incorrect password.",
   "schedule_invalid_url": "Invalid share URL — missing file ID.",
   "schedule_invalid_url_key": "Invalid share URL — missing decryption key.",
+  "schedule_chunk_tampered": "다운로드 거부됨: 파일 청크의 순서가 바뀌었거나 변조되었습니다.",
   "schedule_invalid_key": "Invalid decryption key format.",
   "schedule_deleted": "File deleted successfully.",
   "schedule_delete_failed": "Could not delete file.",
