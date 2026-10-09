@@ -61,7 +61,7 @@ sudo nginx -s reload   # loads changes/new files
 
 ```bash
 gmmff send myfile.zip --server wss://signal.yourdomain.com/ws
-gmmff receive word-word-word --server wss://signal.yourdomain.com/ws
+gmmff join word-word-word-word-word --server wss://signal.yourdomain.com/ws
 ```
 
 Or set it once in your environment:
@@ -160,9 +160,9 @@ secret.
 #### Layer 1 — Slot code authentication (Go handler)
 
 The Go handler requires an `Authorization: Bearer <slot-code>` header on every
-request. The slot code is the human-readable session code (e.g.
-`bear-cozy-cone`) that was issued by the signaling server when the slot was
-created or joined.
+request. The slot code here is the 3-word nameplate (e.g. `bear-cozy-cone`)
+issued by the signaling server — never the 2-word client secret that follows
+it in the code users share (ADR-014).
 
 The server looks up the code in Redis. If no slot exists in `waiting`,
 `active`, or `full` state, the request is rejected with `401 Unauthorized`.
