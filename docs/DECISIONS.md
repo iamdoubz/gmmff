@@ -37,14 +37,11 @@ performing a man-in-the-middle on the WebRTC handshake. The PAKE-derived MAC
 binds the SDP to the shared secret, so a tampered offer/answer fails
 verification. The server brokers introductions but can never silently MITM.
 
-> **Status (2026-10): not yet achieved.** The broker generates the code
-> (`handleSlotCreate`), stores it in Redis as `code:<code>`, and joiners send
-> it in `slot.join`. Because that code *is* the CPace password, the server (or
-> anyone reading Redis) can complete PAKE with both sides and MITM. The PAKE
-> currently protects only against tampering on the relay path, not against the
-> server itself. Fix (breaking, v3): split the code into a server-visible
-> nameplate and a client-generated secret that never reaches the server, and
-> run PAKE over the secret only.
+> **Status (2026-10): achieved in v2.4.0 (protocol version 2) — see ADR-014.**
+> Until then the server generated the whole code and received it in
+> `slot.join`, so it knew the CPace password and could MITM. Codes now carry a
+> client-only secret the server never sees. Browser users still trust the
+> server for the client code it serves (ADR-014).
 
 **Consequences:** Offer and answer subkeys must stay distinct (role separation),
 or a responder could replay the initiator's MAC. Tests pin both the cross-key
@@ -223,3 +220,39 @@ guessing turns the broker into an online oracle; a successful guess makes the
 attacker a full session peer. A plain `SET` on collision silently re-pointed a
 live code at a different slot whose PAKE password still matched. Pair with
 nginx `limit_req` on `/ws` so reconnecting does not reset the budget cheaply.
+
+---
+
+## ADR-014 — Split codes: server nameplate + client-only secret
+
+**Decision:** The code users share is `<nameplate>-<secret>`, e.g.
+`bear-cozy-cone-maple-river`. The server generates the 3-word nameplate (as
+before) and uses it only to find the slot. The initiator's client appends a
+2-word secret (`crypto.WithSecret`) that is never sent to the server. CPace
+runs on the full 5-word code. `signaling.JoinSlot` sends only the nameplate
+(`joinPayload`), and `/api/ice` bearer tokens carry only the nameplate. Share
+links put the code in the URL fragment (`#code=`), which browsers never send
+to the server; `?code=` would land in proxy access logs. `protocol.Version` is
+bumped to `"2"`, so the broker rejects v1 clients with its existing
+"please update" error, and clients refuse 3-word codes.
+
+**Alternatives:** Keep server-generated codes and trust the server (status
+quo); let clients generate the whole code and register it (the server would
+still see it on join); a Go `/v3` module path for the break (rejected: nothing
+imports gmmff as a library, so it would only churn every import).
+
+**Why:** With server-generated codes the server held the PAKE password and
+could MITM every session (ADR-002). 20 bits of secret is enough because CPace
+gives an attacker one online guess per handshake, and a wrong guess aborts the
+session visibly (Magic Wormhole uses 16 bits). The CPace password includes
+the nameplate, which already binds it to the live slot, so the slot ID is not
+added to the CPace context.
+
+**Consequences:** v1 and v2 clients cannot connect to each other, and old
+3-word codes and `?code=` links stop working. CLI users are fully protected
+from a malicious server. Browser users load the JS/Wasm from that same server,
+so a server that actively serves a malicious client could still steal the
+secret; the split protects them against a passive or log-reading server and
+against Redis exposure, not against an actively malicious one.
+`TestSplitCode_ServerWithNameplateCannotMITM` (pake) and
+`TestJoinPayload_SendsOnlyNameplate` (signaling) pin the invariant.
