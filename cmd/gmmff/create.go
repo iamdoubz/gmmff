@@ -13,6 +13,7 @@ import (
 	"syscall"
 
 	"github.com/iamdoubz/gmmff/v2/internal/archive"
+	"github.com/iamdoubz/gmmff/v2/internal/crypto"
 	"github.com/iamdoubz/gmmff/v2/internal/display"
 	"github.com/iamdoubz/gmmff/v2/internal/peer"
 	"github.com/iamdoubz/gmmff/v2/internal/session"
@@ -78,6 +79,10 @@ func runCreate(_ *cobra.Command, _ []string) error {
 	var created protocol.SlotCreatedPayload
 	if err := json.Unmarshal(createdMsg.Payload, &created); err != nil {
 		return fmt.Errorf("create: decode slot.created: %w", err)
+	}
+	// Append the client-only secret; the server knows just the nameplate.
+	if created.Code, err = crypto.WithSecret(created.Code); err != nil {
+		return fmt.Errorf("create: generate code secret: %w", err)
 	}
 
 	fmt.Printf("\n")
