@@ -23,7 +23,13 @@ a box to tick. Two working rules:
 2. **Security-relevant tests are load-bearing.** The PAKE cross-key rejection,
    offer≠answer MAC separation, `sanitiseName` traversal stripping, schedule
    auth precedence, and wire-tag pinning all encode security invariants.
-   Changing them should require deliberate justification.
+   Changing them should require deliberate justification. The 2026-10
+   hardening pass added more in the same class: spoofed-forwarding-header
+   rejection (`schedule/security_test.go`), schedule ID traversal rejection,
+   TTL / negative `max_downloads` clamping, broker failed-join disconnect and
+   cross-slot targeted-relay blocking (`broker_test.go`), duplicate-code
+   `ErrCodeTaken` (store contract suite), and receiver size-cap / no-overwrite /
+   Windows-name sanitising (`transfer`).
 
 `make test` is the default (CGO-free, works on Windows). `make test-race` needs
 clang and a non-Windows host.
