@@ -165,7 +165,7 @@ Peer A ──┐                          ┌── Peer B
                Redis (slot state)
 ```
 
-1. Peer A runs `gmmff create` and receives a one-time 3-word code
+1. Peer A runs `gmmff create` and receives a one-time 5-word code (3-word server nameplate + 2-word secret that never leaves the clients)
 2. Peer A shares that code out-of-band with Peer B
 3. Peer B runs `gmmff join <code>` on any machine, anywhere
 4. CPace PAKE authenticates both sides — the signaling server stays blind
@@ -213,7 +213,7 @@ gmmff/
 │   │   └── store.go
 │   ├── slot/               # Slot domain model & state machine
 │   │   └── slot.go
-│   ├── crypto/             # Slot code generation (3-word passphrase)
+│   ├── crypto/             # Slot code generation (nameplate + client secret)
 │   │   └── codegen.go
 │   ├── log/                # Privacy-safe structured logger
 │   │   └── log.go

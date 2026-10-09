@@ -1,6 +1,7 @@
 .PHONY: build install local run-server create join chat dev test test-race test-cover cover lint vuln fmt fmt-check tidy docker up down clean wasm wasm-serve cleanup help
 
-BINARY    := gmmff
+# Windows will not launch a file without .exe.
+BINARY    := gmmff$(if $(filter Windows_NT,$(OS)),.exe,)
 CMD       := ./cmd/gmmff
 PREFIX    ?= /usr/local
 VERSION   := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)

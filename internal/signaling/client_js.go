@@ -151,8 +151,11 @@ func (c *Client) CreateSlot(sessionType string, maxPeers int) error {
 }
 
 func (c *Client) JoinSlot(code string) error {
-	return c.Send(protocol.MustEnvelope(protocol.MsgSlotJoin,
-		protocol.SlotJoinPayload{Code: code, ProtocolVersion: protocol.Version}))
+	p, err := joinPayload(code)
+	if err != nil {
+		return err
+	}
+	return c.Send(protocol.MustEnvelope(protocol.MsgSlotJoin, p))
 }
 
 func (c *Client) SendOpaque(msgType string, data []byte) error {

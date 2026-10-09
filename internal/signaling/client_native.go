@@ -134,10 +134,14 @@ func (c *Client) CreateSlot(sessionType string, maxPeers int) error {
 		protocol.SlotCreatePayload{ProtocolVersion: protocol.Version, SessionType: sessionType, MaxPeers: maxPeers}))
 }
 
-// JoinSlot sends a slot.join request with the given code.
+// JoinSlot sends a slot.join request for a full code; only its nameplate
+// reaches the server (see joinPayload).
 func (c *Client) JoinSlot(code string) error {
-	return c.Send(protocol.MustEnvelope(protocol.MsgSlotJoin,
-		protocol.SlotJoinPayload{Code: code, ProtocolVersion: protocol.Version}))
+	p, err := joinPayload(code)
+	if err != nil {
+		return err
+	}
+	return c.Send(protocol.MustEnvelope(protocol.MsgSlotJoin, p))
 }
 
 // SendOpaque sends a message with a base64-encoded byte payload.

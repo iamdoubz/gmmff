@@ -167,3 +167,50 @@ func TestWordlist_MaxWordLength(t *testing.T) {
 		}
 	}
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Split codes (security-load-bearing: the secret must never be the nameplate)
+// ─────────────────────────────────────────────────────────────────────────────
+
+func TestSplitCode_RoundTrip(t *testing.T) {
+	for i := 0; i < 50; i++ {
+		np, _ := GenerateCode()
+		sec, err := GenerateSecret()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := len(strings.Split(sec, "-")); got != SecretWords {
+			t.Fatalf("GenerateSecret() = %q: %d words, want %d", sec, got, SecretWords)
+		}
+		gotNP, gotSec, err := SplitCode(FullCode(np, sec))
+		if err != nil || gotNP != np || gotSec != sec {
+			t.Fatalf("SplitCode(%q) = %q, %q, %v", FullCode(np, sec), gotNP, gotSec, err)
+		}
+		if !ValidateCode(gotNP) {
+			t.Fatalf("nameplate %q fails ValidateCode", gotNP)
+		}
+	}
+}
+
+func TestSplitCode_RejectsMalformed(t *testing.T) {
+	for _, in := range []string{
+		"",
+		"bear-cozy-cone",                  // legacy 3-word code: no secret
+		"bear-cozy-cone-maple",            // secret too short
+		"bear-cozy-cone-maple-river-moon", // too long
+		"bear-cozy-cone--river",           // empty word
+		"bear-cozy-cone-m-river",          // word too short
+	} {
+		if np, sec, err := SplitCode(in); err == nil {
+			t.Errorf("SplitCode(%q) = %q, %q, nil; want error", in, np, sec)
+		}
+	}
+}
+
+// The broker validates nameplates with ValidateCode, so a full code must fail
+// it — otherwise a client bug that sent the full code would be accepted.
+func TestValidateCode_RejectsFullCode(t *testing.T) {
+	if ValidateCode("bear-cozy-cone-maple-river") {
+		t.Error("ValidateCode accepted a 5-word full code")
+	}
+}

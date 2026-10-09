@@ -5,16 +5,22 @@ All signaling messages are JSON `{ "type": "...", "payload": { ... } }`.
 ## Slot creation
 
 ```
-Client → Server:   { "type": "slot.create", "payload": { "protocol_version": "1", "session_type": "files|chat" } }
-Server → Client:   { "type": "slot.created", "payload": { "slot_id": "...", "code": "word-word-word", "ttl_seconds": 600, "session_type": "files|chat" } }
+Client → Server:   { "type": "slot.create", "payload": { "protocol_version": "2", "session_type": "files|chat" } }
+Server → Client:   { "type": "slot.created", "payload": { "slot_id": "...", "code": "<nameplate>", "ttl_seconds": 600, "session_type": "files|chat" } }
 ```
 
 ## Slot join
 
 ```
-Client → Server:   { "type": "slot.join", "payload": { "code": "word-word-word", "protocol_version": "1" } }
+Client → Server:   { "type": "slot.join", "payload": { "code": "<nameplate>", "protocol_version": "2" } }
 Server → both:     { "type": "slot.ready", "payload": { "role": "initiator|responder", "session_type": "files|chat" } }
 ```
+
+`code` on the wire is always the 3-word nameplate (`word-word-word`). The
+code users share is the nameplate plus a 2-word secret the initiator's client
+generates (`word-word-word-word-word`); the secret is never sent to the
+server and the CPace password is the full 5-word code (ADR-014). The server
+rejects any `protocol_version` other than `"2"`.
 
 The `session_type` in `slot.ready` lets `gmmff join` route automatically to
 the correct REPL without the user needing to know what kind of session they

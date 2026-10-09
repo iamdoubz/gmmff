@@ -29,7 +29,10 @@ a box to tick. Two working rules:
    TTL / negative `max_downloads` clamping, broker failed-join disconnect and
    cross-slot targeted-relay blocking (`broker_test.go`), duplicate-code
    `ErrCodeTaken` (store contract suite), and receiver size-cap / no-overwrite /
-   Windows-name sanitising (`transfer`).
+   Windows-name sanitising (`transfer`). The split-code change (ADR-014) adds
+   `TestSplitCode_ServerWithNameplateCannotMITM` (`pake`: a nameplate-only
+   server fails SDP verification) and `TestJoinPayload_SendsOnlyNameplate`
+   (`signaling`: the secret never enters `slot.join`).
 
 `make test` is the default (CGO-free, works on Windows). `make test-race` needs
 clang and a non-Windows host.

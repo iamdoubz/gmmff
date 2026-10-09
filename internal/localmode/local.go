@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/iamdoubz/gmmff/v2/internal/broker"
+	"github.com/iamdoubz/gmmff/v2/internal/crypto"
 	"github.com/iamdoubz/gmmff/v2/internal/display"
 	"github.com/iamdoubz/gmmff/v2/internal/peer"
 	"github.com/iamdoubz/gmmff/v2/internal/peerconfig"
@@ -256,13 +257,18 @@ func createSlot(ctx context.Context, sig *signaling.Client, maxPeers int) (proto
 	if err := json.Unmarshal(createdMsg.Payload, &created); err != nil {
 		return protocol.SlotCreatedPayload{}, 0, fmt.Errorf("local: decode slot.created: %w", err)
 	}
+	// Append the client-only secret; the server knows just the nameplate.
+	if created.Code, err = crypto.WithSecret(created.Code); err != nil {
+		return protocol.SlotCreatedPayload{}, 0, fmt.Errorf("local: generate code secret: %w", err)
+	}
 	fmt.Println("done.")
 	return created, maxPeers, nil
 }
 
 func printBanner(scheme string, port int, code string, noTLS bool) {
 	localIP := getPreferredLocalIP()
-	joinURL := fmt.Sprintf("%s://%s:%d/?code=%s&type=files&autoconnect=1&local=1",
+	// Code in the fragment so it never reaches the server or its logs (ADR-014).
+	joinURL := fmt.Sprintf("%s://%s:%d/?type=files&autoconnect=1&local=1#code=%s",
 		scheme, localIP, port, code)
 	serverURL := fmt.Sprintf("%s://%s:%d", scheme, localIP, port)
 
