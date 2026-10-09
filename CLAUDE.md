@@ -291,9 +291,12 @@ Treat them as a safety net worth investing in.
 
 ## Outstanding security tracking (verify before release)
 
-- Go toolchain ≥ go1.26.5 (GO-2026-5856 crypto/tls ECH privacy leak — reachable
-  via outbound TLS in signaling dial, schedule client, embedded web server;
+- Go toolchain ≥ go1.26.9 (GO-2026-5856 crypto/tls ECH privacy leak, plus
+  go1.26.6–.9 net/http HTTP/2 DoS, crypto/tls, net/url, asn1 fixes — reachable
+  via broker, signaling dial, schedule client, embedded web server;
   pinned via the `toolchain` directive in `go.mod`, not the `go` directive)
+- golang.org/x/net ≥ v0.60.0 (GO-2026-6603/6610/6611/6612/6617 HTTP/2; its
+  requirement raised the `go` directive to 1.26.0)
 - filippo.io/edwards25519 ≥ v1.1.1 (GO-2026-4503, indirect via cpace/ristretto)
 - pion/dtls/v3 ≥ v3.1.1 (CVE-2026-26014)
 - Redis ≥ 7.4.6 / Valkey ≥ 7.2.8 (CVE-2025-49844 — the "RediShell" Lua flaw is

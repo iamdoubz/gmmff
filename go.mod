@@ -1,8 +1,8 @@
 module github.com/iamdoubz/gmmff/v2
 
-go 1.25.0
+go 1.26.0
 
-toolchain go1.26.5
+toolchain go1.26.9
 
 require (
 	filippo.io/cpace v0.0.0-20210101143347-24d601e2e469
@@ -16,7 +16,7 @@ require (
 	github.com/rs/zerolog v1.35.1
 	github.com/schollz/progressbar/v3 v3.19.1
 	github.com/spf13/cobra v1.10.2
-	golang.org/x/crypto v0.54.0
+	golang.org/x/crypto v0.57.0
 )
 
 require (
@@ -55,7 +55,7 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
-	golang.org/x/net v0.56.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/term v0.45.0
+	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/term v0.46.0
 )
