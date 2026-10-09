@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/iamdoubz/gmmff/v2/internal/archive"
+	"github.com/iamdoubz/gmmff/v2/internal/crypto"
 	"github.com/iamdoubz/gmmff/v2/internal/peer"
 	"github.com/iamdoubz/gmmff/v2/internal/session"
 	"github.com/iamdoubz/gmmff/v2/internal/signaling"
@@ -106,6 +107,11 @@ func jsSend(_ js.Value, args []js.Value) any {
 
 		var created protocol.SlotCreatedPayload
 		if err := json.Unmarshal(createdMsg.Payload, &created); err != nil {
+			uiError(err.Error(), "send")
+			return
+		}
+		// Append the client-only secret; the server knows just the nameplate.
+		if created.Code, err = crypto.WithSecret(created.Code); err != nil {
 			uiError(err.Error(), "send")
 			return
 		}
@@ -317,10 +323,16 @@ func jsChat(_ js.Value, args []js.Value) any {
 			js.Global().Call("uiChatError", err.Error())
 			return
 		}
+		nameplate := created.Code // the only part /api/ice may see
+		// Append the client-only secret; the server knows just the nameplate.
+		if created.Code, err = crypto.WithSecret(created.Code); err != nil {
+			js.Global().Call("uiChatError", err.Error())
+			return
+		}
 		js.Global().Call("uiChatShowCode", created.Code)
 
 		// Re-fetch ICE config with the slot code as Bearer token.
-		cfg := configFromJSWithCode(iceCfg, created.Code)
+		cfg := configFromJSWithCode(iceCfg, nameplate)
 		// StartChatSession waits for slot.ready and the first peer internally.
 		sess, err := peer.StartChatSession(context.Background(), sig, created.Code, cfg, maxPeers)
 		if err != nil {
@@ -487,10 +499,16 @@ func jsCreateSession(_ js.Value, args []js.Value) any {
 			js.Global().Call("uiFilesError", err.Error())
 			return
 		}
+		nameplate := created.Code // the only part /api/ice may see
+		// Append the client-only secret; the server knows just the nameplate.
+		if created.Code, err = crypto.WithSecret(created.Code); err != nil {
+			js.Global().Call("uiFilesError", err.Error())
+			return
+		}
 		js.Global().Call("uiFilesShowCode", created.Code)
 		// Re-fetch ICE config now that we have the slot code — the server
 		// requires the code as a Bearer token to issue TURN credentials.
-		cfg := configFromJSWithCode(iceCfg, created.Code)
+		cfg := configFromJSWithCode(iceCfg, nameplate)
 		// StartSession waits for slot.ready internally.
 		sessCtx := context.Background()
 		sess, err := peer.StartSession(sessCtx, sig, created.Code, cfg, maxPeers)
