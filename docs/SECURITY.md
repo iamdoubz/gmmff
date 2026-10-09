@@ -5,6 +5,15 @@ Both peers authenticate using CPace over the ristretto255 group
 (`filippo.io/cpace`).  The signaling server forwards PAKE messages opaquely
 and never learns the shared secret.
 
+> **Known limitation — the signaling server must currently be trusted.**
+> The server generates each slot code, stores it in Redis, and receives it
+> again in `slot.join`. The code is the PAKE password, so a malicious or
+> compromised server (or anyone who can read Redis) can run PAKE with both
+> peers and sit in the middle. The MAC binding below protects the SDP against
+> tampering by anything *between* the peers and an honest server, not against
+> the server itself. A breaking fix (client-generated secret that never
+> reaches the server) is planned for v3. See ADR-002 in `DECISIONS.md`.
+
 ## SDP MAC binding (zero-trust signaling)
 After the PAKE handshake, two subkeys are derived from the shared secret using
 HKDF-SHA256:
