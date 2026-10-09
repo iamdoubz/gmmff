@@ -34,8 +34,12 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    # Bound to loopback: only the reverse proxy on this host should reach
+    # gmmff. Publishing on all interfaces lets clients bypass nginx (its rate
+    # limits and /metrics restrictions). Use "8080:8080" only if your proxy
+    # runs on another host, and set GMMFF_TRUSTED_PROXIES to its address.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - ${CONFIG}/encrypted:/data/schedule/complete
       - /dev/shm:/data/schedule/pending
