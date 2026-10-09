@@ -3,6 +3,7 @@ package schedule
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -45,7 +46,18 @@ type Config struct {
 
 	// TTLOptions is the ordered list of valid TTL choices presented in the UI.
 	TTLOptions []TTLOption
+
+	// TrustedProxies lists the CIDRs of reverse proxies whose X-Real-IP /
+	// X-Forwarded-For headers are believed. Requests arriving directly from
+	// any other address use the TCP peer address, so a client that reaches
+	// the backend directly cannot spoof its IP past the allowlists.
+	// nil = trust no proxy. ConfigFromEnv defaults to loopback + private ranges.
+	TrustedProxies []*net.IPNet
 }
+
+// defaultTrustedProxies covers nginx on the same host (loopback) and the
+// Docker bridge / LAN proxies (private ranges).
+const defaultTrustedProxies = "127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7"
 
 // TTLOption is a single TTL entry shown in the dropdown.
 type TTLOption struct {
@@ -100,6 +112,12 @@ func ConfigFromEnv() (Config, error) {
 		cfg.DownloadIPs = nets
 	}
 
+	proxies, err := parseTrustedProxies(os.Getenv("GMMFF_TRUSTED_PROXIES"))
+	if err != nil {
+		return cfg, fmt.Errorf("schedule: GMMFF_TRUSTED_PROXIES: %w", err)
+	}
+	cfg.TrustedProxies = proxies
+
 	// Parse TTL options.
 	if raw := os.Getenv("GMMFF_TTL_SETTINGS"); raw != "" {
 		opts, err := parseTTLSettings(raw)
@@ -143,6 +161,62 @@ func isAllowAllCIDR(raw string) bool {
 	return true
 }
 
+// parseTrustedProxies parses GMMFF_TRUSTED_PROXIES:
+//
+//	unset / ""          — defaultTrustedProxies
+//	"none"              — trust no proxy; forwarding headers are ignored
+//	0.0.0.0, ::, …/0    — trust every peer (pre-hardening behaviour; unsafe
+//	                      when the backend port is reachable directly)
+//	CIDR list           — trust exactly these
+func parseTrustedProxies(raw string) ([]*net.IPNet, error) {
+	raw = strings.TrimSpace(raw)
+	switch {
+	case raw == "":
+		return parseCIDRList(defaultTrustedProxies)
+	case strings.EqualFold(raw, "none"):
+		return nil, nil
+	case isAllowAllCIDR(raw):
+		return parseCIDRList("0.0.0.0/0,::/0")
+	}
+	return parseCIDRList(raw)
+}
+
+// ClientIP returns the address used for allowlist checks. Forwarding headers
+// are honoured only when the TCP peer is a trusted proxy; X-Real-IP wins,
+// otherwise the rightmost X-Forwarded-For hop (the one the trusted proxy
+// itself appended) is used.
+// ponytail: single proxy hop only; walk XFF right-to-left past trusted hops if
+// chained proxies are ever needed.
+func (c *Config) ClientIP(r *http.Request) net.IP {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	peer := net.ParseIP(host)
+	if peer == nil || !containsIP(c.TrustedProxies, peer) {
+		return peer
+	}
+	if ip := net.ParseIP(strings.TrimSpace(r.Header.Get("X-Real-IP"))); ip != nil {
+		return ip
+	}
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		hops := strings.Split(xff, ",")
+		if ip := net.ParseIP(strings.TrimSpace(hops[len(hops)-1])); ip != nil {
+			return ip
+		}
+	}
+	return peer
+}
+
+func containsIP(nets []*net.IPNet, ip net.IP) bool {
+	for _, n := range nets {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
 // EnsureDirs creates the pending and complete directories if they don't exist.
 func (c *Config) EnsureDirs() error {
 	for _, d := range []string{c.PendingDir, c.CompleteDir} {
@@ -179,6 +253,15 @@ func (c *Config) IPAllowedToDownload(ip net.IP) bool {
 		}
 	}
 	return false
+}
+
+// MaxTTL returns the longest configured TTL option, or 0 when none are set.
+func (c *Config) MaxTTL() time.Duration {
+	var longest time.Duration
+	for _, o := range c.TTLOptions {
+		longest = max(longest, o.Duration)
+	}
+	return longest
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
