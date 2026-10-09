@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/iamdoubz/gmmff/v2/internal/crypto"
 	"github.com/iamdoubz/gmmff/v2/internal/peer"
 	"github.com/iamdoubz/gmmff/v2/internal/signaling"
 	"github.com/iamdoubz/gmmff/v2/internal/transfer"
@@ -70,6 +71,10 @@ func runChat(_ *cobra.Command, _ []string) error {
 	if err := json.Unmarshal(createdMsg.Payload, &created); err != nil {
 		return fmt.Errorf("chat: decode slot.created: %w", err)
 	}
+	// Append the client-only secret; the server knows just the nameplate.
+	if created.Code, err = crypto.WithSecret(created.Code); err != nil {
+		return fmt.Errorf("chat: generate code secret: %w", err)
+	}
 
 	fmt.Printf("\n")
 	fmt.Printf("  ╔══════════════════════════════════════╗\n")
@@ -125,6 +130,10 @@ func init() {
 
 func runJoin(_ *cobra.Command, args []string) error {
 	code := args[0]
+	// Fail before dialling; JoinSlot enforces the same rule as the last line.
+	if _, _, err := crypto.SplitCode(code); err != nil {
+		return fmt.Errorf("join: %w (codes from older gmmff versions no longer work)", err)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
